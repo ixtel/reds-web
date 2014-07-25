@@ -1,0 +1,99 @@
+<!doctype HTML>
+<html>
+
+<head>
+	<link rel="stylesheet" href="style.css">
+	<script type="text/javascript" src="script.js"></script>
+	<title>REDS web: simple example</title>
+</head>
+
+<body>
+	<h1>REDS web: simple example</h1>
+	<h2>Sign up</h2>
+	<form id="SignUp">
+		<label>Name <input type="text" name="name"></label><br>
+		<label>Password <input type="password" name="password"></label><br>
+		<label>Confirmation <input type="password" name="confirmation"></label>
+		<button type="submit">sign up</button>
+	</form>
+	<h2>Sign in</h2>
+	<form id="SignIn">
+		<label>Name <input type="text" name="name"></label><br>
+		<label>Password <input type="password" name="password"></label>
+		<button type="submit">sign in</button>
+	</form>
+	<div id="Account">
+		<hr>
+		<h2>Account</h2>
+		<form id="EditContact">
+			<label>ID <input id="AccountId" type="text" name="id" readonly></label><br>
+			<label>Name <input type="text" name="name"></label><br>
+			<label>Password <input type="password" name="password"></label><br>
+			<label>Confirmation <input type="password" name="confirmation"></label>
+			<button type="submit">save</button>
+			<button id="DeleteAccount" type="button">delete</button>
+		</form>
+		<h3>Add contact</h3>
+		<form id="AddContact">
+			<label>Firstname <input type="text" name="firstname"></label><br>
+			<label>Familyname <input type="text" name="familyname"></label>
+			<button type="submit">add</button>
+		</form>
+		<h3>Contact list</h3>
+		<form id="ContactList">
+			<label>Filter <input type="text" name="filter"></label><br>
+			<select name="list" size="10">
+			  <option value="1">Annika Schulz</option>
+			  <option value="2">Ina Tikalsky</option>
+			  <option value="3">Wiebke Kraft</option>
+			  <option value="4">Marc Behrens</option>
+			</select>
+			<button type="submit">show</button>
+			<button id="ReloadContactList" type="button">reload</button>
+		</form>
+	</div>
+	<div id="Contact">
+		<hr>
+		<h2>Contact</h2>
+		<h3>Edit contact</h3>
+		<form id="EditContact">
+			<label>ID <input id="ContactId" type="text" name="id" readonly></label><br>
+			<label>Firstname <input type="text" name="firstname"></label><br>
+			<label>Familyname <input type="text" name="familyname"></label>
+			<button type="submit">save</button>
+			<button id="DeleteContact" type="button">delete</button>
+		</form>
+		<h3>Add address</h3>
+		<form id="AddAddress">
+			<label>Street <input type="text" name="street"></label><br>
+			<label>City <input type="text" name="city"></label>
+			<button type="submit">add</button>
+		</form>
+		<h3>Address list</h3>
+		<form id="AddressList">
+			<label>Filter <input type="text" name="filter"></label><br>
+			<select name="list" size="10">
+			  <option value="1">Moenkebergstr, Hamburg</option>
+			  <option value="2">Odeonsplatz, Muenchen</option>
+			  <option value="3">Feldstrasse, Kiel</option>
+			  <option value="4">Unter den Linden, Berlin</option>
+			</select>
+			<button type="submit">show</button>
+			<button id="ReloadAddressList" type="button">reload</button>
+		</form>
+	</div>
+	<div id="Address">
+		<hr>
+		<h2>Address</h2>
+		<h3>Edit address</h3>
+		<form id="EditAddress">
+			<label>ID <input id="AddressId" type="text" name="id" readonly></label><br>
+			<label>Street <input type="text" name="street"></label><br>
+			<label>City <input type="text" name="city"></label>
+			<button type="submit">save</button>
+			<button id="DeleteAddress" type="button">delete</button>
+		</form>
+	</div>
+</body>
+
+</html>
