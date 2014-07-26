@@ -1,5 +1,7 @@
 "use strict"
 
+var leaf = new reds.Leaf("localhost:9090", reds.crypto.cryptojs);
+
 function convertElementsToObject(elements) {
 	var result = new Object();
 	for (var i=0; i<elements.length; i++)
@@ -12,12 +14,24 @@ function convertElementsToObject(elements) {
 
 function signup(name, password, confirmation) {
 	console.log("signup: "+Array.prototype.slice.apply(arguments));
-	showAccount(5);
+	// if ((name.length == 0) || (password.length == 0))
+	// 	return alert("Name and password must not be empty!")
+	// if (password != confirmation)
+	// 	return alert("Password and confirmation mismatch!");
+	leaf.signup(name, password, afterSignup);
+
+	function afterSignup(id) {
+		showAccount(id);
+	}
 }
 
 function signin(name, password) {
 	console.log("signin: "+Array.prototype.slice.apply(arguments));
-	showAccount(23);
+	leaf.signin(name, password, afterSignin)
+
+	function afterSignin(id) {
+		showAccount(id);
+	}
 }
 
 function deleteAccount(account) {
@@ -87,6 +101,7 @@ function deleteAddress(address) {
 // INFO Page initialization
 
 function init() {
+	console.log(reds);
 	document.getElementById("SignUp").addEventListener("submit", function(evt) {
 		evt.preventDefault();
 		signup(this.elements['name'].value, this.elements['password'].value, this.elements['confirmation'].value);
