@@ -1,18 +1,39 @@
 (function(){
 "use strict";
 
+var BigInteger = loadBigInteger();
+var CryptoJS = loadCryptoJS();
 var cryptojs = new Object();
 
+console.log(CryptoJS);
+var KEYSIZE = 128/8;
+
 cryptojs.time = function() {
+	var now = Date.now();
+	var low = now&0xffffffff;
+	var high = Math.floor(now/0xffffffff);
+	var time = CryptoJS.lib.WordArray.create([high, low]);
+	time.concat(CryptoJS.lib.WordArray.random(64));
+	return CryptoJS.enc.Base64.stringify(time);
 }
 
 cryptojs.sconc = function() {
+	var values = Array.prototype.slice.apply(arguments);
+	return values.join("\n");
 }
 
 cryptojs.shash = function(data, salt) {
 }
 
 cryptojs.key = function(seed) {
+	if (seed) {
+		var evpKDF = CryptoJS.algo.EvpKDF.create({'keysize':KEYSIZE});
+		var key = evpKDF.compute(seed, null);
+	}
+	else {
+		var key = CryptoJS.lib.WordArray.random(KEYSIZE);
+	}
+	return CryptoJS.enc.Base64.stringify(key);
 }
 
 cryptojs.private = function(seed) {
@@ -25,18 +46,29 @@ cryptojs.shared = function(prikey, pubkey) {
 }
 
 cryptojs.hmac = function(data, key) {
+	var hmac = CryptoJS.HmacSHA256(data, key);
+	return CryptoJS.enc.Base64.stringify(hmac);
 }
 
 cryptojs.encrypt = function(data, key, vector, salt) {
+	var derived = CryptoJS.kdf.OpenSSL.execute(key+vector, KEYSIZE, KEYSIZE, salt);
+	var result = CryptoJS.AES.encrypt(data, derived.key, derived);
+	return CryptoJS.enc.Base64.stringify(result.ciphertext);
 }
 
 cryptojs.decrypt = function(data, key, vector, salt) {
+	var cipher = {'ciphertext':CryptoJS.enc.Base64.parse(data)};
+	var derived = CryptoJS.kdf.OpenSSL.execute(key+vector, KEYSIZE, KEYSIZE, salt);
+	var result = CryptoJS.AES.decrypt(cipher, derived.key, derived);
+	return CryptoJS.enc.Utf8.stringify(result);
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
 typeof exports=='object' ? exports=cryptojs : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).cryptojs = cryptojs;
 
-// NOTE All required libraries are included below this line
+
+// NOTE We use this library loader function to to keep the module scope clean
+function loadCryptoJS() {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -131,6 +163,12 @@ b.keySize,b.ivSize);l.iv=d.iv;b=a.encrypt.call(this,b,c,d.key,l);b.mixIn(d);retu
 8&255]]^n[l[k&255]]},encryptBlock:function(a,b){this._doCryptBlock(a,b,this._keySchedule,t,r,w,v,l)},decryptBlock:function(a,c){var d=a[c+1];a[c+1]=a[c+3];a[c+3]=d;this._doCryptBlock(a,c,this._invKeySchedule,b,x,q,n,s);d=a[c+1];a[c+1]=a[c+3];a[c+3]=d},_doCryptBlock:function(a,b,c,d,e,j,l,f){for(var m=this._nRounds,g=a[b]^c[0],h=a[b+1]^c[1],k=a[b+2]^c[2],n=a[b+3]^c[3],p=4,r=1;r<m;r++)var q=d[g>>>24]^e[h>>>16&255]^j[k>>>8&255]^l[n&255]^c[p++],s=d[h>>>24]^e[k>>>16&255]^j[n>>>8&255]^l[g&255]^c[p++],t=
 d[k>>>24]^e[n>>>16&255]^j[g>>>8&255]^l[h&255]^c[p++],n=d[n>>>24]^e[g>>>16&255]^j[h>>>8&255]^l[k&255]^c[p++],g=q,h=s,k=t;q=(f[g>>>24]<<24|f[h>>>16&255]<<16|f[k>>>8&255]<<8|f[n&255])^c[p++];s=(f[h>>>24]<<24|f[k>>>16&255]<<16|f[n>>>8&255]<<8|f[g&255])^c[p++];t=(f[k>>>24]<<24|f[n>>>16&255]<<16|f[g>>>8&255]<<8|f[h&255])^c[p++];n=(f[n>>>24]<<24|f[g>>>16&255]<<16|f[h>>>8&255]<<8|f[k&255])^c[p++];a[b]=q;a[b+1]=s;a[b+2]=t;a[b+3]=n},keySize:8});u.AES=p._createHelper(d)})();
 
+// NOTE End of library loader
+return CryptoJS; }
+
+// NOTE We use this library loader function to to keep the module scope clean
+function loadBigInteger() {
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // JavaScript BN library
@@ -167,10 +205,6 @@ d[k>>>24]^e[n>>>16&255]^j[g>>>8&255]^l[h&255]^c[p++],n=d[n>>>24]^e[g>>>16&255]^j
 // tjw@cs.Stanford.EDU
 //
 ////////////////////////////////////////////////////////////////////////////////
-
-// NOTE We use this library loader function to to keep the module scope clean
-//      from the loads of global variables inside the library.
-var BigInteger = (function(){
 
 // Basic JavaScript BN library - subset useful for RSA encryption.
 
@@ -1418,7 +1452,6 @@ BigInteger.prototype.square = bnSquare;
 // static BigInteger valueOf(long val)
 
 // NOTE End of library loader
-return BigInteger;
-})();
+return BigInteger; }
 
 })(); 
