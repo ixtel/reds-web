@@ -8,7 +8,7 @@ var cryptojs = new Object();
 console.log(CryptoJS);
 var KEYSIZE = 128/8;
 
-cryptojs.time = function() {
+cryptojs.generateTimestamp = function() {
 	var now = Date.now();
 	var low = now&0xffffffff;
 	var high = Math.floor(now/0xffffffff);
@@ -17,15 +17,23 @@ cryptojs.time = function() {
 	return CryptoJS.enc.Base64.stringify(time);
 }
 
-cryptojs.sconc = function() {
+cryptojs.compareTimestamps = function(a, b) {
+	var timeA = CryptoJS.enc.Base64.parse(a);
+	var timeB = CryptoJS.enc.Base64.parse(b);
+	var nowA = timeA.words[0]*0x100000000 + timeA.words[1];
+	var nowB = timeB.words[0]*0x100000000 + timeB.words[1];
+	return nowA - nowB;
+}
+
+cryptojs.concatenateStrings = function() {
 	var values = Array.prototype.slice.apply(arguments);
 	return values.join("\n");
 }
 
-cryptojs.shash = function(data, salt) {
+cryptojs.generateSecureHash = function(data, salt) {
 }
 
-cryptojs.key = function(seed) {
+cryptojs.generateKey = function(seed) {
 	if (seed) {
 		var evpKDF = CryptoJS.algo.EvpKDF.create({'keysize':KEYSIZE});
 		var key = evpKDF.compute(seed, null);
@@ -36,27 +44,27 @@ cryptojs.key = function(seed) {
 	return CryptoJS.enc.Base64.stringify(key);
 }
 
-cryptojs.private = function(seed) {
+cryptojs.generatePrivateKey = function(seed) {
 }
 
-cryptojs.public = function(prikey) {
+cryptojs.generatePublicKey = function(prikey) {
 }
 
-cryptojs.shared = function(prikey, pubkey) {
+cryptojs.generateSharedKey = function(prikey, pubkey) {
 }
 
-cryptojs.hmac = function(data, key) {
+cryptojs.generateHmac = function(data, key) {
 	var hmac = CryptoJS.HmacSHA256(data, key);
 	return CryptoJS.enc.Base64.stringify(hmac);
 }
 
-cryptojs.encrypt = function(data, key, vector, salt) {
+cryptojs.encryptData = function(data, key, vector, salt) {
 	var derived = CryptoJS.kdf.OpenSSL.execute(key+vector, KEYSIZE, KEYSIZE, salt);
 	var result = CryptoJS.AES.encrypt(data, derived.key, derived);
 	return CryptoJS.enc.Base64.stringify(result.ciphertext);
 }
 
-cryptojs.decrypt = function(data, key, vector, salt) {
+cryptojs.decryptData = function(data, key, vector, salt) {
 	var cipher = {'ciphertext':CryptoJS.enc.Base64.parse(data)};
 	var derived = CryptoJS.kdf.OpenSSL.execute(key+vector, KEYSIZE, KEYSIZE, salt);
 	var result = CryptoJS.AES.decrypt(cipher, derived.key, derived);
