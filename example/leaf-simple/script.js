@@ -1,6 +1,7 @@
 "use strict"
 
-var leaf = new reds.Leaf("localhost:9090", reds.crypto.cryptojs);
+var cryptoFacility = reds.crypto.cryptojs;
+var leaf = new reds.Leaf("localhost:9090", cryptoFacility);
 
 function convertElementsToObject(elements) {
 	var result = new Object();
@@ -8,6 +9,81 @@ function convertElementsToObject(elements) {
 		if (elements[i].name.length > 0)
 			result[elements[i].name] = elements[i].value;
 	return result;
+}
+
+function testCryptoFacility() {
+	console.log(cryptoFacility.name);
+	var start = Date.now();
+	console.log("keypair1");
+	var keypair1 = cryptoFacility.generateKeypair();
+	console.log(Date.now()-start);
+	console.log("keypair2");
+	var keypair2 = cryptoFacility.generateKeypair();
+	console.log(Date.now()-start);
+	console.log("combined1");
+	var combined1 = cryptoFacility.combineKeypair(keypair1.privateKey, keypair2.publicKey);
+	console.log(Date.now()-start);
+	console.log("combined2");
+	var combined2 = cryptoFacility.combineKeypair(keypair2.privateKey, keypair1.publicKey);
+	console.log(Date.now()-start);
+	console.log(keypair1.privateKey);
+	console.log(keypair1.publicKey);
+	console.log(keypair2.privateKey);
+	console.log(keypair2.publicKey);
+	console.log(combined1);
+	console.log(combined2);
+
+	start = Date.now();
+	console.log("key");
+	var key = cryptoFacility.generateKey("foobar");
+	console.log(Date.now()-start);
+	console.log("vector");
+	var vector = cryptoFacility.generateKey();
+	console.log(Date.now()-start);
+	console.log("salt");
+	var salt = cryptoFacility.generateKey();
+	console.log(Date.now()-start);
+	console.log(vector);
+	console.log(key);
+	console.log(salt);
+	
+	start = Date.now();
+	console.log("hmac");
+	var hmac = cryptoFacility.generateHmac("mydata", "foo");	
+	console.log(Date.now()-start);
+	console.log("shash");
+	var shash = cryptoFacility.generateSecureHash("mydata", "bar");
+	console.log(Date.now()-start);
+	console.log(hmac);
+	console.log(shash);
+
+	start = Date.now();
+	console.log("cdata");
+	var cdata = cryptoFacility.encryptData("mydata", key, vector, salt);
+	console.log(Date.now()-start);
+	console.log("data");
+	var data = cryptoFacility.decryptData(cdata, key, vector, salt);
+	console.log(Date.now()-start);
+	console.log(cdata);
+	console.log(data);
+
+	start = Date.now();
+	console.log("ts1");
+	var ts1 = cryptoFacility.generateTimestamp();
+	console.log(Date.now()-start);
+	console.log("ts2");
+	var ts2 = cryptoFacility.generateTimestamp();
+	console.log(Date.now()-start);
+	console.log("cp1");
+	var cp1 = cryptoFacility.compareTimestamps(ts1, ts2);
+	console.log(Date.now()-start);
+	console.log("cp2");
+	var cp2 = cryptoFacility.compareTimestamps(ts2, ts1);
+	console.log(Date.now()-start);
+	console.log(ts1);
+	console.log(ts2);
+	console.log(cp1);
+	console.log(cp2);
 }
 
 // INFO Account actions
@@ -102,6 +178,12 @@ function deleteAddress(address) {
 
 function init() {
 	console.log(reds);
+
+	document.getElementById("TestCryptoFacility").addEventListener("submit", function(evt) {
+		evt.preventDefault();
+		testCryptoFacility();
+	}, false);
+
 	document.getElementById("SignUp").addEventListener("submit", function(evt) {
 		evt.preventDefault();
 		signup(this.elements['name'].value, this.elements['password'].value, this.elements['confirmation'].value);
