@@ -1,12 +1,40 @@
 (function(){
 "use strict";
 
-var BigInteger = loadBigInteger();
-var CryptoJS = loadCryptoJS();
 var cryptojs = new Object();
 
-console.log(CryptoJS);
-var KEYSIZE = 128/8;
+var BigInteger = loadBigInteger();
+var CryptoJS = loadCryptoJS();
+
+var Rng = function() {
+	// NOTE We assume that Node.JS is used when no window object exists.
+	if (typeof window !== 'undefined')
+		this.nextBytes = this.nextBytesWindowCrypto
+	else
+		this.nextBytes = this.nextBytesNodeJS
+}
+
+Rng.prototype.nextBytesWindowCrypto = function(arr) {
+	var seed = new Uint8Array(arr.length);
+	(window.crypto||window.msCrypto).getRandomValues(seed);
+	for (var i=0; i<arr.length; i++)
+		arr[i] = seed[i];
+	return arr;
+}
+
+Rng.prototype.nextBytesNodeJS = function(arr) {
+	var seed = require("crypto").randomBytes(arr.length*8);
+	for (var i=0; i<arr.length; i++)
+		arr[i] = seed[i];
+	return arr;
+}
+
+var KEYSIZE = 128/32;
+
+CryptoJS.algo.EvpKDF.cfg.keySize = KEYSIZE;
+CryptoJS.algo.EvpKDF.cfg.iterations = 1;
+
+cryptojs.name = "CryptoJS_AES128_SHA256_NIST2048-1";
 
 cryptojs.generateTimestamp = function() {
 	var now = Date.now();
@@ -31,12 +59,13 @@ cryptojs.concatenateStrings = function() {
 }
 
 cryptojs.generateSecureHash = function(data, salt) {
+	var hash = CryptoJS.PBKDF2(data, salt, {'keySize':256/32,'iterations':1000});
+	return CryptoJS.enc.Base64.stringify(hash);	
 }
 
 cryptojs.generateKey = function(seed) {
 	if (seed) {
-		var evpKDF = CryptoJS.algo.EvpKDF.create({'keysize':KEYSIZE});
-		var key = evpKDF.compute(seed, null);
+		var key = CryptoJS.algo.EvpKDF.create().compute(seed, "");
 	}
 	else {
 		var key = CryptoJS.lib.WordArray.random(KEYSIZE);
@@ -44,13 +73,35 @@ cryptojs.generateKey = function(seed) {
 	return CryptoJS.enc.Base64.stringify(key);
 }
 
-cryptojs.generatePrivateKey = function(seed) {
+cryptojs.generateKeypair = function(seed) {
+	var group = BigInteger.Groups.NIST2048;
+	// NOTE Find 0 < x < p and 0 < gx < p
+	do {
+		do {
+			var x = new BigInteger(group.p.bitLength(), new Rng());
+			// NOTE Ensure that 0 < x
+			x.add(BigInteger.ONE);
+		// NOTE Ensure that x < p
+		} while (x.compareTo(group.p)>=0);
+		var gx = group.g.modPow(x, group.p);
+	// Ensure that 0 < gx
+	} while (gx.compareTo(BigInteger.ONE) <= 0);
+	var pri = CryptoJS.enc.Hex.parse(x.toString(16));
+	var pub = CryptoJS.enc.Hex.parse(gx.toString(16));
+	return {
+		'privateKey': CryptoJS.enc.Base64.stringify(pri),
+		'publicKey': CryptoJS.enc.Base64.stringify(pub)
+	};
 }
 
-cryptojs.generatePublicKey = function(prikey) {
-}
-
-cryptojs.generateSharedKey = function(prikey, pubkey) {
+cryptojs.combineKeypair = function(privateKey, publicKey) {
+	var pri = CryptoJS.enc.Base64.parse(privateKey);
+	var pub = CryptoJS.enc.Base64.parse(publicKey);
+	var x = new BigInteger(CryptoJS.enc.Hex.stringify(pri), 16);
+	var gx = new BigInteger(CryptoJS.enc.Hex.stringify(pub), 16);
+	var s = gx.modPow(x, BigInteger.Groups.NIST2048.p);
+	var key = CryptoJS.algo.EvpKDF.create().compute(s.toString(16), "")
+	return CryptoJS.enc.Base64.stringify(key)
 }
 
 cryptojs.generateHmac = function(data, key) {
@@ -1458,6 +1509,102 @@ BigInteger.prototype.square = bnSquare;
 // int hashCode()
 // long longValue()
 // static BigInteger valueOf(long val)
+
+// INFO Predefined primary groups
+//      The groups are public domain parameters published by NIST for the DSA.
+//      http://csrc.nist.gov/groups/ST/toolkit/documents/Examples/DSA2_All.pdf
+//      See also: http://www.ietf.org/id/draft-hao-schnorr-00.txt
+
+var Groups = new Object(); 
+// NOTE 1024-bit p and 160-bit q
+Groups.NIST1024 = {
+	'p': new BigInteger(
+		"E0A67598CD1B763BC98C8ABB333E5DDA0CD3AA0E5E1FB5BA8A7B4EAB"+
+		"C10BA338FAE06DD4B90FDA70D7CF0CB0C638BE3341BEC0AF8A7330A3"+
+		"307DED2299A0EE606DF035177A239C34A912C202AA5F83B9C4A7CF02"+
+		"35B5316BFC6EFB9A248411258B30B839AF172440F32563056CB67A86"+
+		"1158DDD90E6A894C72A5BBEF9E286C6B"
+	, 16),
+	'q': new BigInteger(
+		"E950511EAB424B9A19A2AEB4E159B7844C589C4F"
+	, 16),
+	'g': new BigInteger(
+		"D29D5121B0423C2769AB21843E5A3240FF19CACC792264E3BB6BE4F7"+
+		"8EDD1B15C4DFF7F1D905431F0AB16790E1F773B5CE01C804E509066A"+
+		"9919F5195F4ABC58189FD9FF987389CB5BEDF21B4DAB4F8B76A055FF"+
+		"E2770988FE2EC2DE11AD92219F0B351869AC24DA3D7BA87011A701CE"+
+		"8EE7BFE49486ED4527B7186CA4610A75"
+	, 16)
+}
+// NOTE 2048-bit p and 224-bit q
+Groups.NIST2048 = {
+	'p': new BigInteger(
+		"C196BA05AC29E1F9C3C72D56DFFC6154A033F1477AC88EC37F09BE6C"+
+		"5BB95F51C296DD20D1A28A067CCC4D4316A4BD1DCA55ED1066D438C3"+
+		"5AEBAABF57E7DAE428782A95ECA1C143DB701FD48533A3C18F0FE235"+
+		"57EA7AE619ECACC7E0B51652A8776D02A425567DED36EABD90CA33A1"+
+		"E8D988F0BBB92D02D1D20290113BB562CE1FC856EEB7CDD92D33EEA6"+
+		"F410859B179E7E789A8F75F645FAE2E136D252BFFAFF89528945C1AB"+
+		"E705A38DBC2D364AADE99BE0D0AAD82E5320121496DC65B3930E3804"+
+		"7294FF877831A16D5228418DE8AB275D7D75651CEFED65F78AFC3EA7"+
+		"FE4D79B35F62A0402A1117599ADAC7B269A59F353CF450E6982D3B17"+
+		"02D9CA83"
+	, 16),
+	'q': new BigInteger(
+		"90EAF4D1AF0708B1B612FF35E0A2997EB9E9D263C9CE659528945C0D"
+	, 16),
+	'g': new BigInteger(
+		"A59A749A11242C58C894E9E5A91804E8FA0AC64B56288F8D47D51B1E"+
+		"DC4D65444FECA0111D78F35FC9FDD4CB1F1B79A3BA9CBEE83A3F8110"+
+		"12503C8117F98E5048B089E387AF6949BF8784EBD9EF45876F2E6A5A"+
+		"495BE64B6E770409494B7FEE1DBB1E4B2BC2A53D4F893D418B715959"+
+		"2E4FFFDF6969E91D770DAEBD0B5CB14C00AD68EC7DC1E5745EA55C70"+
+		"6C4A1C5C88964E34D09DEB753AD418C1AD0F4FDFD049A955E5D78491"+
+		"C0B7A2F1575A008CCD727AB376DB6E695515B05BD412F5B8C2F4C77E"+
+		"E10DA48ABD53F5DD498927EE7B692BBBCDA2FB23A516C5B4533D7398"+
+		"0B2A3B60E384ED200AE21B40D273651AD6060C13D97FD69AA13C5611"+
+		"A51B9085"
+	, 16)
+}
+// NOTE 3072-bit p, 256-bit q
+Groups.NIST3072 = {
+	'p': new BigInteger(
+		"90066455B5CFC38F9CAA4A48B4281F292C260FEEF01FD61037E56258"+
+		"A7795A1C7AD46076982CE6BB956936C6AB4DCFE05E6784586940CA54"+
+		"4B9B2140E1EB523F009D20A7E7880E4E5BFA690F1B9004A27811CD99"+
+		"04AF70420EEFD6EA11EF7DA129F58835FF56B89FAA637BC9AC2EFAAB"+
+		"903402229F491D8D3485261CD068699B6BA58A1DDBBEF6DB51E8FE34"+
+		"E8A78E542D7BA351C21EA8D8F1D29F5D5D15939487E27F4416B0CA63"+
+		"2C59EFD1B1EB66511A5A0FBF615B766C5862D0BD8A3FE7A0E0DA0FB2"+
+		"FE1FCB19E8F9996A8EA0FCCDE538175238FC8B0EE6F29AF7F642773E"+
+		"BE8CD5402415A01451A840476B2FCEB0E388D30D4B376C37FE401C2A"+
+		"2C2F941DAD179C540C1C8CE030D460C4D983BE9AB0B20F69144C1AE1"+
+		"3F9383EA1C08504FB0BF321503EFE43488310DD8DC77EC5B8349B8BF"+
+		"E97C2C560EA878DE87C11E3D597F1FEA742D73EEC7F37BE43949EF1A"+
+		"0D15C3F3E3FC0A8335617055AC91328EC22B50FC15B941D3D1624CD8"+
+		"8BC25F3E941FDDC6200689581BFEC416B4B2CB73"
+	, 16),
+	'q': new BigInteger(
+		"CFA0478A54717B08CE64805B76E5B14249A77A4838469DF7F7DC987EFCCFB11D"
+	, 16),
+	'g': new BigInteger(
+		"5E5CBA992E0A680D885EB903AEA78E4A45A469103D448EDE3B7ACCC5"+
+		"4D521E37F84A4BDD5B06B0970CC2D2BBB715F7B82846F9A0C393914C"+
+		"792E6A923E2117AB805276A975AADB5261D91673EA9AAFFEECBFA618"+
+		"3DFCB5D3B7332AA19275AFA1F8EC0B60FB6F66CC23AE4870791D5982"+
+		"AAD1AA9485FD8F4A60126FEB2CF05DB8A7F0F09B3397F3937F2E90B9"+
+		"E5B9C9B6EFEF642BC48351C46FB171B9BFA9EF17A961CE96C7E7A7CC"+
+		"3D3D03DFAD1078BA21DA425198F07D2481622BCE45969D9C4D6063D7"+
+		"2AB7A0F08B2F49A7CC6AF335E08C4720E31476B67299E231F8BD90B3"+
+		"9AC3AE3BE0C6B6CACEF8289A2E2873D58E51E029CAFBD55E6841489A"+
+		"B66B5B4B9BA6E2F784660896AFF387D92844CCB8B69475496DE19DA2"+
+		"E58259B090489AC8E62363CDF82CFD8EF2A427ABCD65750B506F56DD"+
+		"E3B988567A88126B914D7828E2B63A6D7ED0747EC59E0E0A23CE7D8A"+
+		"74C1D2C2A7AFB6A29799620F00E11C33787F7DED3B30E1A22D09F1FB"+
+		"DA1ABBBFBF25CAE05A13F812E34563F99410E73B"
+	, 16)
+}
+BigInteger.Groups = Groups;
 
 // NOTE End of library loader
 return BigInteger; }
