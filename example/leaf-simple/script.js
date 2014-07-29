@@ -1,6 +1,6 @@
 "use strict"
 
-var cryptoFacility = reds.crypto.cryptojs;
+var cryptoFacility = reds.crypto.sjcl||reds.crypto.cryptojs;
 var leaf = new reds.Leaf("localhost:9090", cryptoFacility);
 
 function convertElementsToObject(elements) {
