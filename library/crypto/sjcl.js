@@ -65,8 +65,8 @@ sjcl.generateHmac = function(data, key) {
 	return SJCL.codec.base64.fromBits(hmacBits);
 }
 
-sjcl.encryptData = function(data, key, vector, salt) {
-	var derivedBits = SJCL.misc.pbkdf2(key+"\n"+vector, salt, 1, 256);
+sjcl.encryptData = function(data, key, vector) {
+	var derivedBits = SJCL.misc.pbkdf2(key, vector, 1, 256);
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
 	var dataBits = SJCL.codec.utf8String.toBits(data);
@@ -75,8 +75,8 @@ sjcl.encryptData = function(data, key, vector, salt) {
 	return SJCL.codec.base64.fromBits(cdataBits);
 }
 
-sjcl.decryptData = function(cdata, key, vector, salt) {
-	var derivedBits = SJCL.misc.pbkdf2(key+"\n"+vector, salt, 1, 256)
+sjcl.decryptData = function(cdata, key, vector) {
+	var derivedBits = SJCL.misc.pbkdf2(key, vector, 1, 256)
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
 	var cdataBits = SJCL.codec.base64.toBits(cdata);

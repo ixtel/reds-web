@@ -40,12 +40,18 @@ function testCryptoFacility() {
 	console.log("vector");
 	var vector = cryptoFacility.generateKey();
 	console.log(Date.now()-start);
-	console.log("salt");
-	var salt = cryptoFacility.generateKey();
-	console.log(Date.now()-start);
 	console.log(vector);
 	console.log(key);
-	console.log(salt);
+
+	start = Date.now();
+	console.log("cdata");
+	var cdata = cryptoFacility.encryptData("mydata", key, vector);
+	console.log(Date.now()-start);
+	console.log("data");
+	var data = cryptoFacility.decryptData(cdata, key, vector);
+	console.log(Date.now()-start);
+	console.log(cdata);
+	console.log(data);
 	
 	start = Date.now();
 	console.log("hmac");
@@ -56,16 +62,6 @@ function testCryptoFacility() {
 	console.log(Date.now()-start);
 	console.log(hmac);
 	console.log(shash);
-
-	start = Date.now();
-	console.log("cdata");
-	var cdata = cryptoFacility.encryptData("mydata", key, vector, salt);
-	console.log(Date.now()-start);
-	console.log("data");
-	var data = cryptoFacility.decryptData(cdata, key, vector, salt);
-	console.log(Date.now()-start);
-	console.log(cdata);
-	console.log(data);
 
 	start = Date.now();
 	console.log("ts1");

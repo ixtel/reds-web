@@ -109,15 +109,15 @@ cryptojs.generateHmac = function(data, key) {
 	return CryptoJS.enc.Base64.stringify(hmac);
 }
 
-cryptojs.encryptData = function(data, key, vector, salt) {
-	var derived = CryptoJS.kdf.OpenSSL.execute(key+vector, KEYSIZE, KEYSIZE, salt);
+cryptojs.encryptData = function(data, key, vector) {
+	var derived = CryptoJS.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
 	var result = CryptoJS.AES.encrypt(data, derived.key, derived);
 	return CryptoJS.enc.Base64.stringify(result.ciphertext);
 }
 
-cryptojs.decryptData = function(data, key, vector, salt) {
+cryptojs.decryptData = function(data, key, vector) {
 	var cipher = {'ciphertext':CryptoJS.enc.Base64.parse(data)};
-	var derived = CryptoJS.kdf.OpenSSL.execute(key+vector, KEYSIZE, KEYSIZE, salt);
+	var derived = CryptoJS.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
 	var result = CryptoJS.AES.decrypt(cipher, derived.key, derived);
 	return CryptoJS.enc.Utf8.stringify(result);
 }
