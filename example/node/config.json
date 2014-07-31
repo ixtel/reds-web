@@ -1,0 +1,13 @@
+{
+	"host": null,
+	"port": 8080,
+	"name": "dev.flowynotes",
+	"forks": 1,
+	"log": "debug",
+	"storage": {
+		"postgresql": "postgres://flowynotes_dev:foobar@localhost/flowynotes_dev_node"
+	},
+	"cors": {
+		"origin": "*"
+	}
+}
