@@ -15,6 +15,9 @@ exports.prototype = Object.create(Server.prototype);
 exports.prototype.listen = function(request, response) {
 	try {
 		console.log("REDS Node");
+		that.response.setHeader("Pragma", "no-cache");
+		that.response.setHeader("Cache-Control", "no-cache");
+		that.response.setHeader("Expires", "-1");
 		if (this.config.cors) {
 			response.setHeader('Access-Control-Allow-Origin', this.config.cors.origin);
 			if (request.method == 'OPTIONS') {
@@ -23,7 +26,7 @@ exports.prototype.listen = function(request, response) {
 				response.end();
 			}
 		}
-		console.info(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
+		console.log(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
 		response.end(Math.floor(Math.random()*1000).toString());
 	}
 	catch (e) {
