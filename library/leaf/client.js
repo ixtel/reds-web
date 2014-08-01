@@ -57,6 +57,7 @@ LeafClient.prototype.signup = function(name, password, callback) {
 	function afterSend(data) {
 		Credentials[this.id].alias = alias;
 		console.log(Credentials);
+		callback && callback(data);
 	}
 }
 
@@ -73,6 +74,7 @@ LeafClient.prototype.signin = function(name, password, callback) {
 	function afterSend(data) {
 		Credentials[this.id].alias = alias;
 		console.log(Credentials);
+		callback && callback(data);
 	}
 }
 

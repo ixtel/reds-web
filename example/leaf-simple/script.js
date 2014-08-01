@@ -1,7 +1,7 @@
 "use strict"
 
 var cryptoFacility = reds.crypto.sjcl||reds.crypto.cryptojs;
-var leaf = new reds.Leaf("http://node.reds-web.dev", cryptoFacility);
+var leaf = new reds.LeafClient("http://node.reds-web.dev", cryptoFacility);
 
 function convertElementsToObject(elements) {
 	var result = new Object();
