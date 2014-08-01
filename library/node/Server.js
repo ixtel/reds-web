@@ -1,4 +1,5 @@
 var Server = require("../shared/Server");
+var NodeSession = require("./Session");
 
 module.exports = exports = function(config) {
 	Server.call(this, config);
@@ -12,22 +13,26 @@ module.exports = exports = function(config) {
 
 exports.prototype = Object.create(Server.prototype);
 
+exports.prototype.Session = NodeSession;
+
 exports.prototype.listen = function(request, response) {
 	try {
-		console.log("REDS Node");
-		that.response.setHeader("Pragma", "no-cache");
-		that.response.setHeader("Cache-Control", "no-cache");
-		that.response.setHeader("Expires", "-1");
+		console.log(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
+		response.setHeader("Pragma", "no-cache");
+		response.setHeader("Cache-Control", "no-cache");
+		response.setHeader("Expires", "-1");
 		if (this.config.cors) {
 			response.setHeader('Access-Control-Allow-Origin', this.config.cors.origin);
 			if (request.method == 'OPTIONS') {
 				response.setHeader('Access-Control-Allow-Methods', this.config.cors.origin);
 				response.setHeader('Access-Control-Allow-Headers', this.config.cors.headers);
 				response.end();
+				return;
 			}
 		}
-		console.log(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
-		response.end(Math.floor(Math.random()*1000).toString());
+		var session = new this.Session(request, response);
+		session.addListener("error", this.disconnect.bind(this));
+		session.setup();
 	}
 	catch (e) {
 		this.disconnect(e);

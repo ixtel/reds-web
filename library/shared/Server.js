@@ -3,12 +3,15 @@ var http = require("http");
 var os = require("os");
 
 module.exports = exports = function(config) {
+	this.hooks = new Object();
 	this.config = config;
 	if (!this.config.forks)
 		this.config.forks = 1;
 	else if (this.config.forks == "cores")
 		this.config.forks = os.cpus().length;
 }
+
+exports.prototype.Session = null;
 
 exports.prototype.run = function() {
 	if (cluster.isMaster)
