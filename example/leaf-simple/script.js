@@ -92,8 +92,8 @@ function signup(name, password, confirmation) {
 	// 	return alert("Password and confirmation mismatch!");
 	leaf.signup(name, password, afterSignup);
 
-	function afterSignup(id) {
-		showAccount(id);
+	function afterSignup(response) {
+		showAccount(response['id']);
 	}
 }
 
@@ -101,8 +101,8 @@ function signin(name, password) {
 	console.log("signin: "+Array.prototype.slice.apply(arguments));
 	leaf.signin(name, password, afterSignin)
 
-	function afterSignin(id) {
-		showAccount(id);
+	function afterSignin(response) {
+		showAccount(response['id']);
 	}
 }
 

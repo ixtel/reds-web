@@ -26,15 +26,21 @@ var LeafClient = function(url, cryptoFacility) {
 	console.log(this.id);
 }
 
+LeafClient.prototype.decodeResponse = function(xhr) {
+	var contentType = xhr.getResponseHeader("Content-Type");
+	console.log(contentType);
+	return JSON.parse(xhr.responseText);
+}
+
 LeafClient.prototype.sendJSON = function(method, path, data, callback) {
 	var xhr = new XMLHttpRequest();
-	xhr.addEventListener("load", onLoad, false);
+	xhr.addEventListener("load", onLoad.bind(this), false);
 	xhr.open(method, this.url+path, true);
 	xhr.setRequestHeader("Content-Type", "application/json;charset=encoding");
 	xhr.send(data ? JSON.stringify(data) : undefined);
 
 	function onLoad() {
-		callback(xhr.responseText);
+		callback(this.decodeResponse(xhr));
 	}
 }
 
