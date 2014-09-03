@@ -7,7 +7,7 @@ module.exports = exports = function(config, request, response) {
 exports.prototype = Object.create(Session.prototype);
 
 exports.prototype.HookHandlers = {
-	'user': require("./hooks/User")
+	'user': require("./hooks/user")
 }
 
 exports.prototype.StorageFacilities = {

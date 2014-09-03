@@ -39,12 +39,12 @@ exports.prototype.start = function() {
 
 exports.prototype.run = function() {
 	var path = "user";
+	var method = this.request.method;
 	if (!this.HookHandlers[path])
 		throw new SessionError(404, "hook not found");
-	var hook = new this.HookHandlers[path](this);
-	if (typeof hook[this.request.method] !== "function")
+	if (typeof this.HookHandlers[path][method] !== "function")
 		throw new SessionError(501, "missing method");
-	hook[this.request.method]();
+	this.HookHandlers[path][method](this);
 }
 
 exports.prototype.end = function() {
