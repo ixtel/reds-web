@@ -1,0 +1,50 @@
+# NOTE The following settings are based on own experience as well as on the
+#      following sources:
+#      http://davidlaing.com/2012/09/19/customise-your-gitattributes-to-become-a-git-ninja/
+#      https://github.com/Danimoth/gitattributes/blob/master/Common.gitattributes
+
+# NOTE Auto detect text files and perform LF normalization.
+#      This setting will handle all files NOT found below.
+* text=auto
+
+# INFO Documents
+
+*.doc diff=astextplain
+*.DOC diff=astextplain
+*.docx diff=astextplain
+*.DOCX diff=astextplain
+*.dot diff=astextplain
+*.DOT diff=astextplain
+*.pdf diff=astextplain
+*.PDF diff=astextplain
+*.rtf diff=astextplain
+*.RTF diff=astextplain
+*.odt diff=odf
+*.ODT diff=odf
+*.ods diff=odf
+*.ODS diff=odf
+*.odp diff=odf
+*.ODP diff=odf
+
+# INFO Graphics
+
+*.png binary
+*.PNG binary
+*.jpg binary
+*.JPG binary
+*.jpeg binary
+*.JPEG binary
+*.gif binary
+*.GIF binary
+*.ico binary
+*.ICO binary
+*.svg text
+*.SVG text
+*.svgz binary
+*.SVGZ binary
+
+# INFO Scripts
+
+# NOTE Shell scripts use Unix style line feeds in any case
+*.sh text eol=lf
+*.SH text eol=lf
