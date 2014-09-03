@@ -1,12 +1,15 @@
 var Session = require("../shared/Session");
-var NodeUserHook = require("./hooks/User");
 
-module.exports = exports = function(request, response) {
-	Session.call(this, request, response);
+module.exports = exports = function(config, request, response) {
+	Session.call(this, config, request, response);
 }
 
 exports.prototype = Object.create(Session.prototype);
 
-exports.prototype.Hooks = {
-	'user': NodeUserHook
+exports.prototype.HookHandlers = {
+	'user': require("./hooks/User")
+}
+
+exports.prototype.StorageFacilities = {
+	'pg': require("../shared/storage/PostgreSQL")
 }

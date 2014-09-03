@@ -2,8 +2,10 @@ var domain = require("domain");
 var events = require("events");
 var SessionError = require("./SessionError");
 
-module.exports = exports = function(request, response) {
+module.exports = exports = function(config, request, response) {
 	this.$requestJSON = undefined;
+	this.$storage = new Object();
+	this.config = config;
 	this.domain = null;
 	this.request = request;
 	this.response = response;
@@ -12,7 +14,8 @@ module.exports = exports = function(request, response) {
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
 
-exports.prototype.Hooks = null;
+exports.prototype.HookHandlers = null;
+exports.prototype.StorageFacilities = null;
 
 exports.prototype.setup = function() {
 	this.domain = domain.create();
@@ -36,16 +39,39 @@ exports.prototype.start = function() {
 
 exports.prototype.run = function() {
 	var path = "user";
-	if (!this.Hooks[path])
+	if (!this.HookHandlers[path])
 		throw new SessionError(404, "hook not found");
-	var hook = new this.Hooks[path](this);
+	var hook = new this.HookHandlers[path](this);
 	if (typeof hook[this.request.method] !== "function")
 		throw new SessionError(501, "missing method");
 	hook[this.request.method]();
 }
 
 exports.prototype.end = function() {
-	this.response.end();
+	var counter = 1;
+	for (var facility in this.$storage)
+		disconnect.call(this, facility);
+	if (--counter == 0)
+		finalize.call(this);
+
+	function disconnect(facility) {
+		counter++;
+		this.$storage[facility].disconnect(function(error) {
+			if (--counter <= 0) {
+				if (!error) {
+					counter = 0;
+					throw error;
+				}
+				delete this.$storage[facility];
+				if (counter == 0)
+					finalize.call(this);
+			}
+		}.bind(this));
+	}
+
+	function finalize() {
+		this.response.end();
+	}
 }
 
 exports.prototype.abort = function(error) {
@@ -56,9 +82,10 @@ exports.prototype.abort = function(error) {
 				this.response.setHeader("WWW-Authenticate", "REDS realm=\"node\"");
 			this.response.statusCode = error.code;
 			this.end();
-			return;
 		}
-		throw error;
+		else {
+			throw error;
+		}
 	}
 	catch (e) {
 		try {
@@ -77,6 +104,15 @@ exports.prototype.abort = function(error) {
 				throw e;
 		}
 	}
+}
+
+exports.prototype.storage = function(facility) {
+	if (this.$storage[facility])
+		return this.$storage[facility];
+	if (!this.StorageFacilities[facility])
+		throw new Error("Unknown storage facility '"+facility+"'");
+	this.$storage[facility] = new this.StorageFacilities[facility](this.config.storage[facility]);
+	return this.$storage[facility];
 }
 
 exports.prototype.write = function(data, type) {

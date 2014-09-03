@@ -12,7 +12,7 @@ exports.prototype.listen = function(request, response) {
 		that.response.setHeader("Pragma", "no-cache");
 		that.response.setHeader("Cache-Control", "no-cache");
 		that.response.setHeader("Expires", "-1");
-		var session = new this.Session(request, response);
+		var session = new this.Session(this.config, request, response);
 		session.addListener("error", this.disconnect.bind(this));
 		session.setup();
 	}
