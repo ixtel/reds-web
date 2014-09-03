@@ -3,12 +3,6 @@ var NodeSession = require("./Session");
 
 module.exports = exports = function(config) {
 	Server.call(this, config);
-	if (this.config.cors) {
-		if (!this.config.cors.methods)
-			this.config.cors.methods = "GET, POST, PUT, DELETE";
-		if (!this.config.cors.headers)
-			this.config.cors.headers = "Content-Type";
-	}
 }
 
 exports.prototype = Object.create(Server.prototype);

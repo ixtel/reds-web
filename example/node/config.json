@@ -8,6 +8,9 @@
 		"pg": "postgres://reds_example:foobar@localhost/reds_example_node"
 	},
 	"cors": {
-		"origin": "*"
+		"origin": "*",
+		"methods": "GET, POST, PUT, DELETE",
+		"headers": "Content-Type"
 	}
+
 }
