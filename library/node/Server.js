@@ -1,17 +1,14 @@
 var Server = require("../shared/Server");
 var NodeSession = require("./Session");
 
-module.exports = exports = function(config) {
-	Server.call(this, config);
+module.exports = exports = function(config, Session) {
+	Server.call(this, config, Session||NodeSession);
 }
 
 exports.prototype = Object.create(Server.prototype);
 
-exports.prototype.Session = NodeSession;
-
 exports.prototype.listen = function(request, response) {
 	try {
-		console.log(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
 		response.setHeader("Pragma", "no-cache");
 		response.setHeader("Cache-Control", "no-cache");
 		response.setHeader("Expires", "-1");
@@ -24,9 +21,7 @@ exports.prototype.listen = function(request, response) {
 				return;
 			}
 		}
-		var session = new this.Session(this.config, request, response);
-		session.addListener("error", this.disconnect.bind(this));
-		session.run();
+		Server.prototype.listen.call(this, request, response);
 	}
 	catch (e) {
 		this.disconnect(e);

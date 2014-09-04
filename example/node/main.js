@@ -1,4 +1,4 @@
-var NodeServer = require("../../library/node/Server.js");
+var NodeServer = require("../../library/node/Server");
 var config = require("./config.json");
 
 var server = new NodeServer(config);

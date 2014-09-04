@@ -2,16 +2,16 @@ var cluster = require("cluster");
 var http = require("http");
 var os = require("os");
 
-module.exports = exports = function(config) {
+module.exports = exports = function(config, Session) {
 	this.hooks = new Object();
 	this.config = config;
+	this.Session = Session;
+
 	if (!this.config.forks)
 		this.config.forks = 1;
 	else if (this.config.forks == "cores")
 		this.config.forks = os.cpus().length;
 }
-
-exports.prototype.Session = null;
 
 exports.prototype.run = function() {
 	if (cluster.isMaster)
@@ -52,7 +52,9 @@ exports.prototype.connect = function() {
 exports.prototype.listen = function(request, response) {
 	try {
 		console.info(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
-		response.end();
+		var session = new this.Session(this.config, request, response);
+		session.addListener("error", this.disconnect.bind(this));
+		session.run();
 	}
 	catch (e) {
 		this.disconnect(e);

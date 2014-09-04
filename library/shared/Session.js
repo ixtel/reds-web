@@ -17,8 +17,13 @@ module.exports = exports = function(config, request, response) {
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
 
-exports.prototype.HookHandlers = null;
-exports.prototype.StorageFacilities = null;
+exports.prototype.HookHandlers = {
+	// NOTE Hook handlers will be added in node/Session and pod/Session
+};
+
+exports.prototype.StorageFacilities = {
+	'PostgresPg': require("./storage/PostgresPg")
+};
 
 exports.prototype.$parseUrl = function() {
 	var purl = new Array();
