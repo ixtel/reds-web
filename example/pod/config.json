@@ -1,10 +1,11 @@
 {
 	"host": null,
 	"port": 8181,
-	"name": "dev.flowynotes",
+	"name": "reds.example.pod",
 	"forks": 1,
 	"log": "debug",
 	"storage": {
-		"pg": "postgres://reds_example:foobar@localhost/reds_example_node"
+		"facility": "PostgresPg",
+		"options": "postgres://reds_example:foobar@localhost/reds_example_pod"
 	}
 }

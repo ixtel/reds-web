@@ -7,9 +7,9 @@ module.exports = exports = function(config, request, response) {
 exports.prototype = Object.create(Session.prototype);
 
 exports.prototype.HookHandlers = {
-	'user': require("./hooks/user")
+	'/!/user/foo': require("./hooks/user")
 }
 
 exports.prototype.StorageFacilities = {
-	'pg': require("../shared/storage/PostgreSQL")
+	'PostgresPg': require("../shared/storage/PostgresPg")
 }

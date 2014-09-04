@@ -14,7 +14,7 @@ exports.prototype.listen = function(request, response) {
 		that.response.setHeader("Expires", "-1");
 		var session = new this.Session(this.config, request, response);
 		session.addListener("error", this.disconnect.bind(this));
-		session.setup();
+		session.run();
 	}
 	catch (e) {
 		this.disconnect(e);

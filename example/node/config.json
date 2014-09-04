@@ -1,16 +1,16 @@
 {
 	"host": null,
 	"port": 8080,
-	"name": "dev.flowynotes",
+	"name": "reds.example.node",
 	"forks": 1,
 	"log": "debug",
 	"storage": {
-		"pg": "postgres://reds_example:foobar@localhost/reds_example_node"
+		"facility": "PostgresPg",
+		"options": "postgres://reds_example:foobar@localhost/reds_example_node"
 	},
 	"cors": {
 		"origin": "*",
 		"methods": "GET, POST, PUT, DELETE",
 		"headers": "Content-Type"
 	}
-
 }

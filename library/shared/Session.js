@@ -4,12 +4,15 @@ var SessionError = require("./SessionError");
 
 module.exports = exports = function(config, request, response) {
 	this.$requestJSON = undefined;
-	this.$storage = new Object();
+	this.$storageFacility = undefined;
 	this.config = config;
 	this.domain = null;
+	this.purl = null;
 	this.request = request;
 	this.response = response;
 	this.requestText = '';
+	this.$setupDomain();
+	this.$parseUrl();
 }
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
@@ -17,61 +20,57 @@ exports.prototype = Object.create(events.EventEmitter.prototype);
 exports.prototype.HookHandlers = null;
 exports.prototype.StorageFacilities = null;
 
-exports.prototype.setup = function() {
+exports.prototype.$parseUrl = function() {
+	var purl = new Array();
+	purl.path = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
+		purl.push({
+			'key': p1,
+			'value': p2
+		});
+		return p1;
+	});
+	this.purl = purl;
+}
+
+exports.prototype.$setupDomain = function() {
 	this.domain = domain.create();
 	this.domain.add(this.request);
 	this.domain.add(this.response);
 	this.domain.addListener("error", this.abort.bind(this));
-	this.domain.run(this.start.bind(this));
-}
-
-exports.prototype.start = function() {
-	this.request.addListener("data", function(chunk) {
-		this.requestText += chunk;
-	}.bind(this));
-
-	this.request.addListener("end", function() {
-		console.log("DEBUG request type: "+this.request.headers["content-type"]); // DEBUG
-		console.log("DEBUG request data: "+this.requestText); // DEBUG
-		this.run();
-	}.bind(this));
 }
 
 exports.prototype.run = function() {
-	var path = "user";
-	var method = this.request.method;
-	if (!this.HookHandlers[path])
-		throw new SessionError(404, "hook not found");
-	if (typeof this.HookHandlers[path][method] !== "function")
-		throw new SessionError(501, "missing method");
-	this.HookHandlers[path][method](this);
+	var lock = 2;
+	this.domain.run(connect.bind(this));
+
+	function connect() {
+		if (!this.StorageFacilities[this.config.storage.facility])
+			throw new Error("unknown storage facility");
+		this.storage = new this.StorageFacilities[this.config.storage.facility](this.config.storage.options);
+		this.storage.connect(this.domain.intercept(delegate.bind(this)));
+		this.request.addListener("data", receive.bind(this));
+		this.request.addListener("end", delegate.bind(this));
+	}
+
+	function receive(chunk) {
+		this.requestText += chunk;
+	}
+
+	function delegate() {
+		if (--lock)
+			return;
+		if (!this.HookHandlers[this.purl.path])
+			throw new SessionError(404, "hook not found");
+		if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
+			throw new SessionError(501, "missing method");
+		this.HookHandlers[this.purl.path][this.request.method](this);
+	}
 }
 
 exports.prototype.end = function() {
-	var counter = 1;
-	for (var facility in this.$storage)
-		disconnect.call(this, facility);
-	if (--counter == 0)
-		finalize.call(this);
-
-	function disconnect(facility) {
-		counter++;
-		this.$storage[facility].disconnect(function(error) {
-			if (--counter <= 0) {
-				if (!error) {
-					counter = 0;
-					throw error;
-				}
-				delete this.$storage[facility];
-				if (counter == 0)
-					finalize.call(this);
-			}
-		}.bind(this));
-	}
-
-	function finalize() {
-		this.response.end();
-	}
+	this.response.end();
+	if (this.storage)
+		this.storage.disconnect();
 }
 
 exports.prototype.abort = function(error) {
@@ -106,15 +105,6 @@ exports.prototype.abort = function(error) {
 	}
 }
 
-exports.prototype.storage = function(facility) {
-	if (this.$storage[facility])
-		return this.$storage[facility];
-	if (!this.StorageFacilities[facility])
-		throw new Error("Unknown storage facility '"+facility+"'");
-	this.$storage[facility] = new this.StorageFacilities[facility](this.config.storage[facility]);
-	return this.$storage[facility];
-}
-
 exports.prototype.write = function(data, type) {
 	console.log("DEBUG response type: "+type); // DEBUG
 	console.log("DEBUG response data: "+data); // DEBUG
@@ -141,5 +131,17 @@ Object.defineProperty(exports.prototype, "requestJSON", {
 			}
 		}
 		return this.$requestJSON;
+	}
+});
+
+Object.defineProperty(exports.prototype, "storageFacility", {
+	get: function() {
+		if (this.$storageFacility === undefined) {
+			var StorageFacilitiy = this.StorageFacilities[this.config.storage.facility];
+			if (!StorageFacilitiy)
+				throw new Error("unknown storage facility");
+			this.$storageFacility = new StorageFacilitiy(this.config.storage.options);
+		}
+		return this.$storageFacility;
 	}
 });
