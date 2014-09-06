@@ -6,26 +6,15 @@ module.exports = exports = function(config, request, response) {
 	this.$requestJSON = undefined;
 	this.$storageFacility = undefined;
 	this.config = config;
-	this.domain = null;
-	this.purl = null;
 	this.request = request;
 	this.response = response;
 	this.requestText = '';
-	this.$setupDomain();
-	this.$parseUrl();
-}
-
-exports.prototype = Object.create(events.EventEmitter.prototype);
-
-exports.prototype.HookHandlers = {
-	// NOTE Hook handlers will be added in node/Session and pod/Session
-};
-
-exports.prototype.StorageFacilities = {
-	'PostgresPg': require("./storage/PostgresPg")
-};
-
-exports.prototype.$parseUrl = function() {
+	// NOTE Setup domain
+	this.domain = domain.create();
+	this.domain.add(this.request);
+	this.domain.add(this.response);
+	this.domain.addListener("error", this.abort.bind(this));
+	// NOTE Parse URL
 	var purl = new Array();
 	purl.path = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
 		purl.push({
@@ -37,11 +26,18 @@ exports.prototype.$parseUrl = function() {
 	this.purl = purl;
 }
 
-exports.prototype.$setupDomain = function() {
-	this.domain = domain.create();
-	this.domain.add(this.request);
-	this.domain.add(this.response);
-	this.domain.addListener("error", this.abort.bind(this));
+exports.prototype = Object.create(events.EventEmitter.prototype);
+
+exports.prototype.HookHandlers = new Object();
+exports.prototype.StorageFacilities = new Object();
+
+exports.prototype.registerStorageFacility = function(facility) {
+	if (!this.hasOwnProperty('StorageFacilities')) {
+		Object.getPrototypeOf(this).registerStorageFacility();
+		this.StorageFacilities = Object.create(this.StorageFacilities||null);
+	}
+	if (facility)
+		this.StorageFacilities[facility.prototype.name] = facility;
 }
 
 exports.prototype.run = function() {
@@ -150,3 +146,5 @@ Object.defineProperty(exports.prototype, "storageFacility", {
 		return this.$storageFacility;
 	}
 });
+
+exports.prototype.registerStorageFacility(require("./storage/PostgresPg.js"));
