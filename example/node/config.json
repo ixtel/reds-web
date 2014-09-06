@@ -2,7 +2,7 @@
 	"host": null,
 	"port": 8080,
 	"name": "reds.example.node",
-	"forks": 1,
+	"workers": 1,
 	"log": "debug",
 	"storage": {
 		"facility": "PostgresPg",

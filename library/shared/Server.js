@@ -7,10 +7,8 @@ module.exports = exports = function(config, Session) {
 	this.config = config;
 	this.Session = Session;
 
-	if (!this.config.forks)
-		this.config.forks = 1;
-	else if (this.config.forks == "cores")
-		this.config.forks = os.cpus().length;
+	if (this.config.workers == "cores")
+		this.config.workers = os.cpus().length;
 }
 
 exports.prototype.run = function() {
@@ -34,7 +32,7 @@ exports.prototype.setup = function() {
 			cluster.fork();
 	});
 	
-	for (var i = this.config.forks; i > 0; i--)
+	for (var i = 0; i < this.config.workers; i++)
 		cluster.fork();
 }
 
