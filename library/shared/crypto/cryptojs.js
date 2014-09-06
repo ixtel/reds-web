@@ -123,7 +123,7 @@ cryptojs.decryptData = function(data, key, vector) {
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
-typeof exports=='object' ? exports=cryptojs : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).cryptojs = cryptojs;
+typeof exports=='object' ? module.exports=exports=cryptojs : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).cryptojs = cryptojs;
 
 
 // NOTE We use this library loader function to to keep the module scope clean

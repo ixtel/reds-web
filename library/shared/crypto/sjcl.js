@@ -86,7 +86,7 @@ sjcl.decryptData = function(cdata, key, vector) {
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
-typeof exports=='object' ? exports=sjcl : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).sjcl = sjcl;
+typeof exports=='object' ? module.exports=exports=sjcl : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).sjcl = sjcl;
 
 // INFO Stanford JavaScript Crypto Library
 // NOTE Enabled components: aes bitArray codecString codecBase64 codecBytes
