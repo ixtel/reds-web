@@ -19,11 +19,22 @@ Credentials.unregisterLeafClient = function(id) {
 
 // INFO LeafClient client module
 
-var LeafClient = function(url, cryptoFacility) {
-	this.url = url;
-	this.crypto = cryptoFacility;
+var LeafClient = function(options) {
 	this.id = Credentials.registerLeafClient();
+	this.crypto = new this.CryptoFacilities[options.crypto[0]]();
+	this.options = options;
 	console.log(this.id);
+}
+
+LeafClient.prototype.CryptoFacilities = new Object();
+
+LeafClient.prototype.registerCryptoFacility = function(facility) {
+	if (!this.hasOwnProperty('CryptoFacilities')) {
+		Object.getPrototypeOf(this).registerCryptoFacilities();
+		this.CryptoFacilities = Object.create(this.CryptoFacilities||null);
+	}
+	if (facility)
+		this.CryptoFacilities[facility.prototype.name] = facility;
 }
 
 LeafClient.prototype.decodeResponse = function(xhr) {
@@ -35,7 +46,7 @@ LeafClient.prototype.decodeResponse = function(xhr) {
 LeafClient.prototype.sendJSON = function(method, path, data, callback) {
 	var xhr = new XMLHttpRequest();
 	xhr.addEventListener("load", onLoad.bind(this), false);
-	xhr.open(method, this.url+path, true);
+	xhr.open(method, this.options.url+path, true);
 	xhr.setRequestHeader("Content-Type", "application/json;charset=encoding");
 	xhr.send(data ? JSON.stringify(data) : undefined);
 
@@ -84,7 +95,10 @@ LeafClient.prototype.signin = function(name, password, callback) {
 	}
 }
 
+LeafClient.prototype.registerCryptoFacility(reds&&reds.crypto ? reds.crypto.CryptoJs : require("../shared/crypto/CryptoJs.js"));
+LeafClient.prototype.registerCryptoFacility(reds&&reds.crypto ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl.js"));
+
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
-typeof exports=='object' ? exports=LeafClient : (self.reds=self.reds||new Object()).LeafClient=LeafClient;
+typeof exports=='object' ? module.exports=exports=LeafClient : ((self.reds=self.reds||new Object()).leaf=reds.leaf||new Object()).client=LeafClient;
 
 })();

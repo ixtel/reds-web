@@ -1,7 +1,10 @@
 "use strict"
 
-var cryptoFacility = reds.crypto.sjcl||reds.crypto.cryptojs;
-var leaf = new reds.LeafClient("http://node.reds-web.dev", cryptoFacility);
+var cryptoFacility = new reds.crypto.Sjcl();
+var leaf = new reds.leaf.client({
+	'url': "http://node.reds-web.dev",
+	'crypto': ["sjcl-1", "cryptojs-1"]
+});
 
 function convertElementsToObject(elements) {
 	var result = new Object();
@@ -173,8 +176,6 @@ function deleteAddress(address) {
 // INFO Page initialization
 
 function init() {
-	console.log(reds);
-
 	document.getElementById("TestCryptoFacility").addEventListener("submit", function(evt) {
 		evt.preventDefault();
 		testCryptoFacility();

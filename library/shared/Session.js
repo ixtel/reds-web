@@ -2,6 +2,14 @@ var domain = require("domain");
 var events = require("events");
 var SessionError = require("./SessionError");
 
+var CryptoJsFacility = require("./crypto/CryptoJs");
+var SjclFacility = require("../shared/crypto/Sjcl.js");
+
+// TODO Use some kind of facility manager instead of an ordinary object here
+var CryptoFacilities = new Object();
+CryptoFacilities[CryptoJsFacility.prototype.name] = CryptoJsFacility;
+CryptoFacilities[SjclFacility.prototype.name] = SjclFacility;
+
 module.exports = exports = function(config, request, response) {
 	this.$requestJSON = undefined;
 	this.$storageFacility = undefined;
@@ -9,6 +17,9 @@ module.exports = exports = function(config, request, response) {
 	this.request = request;
 	this.response = response;
 	this.requestText = '';
+	// NOTE Will be set in run()
+	this.crypto = null;
+	this.storage = null;
 	// NOTE Setup domain
 	this.domain = domain.create();
 	this.domain.add(this.request);
@@ -31,6 +42,16 @@ exports.prototype = Object.create(events.EventEmitter.prototype);
 exports.prototype.HookHandlers = new Object();
 exports.prototype.StorageFacilities = new Object();
 
+exports.prototype.createCryptoFacility = function(name) {
+	if (CryptoFacilities[name])
+		return new CryptoFacilities[name]();
+	else
+		throw new Error("unknown crypto facility "+name);
+} 
+// exports.prototype.createCryptoFacility = function(name) {
+// 	return CryptoFacilities[name] ? new CryptoFacilities[name]() : Session.prototype.createCryptoFacility(name);
+// } 
+
 exports.prototype.registerStorageFacility = function(facility) {
 	if (!this.hasOwnProperty('StorageFacilities')) {
 		Object.getPrototypeOf(this).registerStorageFacility();
@@ -45,6 +66,8 @@ exports.prototype.run = function() {
 	this.domain.run(connect.bind(this));
 
 	function connect() {
+		// TODO Select crypto facility by conetnt-type
+		this.crypto = this.createCryptoFacility(this.config.crypto[0]);
 		if (!this.StorageFacilities[this.config.storage.facility])
 			throw new Error("unknown storage facility");
 		this.storage = new this.StorageFacilities[this.config.storage.facility](this.config.storage.options);
@@ -147,4 +170,4 @@ Object.defineProperty(exports.prototype, "storageFacility", {
 	}
 });
 
-exports.prototype.registerStorageFacility(require("./storage/PostgresPg.js"));
+exports.prototype.registerStorageFacility(require("./storage/NodePg.js"));

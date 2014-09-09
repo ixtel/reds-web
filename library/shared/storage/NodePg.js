@@ -8,7 +8,7 @@ module.exports = exports = function(options) {
 	this.options = options||null;
 }
 
-exports.prototype.name = "POSTGRES_PG-1"
+exports.prototype.name = "nodepg-1"
 
 exports.prototype.connect = function(callback) {
 	pg.connect(this.options, function(error, client, done) {

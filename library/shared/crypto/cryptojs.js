@@ -1,10 +1,17 @@
 (function(){
 "use strict";
 
-var cryptojs = new Object();
+// TODO The cryptojs-1 implemantation uses the following options
+//      cipher: AES128
+//      hash: SHA256
+//      group: NIST2048
 
 var BigInteger = loadBigInteger();
-var CryptoJS = loadCryptoJS();
+var cryptojs = loadCryptoJS();
+
+var KEYSIZE = 128/32;
+cryptojs.algo.EvpKDF.cfg.keySize = KEYSIZE;
+cryptojs.algo.EvpKDF.cfg.iterations = 1;
 
 var Rng = function() {
 	// NOTE We assume that Node.JS is used when no window object exists.
@@ -29,51 +36,50 @@ Rng.prototype.nextBytesNodeJS = function(arr) {
 	return arr;
 }
 
-var KEYSIZE = 128/32;
+var CryptoJsFacility = function() {
+	// NOTE Nothig to here (but maybe in other facilities)
+}
 
-CryptoJS.algo.EvpKDF.cfg.keySize = KEYSIZE;
-CryptoJS.algo.EvpKDF.cfg.iterations = 1;
+CryptoJsFacility.prototype.name = "cryptojs-1";
 
-cryptojs.name = "CryptoJS_AES128_SHA256_NIST2048-1";
-
-cryptojs.generateTimestamp = function() {
+CryptoJsFacility.prototype.generateTimestamp = function() {
 	var now = Date.now();
 	var low = now&0xffffffff;
 	var high = Math.floor(now/0xffffffff);
-	var time = CryptoJS.lib.WordArray.create([high, low]);
-	time.concat(CryptoJS.lib.WordArray.random(64));
-	return CryptoJS.enc.Base64.stringify(time);
+	var time = cryptojs.lib.WordArray.create([high, low]);
+	time.concat(cryptojs.lib.WordArray.random(64));
+	return cryptojs.enc.Base64.stringify(time);
 }
 
-cryptojs.compareTimestamps = function(a, b) {
-	var timeA = CryptoJS.enc.Base64.parse(a);
-	var timeB = CryptoJS.enc.Base64.parse(b);
+CryptoJsFacility.prototype.compareTimestamps = function(a, b) {
+	var timeA = cryptojs.enc.Base64.parse(a);
+	var timeB = cryptojs.enc.Base64.parse(b);
 	var nowA = timeA.words[0]*0x100000000 + timeA.words[1];
 	var nowB = timeB.words[0]*0x100000000 + timeB.words[1];
 	return nowA - nowB;
 }
 
-cryptojs.concatenateStrings = function() {
+CryptoJsFacility.prototype.concatenateStrings = function() {
 	var values = Array.prototype.slice.apply(arguments);
 	return values.join("\n");
 }
 
-cryptojs.generateSecureHash = function(data, salt) {
-	var hash = CryptoJS.PBKDF2(data, salt, {'keySize':256/32,'iterations':1000});
-	return CryptoJS.enc.Base64.stringify(hash);	
+CryptoJsFacility.prototype.generateSecureHash = function(data, salt) {
+	var hash = cryptojs.PBKDF2(data, salt, {'keySize':256/32,'iterations':1000});
+	return cryptojs.enc.Base64.stringify(hash);	
 }
 
-cryptojs.generateKey = function(seed) {
+CryptoJsFacility.prototype.generateKey = function(seed) {
 	if (seed) {
-		var key = CryptoJS.algo.EvpKDF.create().compute(seed, "");
+		var key = cryptojs.algo.EvpKDF.create().compute(seed, "");
 	}
 	else {
-		var key = CryptoJS.lib.WordArray.random(KEYSIZE);
+		var key = cryptojs.lib.WordArray.random(KEYSIZE);
 	}
-	return CryptoJS.enc.Base64.stringify(key);
+	return cryptojs.enc.Base64.stringify(key);
 }
 
-cryptojs.generateKeypair = function(seed) {
+CryptoJsFacility.prototype.generateKeypair = function(seed) {
 	var group = BigInteger.Groups.NIST2048;
 	// NOTE Find 0 < x < p and 0 < gx < p
 	do {
@@ -86,44 +92,44 @@ cryptojs.generateKeypair = function(seed) {
 		var gx = group.g.modPow(x, group.p);
 	// Ensure that 0 < gx
 	} while (gx.compareTo(BigInteger.ONE) <= 0);
-	var pri = CryptoJS.enc.Hex.parse(x.toString(16));
-	var pub = CryptoJS.enc.Hex.parse(gx.toString(16));
+	var pri = cryptojs.enc.Hex.parse(x.toString(16));
+	var pub = cryptojs.enc.Hex.parse(gx.toString(16));
 	return {
-		'privateKey': CryptoJS.enc.Base64.stringify(pri),
-		'publicKey': CryptoJS.enc.Base64.stringify(pub)
+		'privateKey': cryptojs.enc.Base64.stringify(pri),
+		'publicKey': cryptojs.enc.Base64.stringify(pub)
 	};
 }
 
-cryptojs.combineKeypair = function(privateKey, publicKey) {
-	var pri = CryptoJS.enc.Base64.parse(privateKey);
-	var pub = CryptoJS.enc.Base64.parse(publicKey);
-	var x = new BigInteger(CryptoJS.enc.Hex.stringify(pri), 16);
-	var gx = new BigInteger(CryptoJS.enc.Hex.stringify(pub), 16);
+CryptoJsFacility.prototype.combineKeypair = function(privateKey, publicKey) {
+	var pri = cryptojs.enc.Base64.parse(privateKey);
+	var pub = cryptojs.enc.Base64.parse(publicKey);
+	var x = new BigInteger(cryptojs.enc.Hex.stringify(pri), 16);
+	var gx = new BigInteger(cryptojs.enc.Hex.stringify(pub), 16);
 	var s = gx.modPow(x, BigInteger.Groups.NIST2048.p);
-	var key = CryptoJS.algo.EvpKDF.create().compute(s.toString(16), "")
-	return CryptoJS.enc.Base64.stringify(key)
+	var key = cryptojs.algo.EvpKDF.create().compute(s.toString(16), "")
+	return cryptojs.enc.Base64.stringify(key)
 }
 
-cryptojs.generateHmac = function(data, key) {
-	var hmac = CryptoJS.HmacSHA256(data, key);
-	return CryptoJS.enc.Base64.stringify(hmac);
+CryptoJsFacility.prototype.generateHmac = function(data, key) {
+	var hmac = cryptojs.HmacSHA256(data, key);
+	return cryptojs.enc.Base64.stringify(hmac);
 }
 
-cryptojs.encryptData = function(data, key, vector) {
-	var derived = CryptoJS.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
-	var result = CryptoJS.AES.encrypt(data, derived.key, derived);
-	return CryptoJS.enc.Base64.stringify(result.ciphertext);
+CryptoJsFacility.prototype.encryptData = function(data, key, vector) {
+	var derived = cryptojs.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
+	var result = cryptojs.AES.encrypt(data, derived.key, derived);
+	return cryptojs.enc.Base64.stringify(result.ciphertext);
 }
 
-cryptojs.decryptData = function(data, key, vector) {
-	var cipher = {'ciphertext':CryptoJS.enc.Base64.parse(data)};
-	var derived = CryptoJS.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
-	var result = CryptoJS.AES.decrypt(cipher, derived.key, derived);
-	return CryptoJS.enc.Utf8.stringify(result);
+CryptoJsFacility.prototype.decryptData = function(data, key, vector) {
+	var cipher = {'ciphertext':cryptojs.enc.Base64.parse(data)};
+	var derived = cryptojs.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
+	var result = cryptojs.AES.decrypt(cipher, derived.key, derived);
+	return cryptojs.enc.Utf8.stringify(result);
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
-typeof exports=='object' ? module.exports=exports=cryptojs : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).cryptojs = cryptojs;
+typeof exports=='object' ? module.exports=exports=CryptoJsFacility : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).CryptoJs = CryptoJsFacility;
 
 
 // NOTE We use this library loader function to to keep the module scope clean

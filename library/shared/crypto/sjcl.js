@@ -1,98 +1,105 @@
 (function(){
 "use strict";
 
-var sjcl = new Object();
+var sjcl = loadSjcl();
 
-var SJCL = loadSJCL();
+// TODO Implement options
+//      cipher: AES128
+//      hash: SHA256
+//      curve: SECP256K1-1
 
-sjcl.name = "SJCL_AES128_SHA256_SECP256K1-1";
+var SjclFacility = function() {
+	// NOTE Nothig to here (but maybe in other facilities)
+}
 
-sjcl.generateTimestamp = function() {
+SjclFacility.prototype.name = "sjcl-1";
+
+SjclFacility.prototype.generateTimestamp = function() {
 	var now = Date.now();
 	var low = now&0xffffffff;
 	var high = Math.floor(now/0xffffffff);
 	var timeBytes = [high, low];
-	var saltBytes = SJCL.random.randomWords(2, 10);
-	return SJCL.codec.base64.fromBits(timeBytes.concat(saltBytes), true, true);
+	var saltBytes = sjcl.random.randomWords(2, 10);
+	return sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes), true, true);
 }
 
-sjcl.compareTimestamps = function(a, b) {
-	var timeA = SJCL.codec.base64.toBits(a, true);
-	var timeB = SJCL.codec.base64.toBits(b, true);
+SjclFacility.prototype.compareTimestamps = function(a, b) {
+	var timeA = sjcl.codec.base64.toBits(a, true);
+	var timeB = sjcl.codec.base64.toBits(b, true);
 	var nowA = timeA[0]*0x100000000 + timeA[1];
 	var nowB = timeB[0]*0x100000000 + timeB[1];
 	return nowA - nowB;
 }
 
-sjcl.concatenateStrings = function() {
+SjclFacility.prototype.concatenateStrings = function() {
 	var values = Array.prototype.slice.apply(arguments);
 	return values.join("\n");
 }
 
-sjcl.generateSecureHash = function(data, salt) {
-	var hashBits = SJCL.misc.pbkdf2(data, salt, 4096, 256);
-	return SJCL.codec.base64.fromBits(hashBits, true, true);
+SjclFacility.prototype.generateSecureHash = function(data, salt) {
+	var hashBits = sjcl.misc.pbkdf2(data, salt, 4096, 256);
+	return sjcl.codec.base64.fromBits(hashBits, true, true);
 }
 
-sjcl.generateKey = function(seed) {
-	var keyBits = seed ? SJCL.misc.pbkdf2(seed, "", 1, 128) : SJCL.random.randomWords(4, 10);
-	return SJCL.codec.base64.fromBits(keyBits, true, true)
+SjclFacility.prototype.generateKey = function(seed) {
+	var keyBits = seed ? sjcl.misc.pbkdf2(seed, "", 1, 128) : sjcl.random.randomWords(4, 10);
+	return sjcl.codec.base64.fromBits(keyBits, true, true)
 }
 
-sjcl.generateKeypair = function(seed) {
-    var privateBn = SJCL.bn.random(SJCL.ecc.curves.k256.r, 10);
-    var publicBn = SJCL.ecc.curves.k256.G.mult(privateBn);
+SjclFacility.prototype.generateKeypair = function(seed) {
+    var privateBn = sjcl.bn.random(sjcl.ecc.curves.k256.r, 10);
+    var publicBn = sjcl.ecc.curves.k256.G.mult(privateBn);
 	return {
-		'privateKey': SJCL.codec.base64.fromBits(privateBn.toBits(), true, true),
-		'publicKey': SJCL.codec.base64.fromBits(publicBn.toBits(), true, true)
+		'privateKey': sjcl.codec.base64.fromBits(privateBn.toBits(), true, true),
+		'publicKey': sjcl.codec.base64.fromBits(publicBn.toBits(), true, true)
 	}
 }
 
-sjcl.combineKeypair = function(privateKey, publicKey) {
-	var privateBits = SJCL.codec.base64.toBits(privateKey, true);
-	var publicBits = SJCL.codec.base64.toBits(publicKey, true);
-	var privateBn = SJCL.bn.fromBits(privateBits);
-	var publicBn = SJCL.ecc.curves.k256.fromBits(publicBits);
+SjclFacility.prototype.combineKeypair = function(privateKey, publicKey) {
+	var privateBits = sjcl.codec.base64.toBits(privateKey, true);
+	var publicBits = sjcl.codec.base64.toBits(publicKey, true);
+	var privateBn = sjcl.bn.fromBits(privateBits);
+	var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
 	var sharedBn = publicBn.mult(privateBn);
-	var keyBits = SJCL.misc.pbkdf2(sharedBn.toBits(), "", 1, 128)
-	return SJCL.codec.base64.fromBits(keyBits, true, true);
+	var keyBits = sjcl.misc.pbkdf2(sharedBn.toBits(), "", 1, 128)
+	return sjcl.codec.base64.fromBits(keyBits, true, true);
 }
 
-sjcl.generateHmac = function(data, key) {
-	var keyBits = SJCL.codec.base64.toBits(key, true);
-	var sha256Hash = new SJCL.misc.hmac(keyBits, SJCL.hash.sha256);
+SjclFacility.prototype.generateHmac = function(data, key) {
+	var keyBits = sjcl.codec.base64.toBits(key, true);
+	var sha256Hash = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
 	var hmacBits = sha256Hash.encrypt(data);
-	return SJCL.codec.base64.fromBits(hmacBits, true, true);
+	return sjcl.codec.base64.fromBits(hmacBits, true, true);
 }
 
-sjcl.encryptData = function(data, key, vector) {
-	var derivedBits = SJCL.misc.pbkdf2(key, vector, 1, 256);
+SjclFacility.prototype.encryptData = function(data, key, vector) {
+	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
-	var dataBits = SJCL.codec.utf8String.toBits(data);
-	var aes128Cipher = new SJCL.cipher.aes(keyBits);
-    var cdataBits = SJCL.mode.ccm.encrypt(aes128Cipher, dataBits, ivBits);
-	return SJCL.codec.base64.fromBits(cdataBits, true, true);
+	var dataBits = sjcl.codec.utf8String.toBits(data);
+	var aes128Cipher = new sjcl.cipher.aes(keyBits);
+    var cdataBits = sjcl.mode.ccm.encrypt(aes128Cipher, dataBits, ivBits);
+	return sjcl.codec.base64.fromBits(cdataBits, true, true);
 }
 
-sjcl.decryptData = function(cdata, key, vector) {
-	var derivedBits = SJCL.misc.pbkdf2(key, vector, 1, 256)
+SjclFacility.prototype.decryptData = function(cdata, key, vector) {
+	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256)
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
-	var cdataBits = SJCL.codec.base64.toBits(cdata, true);
-	var aes128Cipher = new SJCL.cipher.aes(keyBits);
-    var dataBits = SJCL.mode.ccm.decrypt(aes128Cipher, cdataBits, ivBits);
-	return SJCL.codec.utf8String.fromBits(dataBits);
+	var cdataBits = sjcl.codec.base64.toBits(cdata, true);
+	var aes128Cipher = new sjcl.cipher.aes(keyBits);
+    var dataBits = sjcl.mode.ccm.decrypt(aes128Cipher, cdataBits, ivBits);
+	return sjcl.codec.utf8String.fromBits(dataBits);
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
-typeof exports=='object' ? module.exports=exports=sjcl : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).sjcl = sjcl;
+typeof exports=='object' ? module.exports=exports=SjclFacility : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).Sjcl = SjclFacility;
 
 // INFO Stanford JavaScript Crypto Library
 // NOTE Enabled components: aes bitArray codecString codecBase64 codecBytes
 //      sha256 ccm hmac pbkdf2 random bn ecc
 
-function loadSJCL() {
+function loadSjcl() {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
