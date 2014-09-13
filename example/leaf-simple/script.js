@@ -1,7 +1,7 @@
 "use strict"
 
 var cryptoFacility = new reds.crypto.Sjcl();
-var leaf = new reds.leaf.client({
+var leaf = new reds.leaf.Client({
 	'url': "http://node.reds-web.dev",
 	'crypto': ["sjcl-1", "cryptojs-1"]
 });

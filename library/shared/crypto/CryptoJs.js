@@ -36,13 +36,13 @@ Rng.prototype.nextBytesNodeJS = function(arr) {
 	return arr;
 }
 
-var CryptoJsFacility = function() {
+var CryptoJs = function() {
 	// NOTE Nothig to here (but maybe in other facilities)
 }
 
-CryptoJsFacility.prototype.name = "cryptojs-1";
+CryptoJs.prototype.name = "cryptojs-1";
 
-CryptoJsFacility.prototype.generateTimestamp = function() {
+CryptoJs.prototype.generateTimestamp = function() {
 	var now = Date.now();
 	var low = now&0xffffffff;
 	var high = Math.floor(now/0xffffffff);
@@ -51,7 +51,7 @@ CryptoJsFacility.prototype.generateTimestamp = function() {
 	return cryptojs.enc.Base64.stringify(time);
 }
 
-CryptoJsFacility.prototype.compareTimestamps = function(a, b) {
+CryptoJs.prototype.compareTimestamps = function(a, b) {
 	var timeA = cryptojs.enc.Base64.parse(a);
 	var timeB = cryptojs.enc.Base64.parse(b);
 	var nowA = timeA.words[0]*0x100000000 + timeA.words[1];
@@ -59,17 +59,17 @@ CryptoJsFacility.prototype.compareTimestamps = function(a, b) {
 	return nowA - nowB;
 }
 
-CryptoJsFacility.prototype.concatenateStrings = function() {
+CryptoJs.prototype.concatenateStrings = function() {
 	var values = Array.prototype.slice.apply(arguments);
 	return values.join("\n");
 }
 
-CryptoJsFacility.prototype.generateSecureHash = function(data, salt) {
+CryptoJs.prototype.generateSecureHash = function(data, salt) {
 	var hash = cryptojs.PBKDF2(data, salt, {'keySize':256/32,'iterations':1000});
 	return cryptojs.enc.Base64.stringify(hash);	
 }
 
-CryptoJsFacility.prototype.generateKey = function(seed) {
+CryptoJs.prototype.generateKey = function(seed) {
 	if (seed) {
 		var key = cryptojs.algo.EvpKDF.create().compute(seed, "");
 	}
@@ -79,7 +79,7 @@ CryptoJsFacility.prototype.generateKey = function(seed) {
 	return cryptojs.enc.Base64.stringify(key);
 }
 
-CryptoJsFacility.prototype.generateKeypair = function(seed) {
+CryptoJs.prototype.generateKeypair = function(seed) {
 	var group = BigInteger.Groups.NIST2048;
 	// NOTE Find 0 < x < p and 0 < gx < p
 	do {
@@ -100,7 +100,7 @@ CryptoJsFacility.prototype.generateKeypair = function(seed) {
 	};
 }
 
-CryptoJsFacility.prototype.combineKeypair = function(privateKey, publicKey) {
+CryptoJs.prototype.combineKeypair = function(privateKey, publicKey) {
 	var pri = cryptojs.enc.Base64.parse(privateKey);
 	var pub = cryptojs.enc.Base64.parse(publicKey);
 	var x = new BigInteger(cryptojs.enc.Hex.stringify(pri), 16);
@@ -110,18 +110,18 @@ CryptoJsFacility.prototype.combineKeypair = function(privateKey, publicKey) {
 	return cryptojs.enc.Base64.stringify(key)
 }
 
-CryptoJsFacility.prototype.generateHmac = function(data, key) {
+CryptoJs.prototype.generateHmac = function(data, key) {
 	var hmac = cryptojs.HmacSHA256(data, key);
 	return cryptojs.enc.Base64.stringify(hmac);
 }
 
-CryptoJsFacility.prototype.encryptData = function(data, key, vector) {
+CryptoJs.prototype.encryptData = function(data, key, vector) {
 	var derived = cryptojs.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
 	var result = cryptojs.AES.encrypt(data, derived.key, derived);
 	return cryptojs.enc.Base64.stringify(result.ciphertext);
 }
 
-CryptoJsFacility.prototype.decryptData = function(data, key, vector) {
+CryptoJs.prototype.decryptData = function(data, key, vector) {
 	var cipher = {'ciphertext':cryptojs.enc.Base64.parse(data)};
 	var derived = cryptojs.kdf.OpenSSL.execute(key, KEYSIZE, KEYSIZE, vector);
 	var result = cryptojs.AES.decrypt(cipher, derived.key, derived);
@@ -129,7 +129,7 @@ CryptoJsFacility.prototype.decryptData = function(data, key, vector) {
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
-typeof exports=='object' ? module.exports=exports=CryptoJsFacility : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).CryptoJs = CryptoJsFacility;
+typeof exports=='object' ? module.exports=exports=CryptoJs : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).CryptoJs = CryptoJs;
 
 
 // NOTE We use this library loader function to to keep the module scope clean
