@@ -1,12 +1,15 @@
-module.exports = exports = function(name) {
+(function(){
+"use strict";
+
+var FacilityManager = function(name) {
 	this.facilities = new Object();
 }
 
-exports.prototype.addFacility = function(facility) {
+FacilityManager.prototype.addFacility = function(facility) {
 	this.facilities[facility.prototype.name] = facility;
 }
 
-exports.prototype.addFactoryToObject = function(factory, obj) {
+FacilityManager.prototype.addFactoryToObject = function(factory, obj) {
 	var facilities = this.facilities;
 	obj[factory] = function(name, arg) {
 		if (facilities[name])
@@ -16,7 +19,7 @@ exports.prototype.addFactoryToObject = function(factory, obj) {
 	}
 }
 
-exports.prototype.addFinalFactoryToObject = function(factory, obj) {
+FacilityManager.prototype.addFinalFactoryToObject = function(factory, obj) {
 	var facilities = this.facilities;
 	obj[factory] = function(name, arg) {
 		if (facilities[name])
@@ -25,3 +28,8 @@ exports.prototype.addFinalFactoryToObject = function(factory, obj) {
 			throw new Error("unknown facility "+name);
 	}
 }
+
+// NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
+typeof exports=='object' ? module.exports=exports=FacilityManager : (self.reds=self.reds||new Object()).FacilityManager = FacilityManager;
+
+})();

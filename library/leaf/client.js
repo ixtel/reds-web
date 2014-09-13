@@ -1,6 +1,8 @@
 (function(){
 "use strict";
 
+var FacilityManager = window.reds ? reds.FacilityManager : require("../shared/FacilityManager");
+
 // INFO Credential database
 
 var Credentials = new Object();
@@ -19,23 +21,18 @@ Credentials.unregisterLeafClient = function(id) {
 
 // INFO LeafClient client module
 
+var CryptoFacilities = new FacilityManager();
+CryptoFacilities.addFacility(window.reds ? reds.crypto.CryptoJs : require("../shared/crypto/CryptoJs"));
+CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl"));
+
 var LeafClient = function(options) {
 	this.id = Credentials.registerLeafClient();
-	this.crypto = new this.CryptoFacilities[options.crypto[0]]();
+	this.crypto = this.createCryptoFacility(options.crypto[0]);
 	this.options = options;
 	console.log(this.id);
 }
 
-LeafClient.prototype.CryptoFacilities = new Object();
-
-LeafClient.prototype.registerCryptoFacility = function(facility) {
-	if (!this.hasOwnProperty('CryptoFacilities')) {
-		Object.getPrototypeOf(this).registerCryptoFacilities();
-		this.CryptoFacilities = Object.create(this.CryptoFacilities||null);
-	}
-	if (facility)
-		this.CryptoFacilities[facility.prototype.name] = facility;
-}
+CryptoFacilities.addFinalFactoryToObject("createCryptoFacility", LeafClient.prototype);
 
 LeafClient.prototype.decodeResponse = function(xhr) {
 	var contentType = xhr.getResponseHeader("Content-Type");
@@ -94,9 +91,6 @@ LeafClient.prototype.signin = function(name, password, callback) {
 		callback && callback(data);
 	}
 }
-
-LeafClient.prototype.registerCryptoFacility(reds&&reds.crypto ? reds.crypto.CryptoJs : require("../shared/crypto/CryptoJs.js"));
-LeafClient.prototype.registerCryptoFacility(reds&&reds.crypto ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl.js"));
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
 typeof exports=='object' ? module.exports=exports=LeafClient : ((self.reds=self.reds||new Object()).leaf=reds.leaf||new Object()).client=LeafClient;
