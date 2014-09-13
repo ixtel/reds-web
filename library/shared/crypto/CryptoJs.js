@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-// TODO The cryptojs-1 implemantation uses the following options
+// NOTE The cryptojs-1 implementation uses the following options
 //      cipher: AES128
 //      hash: SHA256
 //      group: NIST2048

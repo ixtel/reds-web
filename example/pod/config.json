@@ -6,7 +6,7 @@
 	"log": "debug",
 	"crypto": ["sjcl-1", "cryptojs-1"],
 	"storage": {
-		"facility": "nodepg-1",
+		"name": "nodepg-1",
 		"options": "postgres://reds_example:foobar@localhost/reds_example_pod"
 	}
 }

@@ -1,14 +1,14 @@
 var domain = require("domain");
 var events = require("events");
+var FacilityManager = require("./FacilityManager");
 var SessionError = require("./SessionError");
 
-var CryptoJsFacility = require("./crypto/CryptoJs");
-var SjclFacility = require("../shared/crypto/Sjcl.js");
+var CryptoFacilities = new FacilityManager();
+CryptoFacilities.addFacility(require("./crypto/CryptoJs"));
+CryptoFacilities.addFacility(require("./crypto/Sjcl"));
 
-// TODO Use some kind of facility manager instead of an ordinary object here
-var CryptoFacilities = new Object();
-CryptoFacilities[CryptoJsFacility.prototype.name] = CryptoJsFacility;
-CryptoFacilities[SjclFacility.prototype.name] = SjclFacility;
+var StorageFacilities = new FacilityManager();
+StorageFacilities.addFacility(require("./storage/NodePg.js"));
 
 module.exports = exports = function(config, request, response) {
 	this.$requestJSON = undefined;
@@ -39,38 +39,20 @@ module.exports = exports = function(config, request, response) {
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
 
-exports.prototype.HookHandlers = new Object();
-exports.prototype.StorageFacilities = new Object();
+exports.prototype.HookHandlers = null;
 
-exports.prototype.createCryptoFacility = function(name) {
-	if (CryptoFacilities[name])
-		return new CryptoFacilities[name]();
-	else
-		throw new Error("unknown crypto facility "+name);
-} 
-// exports.prototype.createCryptoFacility = function(name) {
-// 	return CryptoFacilities[name] ? new CryptoFacilities[name]() : Session.prototype.createCryptoFacility(name);
-// } 
-
-exports.prototype.registerStorageFacility = function(facility) {
-	if (!this.hasOwnProperty('StorageFacilities')) {
-		Object.getPrototypeOf(this).registerStorageFacility();
-		this.StorageFacilities = Object.create(this.StorageFacilities||null);
-	}
-	if (facility)
-		this.StorageFacilities[facility.prototype.name] = facility;
-}
+CryptoFacilities.addFinalFactoryToObject("createCryptoFacility", exports.prototype);
+StorageFacilities.addFinalFactoryToObject("createStorageFacility", exports.prototype);
 
 exports.prototype.run = function() {
 	var lock = 2;
 	this.domain.run(connect.bind(this));
 
 	function connect() {
-		// TODO Select crypto facility by conetnt-type
+		// TODO Select crypto facility by content-type
 		this.crypto = this.createCryptoFacility(this.config.crypto[0]);
-		if (!this.StorageFacilities[this.config.storage.facility])
-			throw new Error("unknown storage facility");
-		this.storage = new this.StorageFacilities[this.config.storage.facility](this.config.storage.options);
+		// TODO Select storage facility by purl
+		this.storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
 		this.storage.connect(this.domain.intercept(delegate.bind(this)));
 		this.request.addListener("data", receive.bind(this));
 		this.request.addListener("end", delegate.bind(this));
@@ -170,4 +152,3 @@ Object.defineProperty(exports.prototype, "storageFacility", {
 	}
 });
 
-exports.prototype.registerStorageFacility(require("./storage/NodePg.js"));

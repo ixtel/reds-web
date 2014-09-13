@@ -1,12 +1,12 @@
 (function(){
 "use strict";
 
-var sjcl = loadSjcl();
-
-// TODO Implement options
+// NOTE The sjcl-1 implementation uses the following options
 //      cipher: AES128
 //      hash: SHA256
 //      curve: SECP256K1-1
+
+var sjcl = loadSjcl();
 
 var SjclFacility = function() {
 	// NOTE Nothig to here (but maybe in other facilities)

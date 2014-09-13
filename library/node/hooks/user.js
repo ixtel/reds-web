@@ -2,7 +2,7 @@
 
 exports.GET = function(session) {
 	console.log("GET user");
-	session.storageFacility.connect(session.domain.intercept(afterConnect));
+	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
 		session.writeJSON({
@@ -14,7 +14,7 @@ exports.GET = function(session) {
 
 exports.POST = function(session) {
 	console.log("POST user");
-	session.storageFacility.connect(session.domain.intercept(afterConnect));
+	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
 		session.writeJSON({
@@ -26,7 +26,7 @@ exports.POST = function(session) {
 
 exports.PUT = function(session) {
 	console.log("PUT user");
-	session.storageFacility.connect(session.domain.intercept(afterConnect));
+	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
 		session.writeJSON({
@@ -38,7 +38,7 @@ exports.PUT = function(session) {
 
 exports.DELETE = function(session) {
 	console.log("DELETE user");
-	session.storageFacility.connect(session.domain.intercept(afterConnect));
+	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
 		session.end();
