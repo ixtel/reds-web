@@ -1,3 +1,8 @@
+textarea {
+	width: 70em;
+	height: 25em;
+}
+
 #Account, #Contact, #Address {
 	display: none;
 }

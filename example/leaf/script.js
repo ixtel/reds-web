@@ -1,6 +1,5 @@
 "use strict"
 
-var cryptoFacility = new reds.crypto.Sjcl();
 var leaf = new reds.leaf.Client({
 	'url': "http://node.reds-web.dev",
 	'crypto': ["sjcl-1", "cryptojs-1"]
@@ -15,74 +14,100 @@ function convertElementsToObject(elements) {
 }
 
 function testCryptoFacility() {
-	console.log(cryptoFacility.name);
+	function log(text) {
+		document.forms["TestCryptoFacility"].elements['output'].value += text;
+	}
+
+	log("name: "+leaf.crypto.name+"\n\n");
+
+	log("hmac = generateHmac(\"mydata\", \"foo\")");
+	start = Date.now();
+	var hmac = leaf.crypto.generateHmac("mydata", "foo");
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nhmac = "+hmac+"\n\n");
+
+	log("shash = generateHmac(\"mydata\", \"foo\")");
+	start = Date.now();
+	var shash = leaf.crypto.generateSecureHash("mydata", "bar");
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nshash = "+shash+"\n\n");
+
+	log("ts1 = generateTimestamp()");
+	start = Date.now();
+	var ts1 = leaf.crypto.generateTimestamp();
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nts1 = "+ts1+"\n");
+	log("ts2 = generateTimestamp()");
+	start = Date.now();
+	var ts2 = leaf.crypto.generateTimestamp();
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nts2 = "+ts2+"\n\n");
+
+	log("cp1 = compareTimestamps(ts1, ts2)");
+	start = Date.now();
+	var cp1 = leaf.crypto.compareTimestamps(ts1, ts2);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ncp1 = "+cp1+"\n");
+	log("cp2 = compareTimestamps(ts1, ts2)");
+	start = Date.now();
+	var cp2 = leaf.crypto.compareTimestamps(ts2, ts1);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ncp2 = "+cp2+"\n\n");
+
+	log("key = generateKey(\"foobar\")");
+	start = Date.now();
+	var key = leaf.crypto.generateKey("foobar");
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nkey = "+key+"\n");
+	log("vector = generateKey()");
+	start = Date.now();
+	var vector = leaf.crypto.generateKey();
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nvector = "+vector+"\n\n");
+
+	log("pair1 = generateKeypair()");
 	var start = Date.now();
-	console.log("keypair1");
-	var keypair1 = cryptoFacility.generateKeypair();
-	console.log(Date.now()-start);
-	console.log("keypair2");
-	var keypair2 = cryptoFacility.generateKeypair();
-	console.log(Date.now()-start);
-	console.log("combined1");
-	var combined1 = cryptoFacility.combineKeypair(keypair1.privateKey, keypair2.publicKey);
-	console.log(Date.now()-start);
-	console.log("combined2");
-	var combined2 = cryptoFacility.combineKeypair(keypair2.privateKey, keypair1.publicKey);
-	console.log(Date.now()-start);
-	console.log(keypair1.privateKey);
-	console.log(keypair1.publicKey);
-	console.log(keypair2.privateKey);
-	console.log(keypair2.publicKey);
-	console.log(combined1);
-	console.log(combined2);
+	var pair1 = leaf.crypto.generateKeypair();
+	var time = Date.now()-start;
+	log(" ("+time+" ms)\npair1.privateKey = "+pair1.privateKey+"\n");
+	log("pair1.publicKey = "+pair1.publicKey+"\n");
+	log("pair2 = generateKeypair()");
+	start = Date.now();
+	var pair2 = leaf.crypto.generateKeypair();
+	time = Date.now()-start;
+	log(" ("+time+" ms)\npair2.privateKey = "+pair2.privateKey+"\n");
+	log("pair2.publicKey = "+pair2.publicKey+"\n\n");
 
+	log("combined1 = combineKeypair(pair1.privateKey, pair2.publicKey)");
 	start = Date.now();
-	console.log("key");
-	var key = cryptoFacility.generateKey("foobar");
-	console.log(Date.now()-start);
-	console.log("vector");
-	var vector = cryptoFacility.generateKey();
-	console.log(Date.now()-start);
-	console.log(vector);
-	console.log(key);
+	var combined1 = leaf.crypto.combineKeypair(pair1.privateKey, pair2.publicKey);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ncombined1 = "+combined1+"\n");
+	log("combined2 = combineKeypair(pair2.privateKey, pair1.publicKey)");
+	start = Date.now();
+	var combined2 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ncombined2 = "+combined2+"\n\n");
 
+	log("cdata1 = encryptData(\"mydata\", key, vector)");
 	start = Date.now();
-	console.log("cdata");
-	var cdata = cryptoFacility.encryptData("mydata", key, vector);
-	console.log(Date.now()-start);
-	console.log("data");
-	var data = cryptoFacility.decryptData(cdata, key, vector);
-	console.log(Date.now()-start);
-	console.log(cdata);
-	console.log(data);
-	
+	var cdata1 = leaf.crypto.encryptData("mydata", key, vector);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ncdata1 = "+cdata1+"\n");
+	log("cdata2 = encryptData(\"mydata\", combined1, combined2)");
 	start = Date.now();
-	console.log("hmac");
-	var hmac = cryptoFacility.generateHmac("mydata", "foo");	
-	console.log(Date.now()-start);
-	console.log("shash");
-	var shash = cryptoFacility.generateSecureHash("mydata", "bar");
-	console.log(Date.now()-start);
-	console.log(hmac);
-	console.log(shash);
+	var cdata2 = leaf.crypto.encryptData("mydata", combined1, combined2);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ncdata2 = "+cdata2+"\n\n");
 
-	start = Date.now();
-	console.log("ts1");
-	var ts1 = cryptoFacility.generateTimestamp();
-	console.log(Date.now()-start);
-	console.log("ts2");
-	var ts2 = cryptoFacility.generateTimestamp();
-	console.log(Date.now()-start);
-	console.log("cp1");
-	var cp1 = cryptoFacility.compareTimestamps(ts1, ts2);
-	console.log(Date.now()-start);
-	console.log("cp2");
-	var cp2 = cryptoFacility.compareTimestamps(ts2, ts1);
-	console.log(Date.now()-start);
-	console.log(ts1);
-	console.log(ts2);
-	console.log(cp1);
-	console.log(cp2);
+	log("data1 = decryptData(cdata1, key, vector)");
+	var data1 = leaf.crypto.decryptData(cdata1, key, vector);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ndata1 = "+data1+"\n");
+	log("data2 = decryptData(cdata2, combined1, combined2)");
+	var data2 = leaf.crypto.decryptData(cdata2, combined1, combined2);
+	time = Date.now()-start;
+	log(" ("+time+" ms)\ndata2 = "+data2+"\n\n");
 }
 
 // INFO Account actions
