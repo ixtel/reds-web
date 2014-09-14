@@ -5,6 +5,11 @@ var leaf = new reds.leaf.Client({
 	'crypto': ["sjcl-1", "cryptojs-1"]
 });
 
+leaf.addEventListener("error", function(evt) {
+	evt.preventDefault();
+	alert(evt.detail);
+});
+
 function convertElementsToObject(elements) {
 	var result = new Object();
 	for (var i=0; i<elements.length; i++)
@@ -118,7 +123,7 @@ function signup(name, password, confirmation) {
 	// 	return alert("Name and password must not be empty!")
 	// if (password != confirmation)
 	// 	return alert("Password and confirmation mismatch!");
-	leaf.signup(name, password, afterSignup);
+	leaf.createAccount(name, password, null, afterSignup);
 
 	function afterSignup(response) {
 		showAccount(response['id']);
