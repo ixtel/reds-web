@@ -20,12 +20,12 @@ Sjcl.prototype.generateTimestamp = function() {
 	var high = Math.floor(now/0xffffffff);
 	var timeBytes = [high, low];
 	var saltBytes = sjcl.random.randomWords(2, 10);
-	return sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes), true, true);
+	return sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes));
 }
 
 Sjcl.prototype.compareTimestamps = function(a, b) {
-	var timeA = sjcl.codec.base64.toBits(a, true);
-	var timeB = sjcl.codec.base64.toBits(b, true);
+	var timeA = sjcl.codec.base64.toBits(a);
+	var timeB = sjcl.codec.base64.toBits(b);
 	var nowA = timeA[0]*0x100000000 + timeA[1];
 	var nowB = timeB[0]*0x100000000 + timeB[1];
 	return nowA - nowB;
@@ -38,38 +38,39 @@ Sjcl.prototype.concatenateStrings = function() {
 
 Sjcl.prototype.generateSecureHash = function(data, salt) {
 	var hashBits = sjcl.misc.pbkdf2(data, salt, 4096, 256);
-	return sjcl.codec.base64.fromBits(hashBits, true, true);
+	console.log(sjcl.codec.base64.fromBits(hashBits));
+	return sjcl.codec.base64.fromBits(hashBits);
 }
 
 Sjcl.prototype.generateKey = function(seed) {
 	var keyBits = seed ? sjcl.misc.pbkdf2(seed, "", 1, 128) : sjcl.random.randomWords(4, 10);
-	return sjcl.codec.base64.fromBits(keyBits, true, true)
+	return sjcl.codec.base64.fromBits(keyBits)
 }
 
 Sjcl.prototype.generateKeypair = function(seed) {
     var privateBn = sjcl.bn.random(sjcl.ecc.curves.k256.r, 10);
     var publicBn = sjcl.ecc.curves.k256.G.mult(privateBn);
 	return {
-		'privateKey': sjcl.codec.base64.fromBits(privateBn.toBits(), true, true),
-		'publicKey': sjcl.codec.base64.fromBits(publicBn.toBits(), true, true)
+		'privateKey': sjcl.codec.base64.fromBits(privateBn.toBits()),
+		'publicKey': sjcl.codec.base64.fromBits(publicBn.toBits())
 	}
 }
 
 Sjcl.prototype.combineKeypair = function(privateKey, publicKey) {
-	var privateBits = sjcl.codec.base64.toBits(privateKey, true);
-	var publicBits = sjcl.codec.base64.toBits(publicKey, true);
+	var privateBits = sjcl.codec.base64.toBits(privateKey);
+	var publicBits = sjcl.codec.base64.toBits(publicKey);
 	var privateBn = sjcl.bn.fromBits(privateBits);
 	var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
 	var sharedBn = publicBn.mult(privateBn);
 	var keyBits = sjcl.misc.pbkdf2(sharedBn.toBits(), "", 1, 128)
-	return sjcl.codec.base64.fromBits(keyBits, true, true);
+	return sjcl.codec.base64.fromBits(keyBits);
 }
 
 Sjcl.prototype.generateHmac = function(data, key) {
-	var keyBits = sjcl.codec.base64.toBits(key, true);
+	var keyBits = sjcl.codec.base64.toBits(key);
 	var sha256Hash = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
 	var hmacBits = sha256Hash.encrypt(data);
-	return sjcl.codec.base64.fromBits(hmacBits, true, true);
+	return sjcl.codec.base64.fromBits(hmacBits);
 }
 
 Sjcl.prototype.encryptData = function(data, key, vector) {
@@ -79,14 +80,14 @@ Sjcl.prototype.encryptData = function(data, key, vector) {
 	var dataBits = sjcl.codec.utf8String.toBits(data);
 	var aes128Cipher = new sjcl.cipher.aes(keyBits);
     var cdataBits = sjcl.mode.ccm.encrypt(aes128Cipher, dataBits, ivBits);
-	return sjcl.codec.base64.fromBits(cdataBits, true, true);
+	return sjcl.codec.base64.fromBits(cdataBits);
 }
 
 Sjcl.prototype.decryptData = function(cdata, key, vector) {
 	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256)
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
-	var cdataBits = sjcl.codec.base64.toBits(cdata, true);
+	var cdataBits = sjcl.codec.base64.toBits(cdata);
 	var aes128Cipher = new sjcl.cipher.aes(keyBits);
     var dataBits = sjcl.mode.ccm.decrypt(aes128Cipher, cdataBits, ivBits);
 	return sjcl.codec.utf8String.fromBits(dataBits);
