@@ -123,7 +123,7 @@ exports.prototype.write = function(data, type) {
 exports.prototype.writeJSON = function(data, type) {
 	if (data!==undefined)
 		var json = JSON.stringify(data);
-	this.write(json, type||"application/json;charset=utf8");
+	this.write(json, type||"application/json;charset=UTF-8");
 }
 
 Object.defineProperty(exports.prototype, "requestJSON", {
