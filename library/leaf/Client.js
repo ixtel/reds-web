@@ -112,6 +112,12 @@ Client.prototype.signin = function(name, password, callback) {
 	}
 }
 
+Client.prototype.signout = function(callback) {
+	Credentials[id] = new Object();
+	// NOTE Call the callback asynchoniously
+	setTimeout(callback, 0);
+}
+
 Client.prototype.createAccount = function(name, password, values, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
 	var data = Object.create(values);
