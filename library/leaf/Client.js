@@ -60,7 +60,7 @@ Client.prototype.signup = function(name, password, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
 	var seed = this.crypto.generateSecureHash(namepw, salt);
 	var authL = this.crypto.generateKeypair(seed);
-	this.sendJSON("POST", "/!/user", {
+	this.sendJSON("POST", "/!/account", {
 		'alias': alias,
 		'salt': salt,
 		'ksalt': ksalt,
@@ -87,7 +87,7 @@ Client.prototype.signin = function(name, password, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
 	var seed = this.crypto.generateSecureHash(namepw, salt);
 	var authKeypair = this.crypto.generateKeypair(seed);
-	this.sendJSON("GET", "/!/user/"+alias, null, afterSend.bind(this));
+	this.sendJSON("GET", "/!/account/"+alias, null, afterSend.bind(this));
 
 	function afterSend(data) {
 		Credentials[this.id].alias = alias;

@@ -3,7 +3,7 @@
 var SessionError = require("../../shared/SessionError");
 
 exports.GET = function(session) {
-	console.log("GET user");
+	console.log("GET account");
 	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
@@ -15,7 +15,6 @@ exports.GET = function(session) {
 }
 
 exports.POST = function(session) {
-	console.log("POST user");
 	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
@@ -42,7 +41,7 @@ exports.POST = function(session) {
 }
 
 exports.PUT = function(session) {
-	console.log("PUT user");
+	console.log("PUT account");
 	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
@@ -54,7 +53,7 @@ exports.PUT = function(session) {
 }
 
 exports.DELETE = function(session) {
-	console.log("DELETE user");
+	console.log("DELETE account");
 	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
