@@ -59,19 +59,23 @@ Client.prototype.signup = function(name, password, callback) {
 	var ssalt = this.crypto.generateKey();
 	var namepw = this.crypto.concatenateStrings(name, password);
 	var seed = this.crypto.generateSecureHash(namepw, salt);
-	var authKeypair = this.crypto.generateKeypair(seed);
-	this.sendJSON("POST", "/!/user/"+alias, {
+	var authL = this.crypto.generateKeypair(seed);
+	this.sendJSON("POST", "/!/user", {
 		'alias': alias,
 		'salt': salt,
 		'ksalt': ksalt,
 		'ssalt': ssalt,
-		'auth': authKeypair.publicKey
+		'auth_l': authL.publicKey
 	}, afterSend.bind(this));
 
 	function afterSend(data) {
-		Credentials[this.id].alias = alias;
-		console.log(Credentials);
-		callback && callback(data);
+		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
+		Credentials[this.id].account = {
+			'id': data['id'],
+			'alias': alias,
+			'auth': auth
+		};
+		callback && callback({'id':data['id']});
 	}
 }
 
