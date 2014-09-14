@@ -40,27 +40,44 @@ var Client = function(options) {
 
 CryptoFacilities.addFinalFactoryToObject("createCryptoFacility", Client.prototype);
 
-Client.prototype.decodeResponse = function(xhr) {
-	var contentType = xhr.getResponseHeader("Content-Type");
-	console.log(contentType);
-	return JSON.parse(xhr.responseText);
+Client.prototype.decodeJson = function(data) {
+	try {
+		return JSON.parse(data);
+	}
+	catch(error) {
+		if (this.dispatchEvent(new CustomEvent("error", {'detail':error,'cancelable':true})))
+			throw error;
+	}
 }
 
-Client.prototype.sendJSON = function(method, path, data, callback) {
+Client.prototype.sendJson = function(method, path, obj, callback) {
+	try {
+		var data = obj ? JSON.stringify(obj) : undefined;
+	}
+	catch(error) {
+		if (this.dispatchEvent(new CustomEvent("error", {'detail':error,'cancelable':true})))
+			throw error;
+		return;
+	}
+	this.send(method, path, "application/json;charset=encoding", data, callback);
+}
+
+Client.prototype.send = function(method, path, type, data, callback) {
+	if (!this.dispatchEvent(new CustomEvent("send", {'cancelable':true})))
+		return;
 	var xhr = new XMLHttpRequest();
 	xhr.addEventListener("load", onLoad.bind(this), false);
 	xhr.addEventListener("error", onError.bind(this), false);
 	xhr.open(method, this.options.url+path, true);
-	xhr.setRequestHeader("Content-Type", "application/json;charset=encoding");
-	if (this.dispatchEvent(new CustomEvent("send", {'detail':data,'cancelable':true})))
-		xhr.send(data ? JSON.stringify(data) : undefined);
+	xhr.setRequestHeader("Content-Type", type);
+	xhr.send(data);
 
 	function onLoad() {
 		if (xhr.status >= 400)
 			return onError.bind(this)(new HttpError(xhr.status, xhr.statusText));
 
 		this.dispatchEvent(new Event("load"));
-		callback(this.decodeResponse(xhr));
+		callback(this.decodeJson(xhr.responseText));
 	}
 
 	function onError(error) {
@@ -78,7 +95,7 @@ Client.prototype.signin = function(name, password, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
 	var seed = this.crypto.generateSecureHash(namepw, salt);
 	var authKeypair = this.crypto.generateKeypair(seed);
-	this.sendJSON("GET", "/!/account/"+alias, null, afterGetAccount.bind(this));
+	this.sendJson("GET", "/!/account/"+alias, null, afterGetAccount.bind(this));
 
 	function afterGetAccount(data) {
 		Credentials[this.id].alias = alias;
@@ -96,7 +113,7 @@ Client.prototype.createAccount = function(name, password, values, callback) {
 	var seed = this.crypto.generateSecureHash(namepw, data['salt']);
 	var authL = this.crypto.generateKeypair(seed);
 	data['auth_l'] = authL.publicKey;
-	this.sendJSON("POST", "/!/account", data, afterPostAccount.bind(this));
+	this.sendJson("POST", "/!/account", data, afterPostAccount.bind(this));
 
 	function afterPostAccount(data) {
 		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
@@ -110,7 +127,7 @@ Client.prototype.createAccount = function(name, password, values, callback) {
 }
 
 Client.prototype.readAccount = function(id, callback) {
-	this.sendJSON("GET", "/!/account/"+id, undefined, afterGetAccount.bind(this));
+	this.sendJson("GET", "/!/account/"+id, undefined, afterGetAccount.bind(this));
 
 	function afterGetAccount(data) {
 		callback(data);
