@@ -1,6 +1,6 @@
 "use strict";
 
-var SessionError = require("../../shared/SessionError");
+var HttpError = require("../../shared/HttpError");
 
 exports.GET = function(session) {
 	console.log("GET account");
@@ -30,7 +30,7 @@ exports.POST = function(session) {
 		if (error !== null) {
 			switch (error.code) {
 				case "23505":
-					throw new SessionError(409, "alias already exists");
+					throw new HttpError(409, "alias already exists");
 				default:
 					throw error;
 			}

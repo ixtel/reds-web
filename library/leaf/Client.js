@@ -2,6 +2,7 @@
 "use strict";
 
 var FacilityManager = window.reds ? reds.FacilityManager : require("../shared/FacilityManager");
+var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 
 // INFO Credential database
 
@@ -56,8 +57,7 @@ Client.prototype.sendJSON = function(method, path, data, callback) {
 
 	function onLoad() {
 		if (xhr.status >= 400)
-			// TODO Replace Error with some kind of HttpError object
-			return onError.bind(this)(new Error(xhr.status+" "+xhr.statusText));
+			return onError.bind(this)(new HttpError(xhr.status, xhr.statusText));
 
 		this.dispatchEvent(new Event("load"));
 		callback(this.decodeResponse(xhr));

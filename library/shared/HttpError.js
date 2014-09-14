@@ -1,0 +1,20 @@
+(function(){
+"use strict";
+
+var HttpError = function(code, message) {
+	Error.call(this);
+	this.name = "REDS_SESSION_ERROR";
+	this.code = code || 500;
+	this.message = message || ""; 
+}
+
+HttpError.prototype = Object.create(Error.prototype);
+
+HttpError.prototype.toString = function() {
+	return this.code+" ("+this.message+")";
+}
+
+// NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
+typeof exports=='object' ? module.exports=exports=HttpError : (self.reds=self.reds||new Object()).HttpError = HttpError;
+
+})();

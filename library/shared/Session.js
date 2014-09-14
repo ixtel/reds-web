@@ -1,7 +1,7 @@
 var domain = require("domain");
 var events = require("events");
 var FacilityManager = require("./FacilityManager");
-var SessionError = require("./SessionError");
+var HttpError = require("./HttpError");
 
 var CryptoFacilities = new FacilityManager();
 CryptoFacilities.addFacility(require("./crypto/CryptoJs"));
@@ -66,9 +66,9 @@ exports.prototype.run = function() {
 		if (--lock)
 			return;
 		if (!this.HookHandlers[this.purl.path])
-			throw new SessionError(404, "hook not found");
+			throw new HttpError(404, "hook not found");
 		if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
-			throw new SessionError(501, "missing method");
+			throw new HttpError(501, "missing method");
 		this.HookHandlers[this.purl.path][this.request.method](this);
 	}
 }
@@ -81,7 +81,7 @@ exports.prototype.end = function() {
 
 exports.prototype.abort = function(error) {
 	try {
-		if (error instanceof SessionError) {
+		if (error instanceof HttpError) {
 			console.info("ABORT "+error.toString());
 			if  (error.code == 401)
 				this.response.setHeader("WWW-Authenticate", "REDS realm=\"node\"");
@@ -133,7 +133,7 @@ Object.defineProperty(exports.prototype, "requestJSON", {
 				this.$requestJSON = this.requestText ? JSON.parse(this.requestText) : null;
 			}
 			catch (e) {
-				throw new SessionError(400, "request contains invalid JSON");
+				throw new HttpError(400, "request contains invalid JSON");
 			}
 		}
 		return this.$requestJSON;
