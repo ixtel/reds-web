@@ -2,7 +2,7 @@
 "use strict";
 
 var FacilityManager = window.reds ? reds.FacilityManager : require("../shared/FacilityManager");
-var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
+var Request = window.reds ? reds.leaf.Request : require("./Request");
 
 // INFO Credential database
 
@@ -20,17 +20,19 @@ Credentials.unregisterClient = function(id) {
 	delete Credentials[id];
 }
 
-// INFO Leaf client module
+// INFO Facility managers
 
 var CryptoFacilities = new FacilityManager();
 CryptoFacilities.addFacility(window.reds ? reds.crypto.CryptoJs : require("../shared/crypto/CryptoJs"));
 CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl"));
 
+// INFO Client
+
 var Client = function(options) {
-	this.id = Credentials.registerClient();
+	this.cid = Credentials.registerClient();
+	console.log(this.cid);
 	this.crypto = this.createCryptoFacility(options.crypto[0]);
 	this.options = options;
-	console.log(this.id);
 	// NOTE Hack to add DOM event handling to non-DOM object
 	var eventTarget = document.createTextNode(null);
 	this.addEventListener = eventTarget.addEventListener.bind(eventTarget);
@@ -40,56 +42,25 @@ var Client = function(options) {
 
 CryptoFacilities.addFinalFactoryToObject("createCryptoFacility", Client.prototype);
 
-Client.prototype.sendJson = function(method, path, obj, callback) {
-	try {
-		var data = obj!==undefined ? JSON.stringify(obj) : undefined;
-	}
-	catch(error) {
-		this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-		throw error;
-	}
-	this.send(method, path, "application/json;charset=encoding", data, callback);
-}
+Client.prototype.$createRequest = function(method, path, callback) {
+	var request = new Request(this.crypto, Credentials[this.cid]);
+	request.addEventListener("send", onSend.bind(this));
+	request.addEventListener("load", onLoad.bind(this));
+	request.addEventListener("error", onError.bind(this));
+	request.open(method, this.options.url+path);
+	return request;
 
-Client.prototype.send = function(method, path, type, data, callback) {
-	var xhr = new XMLHttpRequest();
-	xhr.addEventListener("load", onLoad.bind(this), false);
-	xhr.addEventListener("error", onError.bind(this), false);
-	xhr.open(method, this.options.url+path, true);
-	xhr.setRequestHeader("Content-Type", type);
-	xhr.send(data);
-	this.dispatchEvent(new Event("send"));
-
-	function onLoad() {
-		try {
-			if (xhr.status >= 400)
-				throw new HttpError(xhr.status, xhr.statusText);
-			this.dispatchEvent(new Event("load"));
-			var data = undefined;
-			var options = new Object();
-			var type = xhr.getResponseHeader("Content-Type").replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s*/, function(m, p1, p2) {
-				if (p1.length)
-					options[p1] = p2;
-				return "";
-			});
-			switch(type) {
-				case "application/json":
-					data = JSON.parse(xhr.responseText);
-					break;
-				default:
-					throw new Error("Unknown content-type '"+type+"'");
-			}
-		}
-		catch(error) {
-			this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-			throw error;
-		}
-		callback(data);
+	function onSend(evt) {
+		this.dispatchEvent(new Event("send"));
 	}
 
-	function onError(error) {
-		this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-		throw error;
+	function onLoad(evt) {
+		this.dispatchEvent(new Event("load"));
+		callback(evt);
+	}
+
+	function onError(evt) {
+		this.dispatchEvent(new CustomEvent("error", {'detail':evt.detail}));
 	}
 }
 
@@ -97,17 +68,11 @@ Client.prototype.signin = function(name, password, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
 	var alias = this.crypto.generateSecureHash(name, password);
 	var aliasUrl = alias.replace('+','-').replace('/','_').replace('=','');
-	this.sendJson("GET", "/!/account/"+aliasUrl, undefined, afterGetAccount.bind(this));
+	var request = this.$createRequest("GET", "/!/account/"+aliasUrl, onLoad.bind(this));
+	request.send();
 
-	function afterGetAccount(data) {
-		var seed = this.crypto.generateSecureHash(namepw, data['salt']);
-		var authL = this.crypto.generateKeypair(seed);
-		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
-		Credentials[this.id].account = {
-			'id': data['id'],
-			'alias': data['alias'],
-			'auth': auth
-		};
+	function onLoad() {
+		var data = request.responseJson;
 		callback({'id':data['id']});
 	}
 }
@@ -128,24 +93,18 @@ Client.prototype.createAccount = function(name, password, values, callback) {
 	var seed = this.crypto.generateSecureHash(namepw, data['salt']);
 	var authL = this.crypto.generateKeypair(seed);
 	data['auth_l'] = authL.publicKey;
-	this.sendJson("POST", "/!/account", data, afterPostAccount.bind(this));
+	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
+	request.sendJson(data);
 
-	function afterPostAccount(data) {
+	function onLoad() {
+		var data = request.responseJson;
 		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
-		Credentials[this.id].account = {
+		Credentials[this.cid].account = {
 			'id': data['id'],
 			'alias': data['alias'],
 			'auth': auth
 		};
 		callback({'id':data['id']});
-	}
-}
-
-Client.prototype.readAccount = function(id, callback) {
-	this.sendJson("GET", "/!/account/"+id, undefined, afterGetAccount.bind(this));
-
-	function afterGetAccount(data) {
-		callback(data);
 	}
 }
 
