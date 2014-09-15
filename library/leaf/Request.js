@@ -13,6 +13,7 @@ var Request = function(crypto, credentials) {
 	this.credentials = credentials;
 	this.responseType = null;
 	this.responseOptions = null;
+	this.withAuthorization = false;
 }
 
 Request.prototype.$onLoad = function(evt) {

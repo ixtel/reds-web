@@ -64,28 +64,9 @@ Client.prototype.$createRequest = function(method, path, callback) {
 	}
 }
 
-Client.prototype.signin = function(name, password, callback) {
+Client.prototype.signup = function(name, password, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
-	var alias = this.crypto.generateSecureHash(name, password);
-	var aliasUrl = alias.replace('+','-').replace('/','_').replace('=','');
-	var request = this.$createRequest("GET", "/!/account/"+aliasUrl, onLoad.bind(this));
-	request.send();
-
-	function onLoad() {
-		var data = request.responseJson;
-		callback({'id':data['id']});
-	}
-}
-
-Client.prototype.signout = function(callback) {
-	Credentials[id] = new Object();
-	// NOTE Call the callback asynchoniously
-	setTimeout(callback, 0);
-}
-
-Client.prototype.createAccount = function(name, password, values, callback) {
-	var namepw = this.crypto.concatenateStrings(name, password);
-	var data = Object.create(values);
+	var data = new Object();
 	data['alias'] = this.crypto.generateSecureHash(name, password);
 	data['salt'] = this.crypto.generateKey();
 	data['ksalt'] = this.crypto.generateKey();
@@ -106,6 +87,33 @@ Client.prototype.createAccount = function(name, password, values, callback) {
 		};
 		callback({'id':data['id']});
 	}
+}
+
+Client.prototype.signin = function(name, password, callback) {
+	var namepw = this.crypto.concatenateStrings(name, password);
+	var alias = this.crypto.generateSecureHash(name, password);
+	var aliasUrl = alias.replace('+','-').replace('/','_').replace('=','');
+	var request = this.$createRequest("GET", "/!/account/"+aliasUrl, onLoad.bind(this));
+	request.send();
+
+	function onLoad() {
+		var data = request.responseJson;
+		var seed = this.crypto.generateSecureHash(namepw, data['salt']);
+		var authL = this.crypto.generateKeypair(seed);
+		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
+		Credentials[this.cid].account = {
+			'id': data['id'],
+			'alias': data['alias'],
+			'auth': auth
+		};
+		callback({'id':data['id']});
+	}
+}
+
+Client.prototype.signout = function(callback) {
+	Credentials[id] = new Object();
+	// NOTE Call the callback asynchoniously
+	setTimeout(callback, 0);
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.

@@ -123,7 +123,7 @@ function signup(name, password, confirmation) {
 	// 	return alert("Name and password must not be empty!")
 	// if (password != confirmation)
 	// 	return alert("Password and confirmation mismatch!");
-	leaf.createAccount(name, password, null, afterSignup);
+	leaf.signup(name, password, afterSignup);
 
 	function afterSignup(response) {
 		showAccount(response['id']);

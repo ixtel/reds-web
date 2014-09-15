@@ -7,9 +7,15 @@ exports.GET = function(session) {
 	session.storage.connect(session.domain.intercept(afterConnect));
 
 	function afterConnect() {
-		session.writeJSON({
-			'id': Math.floor(Math.random()*1000)
-		});
+		var alias = (new Buffer(session.purl[0].value, 'base64')).toString('base64');
+		session.storage.readAccount(alias, session.domain.intercept(afterReadAccount));
+	}
+
+	function afterReadAccount(result) {
+		if (result == null) {
+			throw new HttpError(404, "alias not found");
+		}
+		session.writeJSON(result);
 		session.end();
 	}
 }
