@@ -31,6 +31,7 @@ CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared
 var Client = function(options) {
 	this.cid = Credentials.registerClient();
 	console.log(this.cid);
+	// TODO Find a way to handle crypto facilities individually for each node and pod
 	this.crypto = this.createCryptoFacility(options.crypto[0]);
 	this.options = options;
 	// NOTE Hack to add DOM event handling to non-DOM object
@@ -64,31 +65,6 @@ Client.prototype.$createRequest = function(method, path, callback) {
 	}
 }
 
-Client.prototype.signup = function(name, password, callback) {
-	var namepw = this.crypto.concatenateStrings(name, password);
-	var data = new Object();
-	data['alias'] = this.crypto.generateSecureHash(name, password);
-	data['salt'] = this.crypto.generateKey();
-	data['ksalt'] = this.crypto.generateKey();
-	data['ssalt'] = this.crypto.generateKey();
-	var seed = this.crypto.generateSecureHash(namepw, data['salt']);
-	var authL = this.crypto.generateKeypair(seed);
-	data['auth_l'] = authL.publicKey;
-	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
-	request.sendJson(data);
-
-	function onLoad() {
-		var data = request.responseJson;
-		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
-		Credentials[this.cid].account = {
-			'id': data['id'],
-			'alias': data['alias'],
-			'auth': auth
-		};
-		callback({'id':data['id']});
-	}
-}
-
 Client.prototype.signin = function(name, password, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
 	var alias = this.crypto.generateSecureHash(name, password);
@@ -114,6 +90,34 @@ Client.prototype.signout = function(callback) {
 	Credentials[id] = new Object();
 	// NOTE Call the callback asynchoniously
 	setTimeout(callback, 0);
+}
+
+// INFO Account operations
+
+Client.prototype.createAccount = function(name, password, pod, podword, values, callback) {
+	var namepw = this.crypto.concatenateStrings(name, password);
+	var data = Object.create(values);
+	data['alias'] = this.crypto.generateSecureHash(name, password);
+	data['salt'] = this.crypto.generateKey();
+	data['ksalt'] = this.crypto.generateKey();
+	data['ssalt'] = this.crypto.generateKey();
+	var seed = this.crypto.generateSecureHash(namepw, data['salt']);
+	var authL = this.crypto.generateKeypair(seed);
+	data['auth_l'] = authL.publicKey;
+	data['pod'] = pod;
+	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
+	request.sendJson(data);
+
+	function onLoad() {
+		var data = request.responseJson;
+		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
+		Credentials[this.cid].account = {
+			'id': data['id'],
+			'alias': data['alias'],
+			'auth': auth
+		};
+		callback({'id':data['id']});
+	}
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.

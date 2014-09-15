@@ -117,13 +117,13 @@ function testCryptoFacility() {
 
 // INFO Account actions
 
-function signup(name, password, confirmation) {
+function signup(name, password, confirmation, pod) {
 	console.log("signup: "+Array.prototype.slice.apply(arguments));
 	// if ((name.length == 0) || (password.length == 0))
 	// 	return alert("Name and password must not be empty!")
 	// if (password != confirmation)
 	// 	return alert("Password and confirmation mismatch!");
-	leaf.signup(name, password, afterSignup);
+	leaf.createAccount(name, password, pod, "podword", null, afterSignup);
 
 	function afterSignup(response) {
 		showAccount(response['id']);
