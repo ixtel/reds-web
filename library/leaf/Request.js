@@ -7,13 +7,13 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 // INFO Leaf client module
 
 var Request = function(crypto, credentials) {
+	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
 	this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
 	this.crypto = crypto;
 	this.credentials = credentials;
 	this.responseType = null;
 	this.responseOptions = null;
-	this.withAuthorization = false;
 }
 
 Request.prototype.$onLoad = function(evt) {
@@ -71,9 +71,9 @@ Request.prototype.sendJson = function(data, type) {
 
 Object.defineProperty(Request.prototype, "responseJson", {
 	get: function() {
-		if (this.$responseJSON === undefined) {
+		if (this.$responseJson === undefined) {
 			try {
-				this.$responseJSON = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
+				this.$responseJson = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
 			}
 			catch (e) {
 				var error = new Error("response contains invalid JSON");
@@ -81,7 +81,7 @@ Object.defineProperty(Request.prototype, "responseJson", {
 				return;
 			}
 		}
-		return this.$responseJSON;
+		return this.$responseJson;
 	}
 });
 
