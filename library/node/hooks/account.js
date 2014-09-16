@@ -4,12 +4,8 @@ var HttpError = require("../../shared/HttpError");
 var Route = require("../Route");
 
 exports.GET = function(session) {
-	session.storage.connect(session.domain.intercept(afterConnect));
-
-	function afterConnect() {
-		var alias = (new Buffer(session.purl[0].value, 'base64')).toString('base64');
-		session.storage.readAccount(alias, session.domain.intercept(afterReadAccount));
-	}
+	var alias = (new Buffer(session.purl[0].value, 'base64')).toString('base64');
+	session.storage.readAccount(alias, session.domain.intercept(afterReadAccount));
 
 	function afterReadAccount(result) {
 		if (result == null) {
@@ -21,19 +17,15 @@ exports.GET = function(session) {
 }
 
 exports.POST = function(session) {
-	var accountId = null;
+	var account = null;
 	var route = new Route(session.crypto, session.storage);
-	session.storage.connect(session.domain.intercept(afterConnect));
-
-	function afterConnect() {
-		route.init(session.requestJSON['pod'], session.domain.intercept(afterInitRoute));
-	}
+	route.init(session.requestJSON['pod'], session.domain.intercept(afterInitRoute));
 
 	function afterInitRoute() {
 		var authN = session.crypto.generateKeypair();
 		var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJSON['auth_l']);
 		var values = Object.create(session.requestJSON);
-		values['pod'] = route.podId;
+		values['pod'] = route.pod['id'];
 		values['auth'] = auth;
 		values['auth_n'] = authN.publicKey;
 		session.storage.createAccount(values, session.domain.bind(afterCreateAccount));
@@ -48,45 +40,36 @@ exports.POST = function(session) {
 					throw error;
 			}
 		}
-		accountId = result['id'];
-		var values = Object.create(session.requestJSON);
-		values['id'] = result['id'];
-		values['auth_n'] = result['auth_n'];
-		values['auth_l'] = undefined;
+		account = result;
+		var values = new Object();
+		values['id'] = account['id'],
+		values['akey_l'] = session.requestJSON['akey_l']
 		route.method = "POST";
-		route.path = "/!/account/"+result['id'];
+		route.path = "/!/account/"+account['id'];
 		route.sendJson(values, session.domain.bind(afterRoute));
 	}
 
 	function afterRoute(error) {
 		if (error)
-			return session.storage.deleteAccount(accountId, session.domain.intercept(afterDeleteAccount));
-		session.writeJSON(route.responseJson);
+			return session.storage.deleteAccount(account['id'], session.domain.intercept(function() {
+				throw new HttpError(502, error.toString());
+			}));
+		account['akey_p'] = route.responseJson['akey_p'];
+		account['check'] = route.responseJson['check'];
+		session.writeJSON(account);
 		session.end();
-	}
-
-	function afterDeleteAccount() {
-		throw new HttpError(502, "create account failed");
 	}
 }
 
 exports.PUT = function(session) {
 	console.log("PUT account");
-	session.storage.connect(session.domain.intercept(afterConnect));
-
-	function afterConnect() {
-		session.writeJSON({
-			'id': Math.floor(Math.random()*1000)
-		});
-		session.end();
-	}
+	session.writeJSON({
+		'id': Math.floor(Math.random()*1000)
+	});
+	session.end();
 }
 
 exports.DELETE = function(session) {
 	console.log("DELETE account");
-	session.storage.connect(session.domain.intercept(afterConnect));
-
-	function afterConnect() {
-		session.end();
-	}
+	session.end();
 }

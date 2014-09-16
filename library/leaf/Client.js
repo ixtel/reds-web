@@ -94,9 +94,9 @@ Client.prototype.signout = function(callback) {
 
 // INFO Account operations
 
-Client.prototype.createAccount = function(name, password, pod, podword, values, callback) {
+Client.prototype.createAccount = function(name, password, pod, podword, callback) {
 	var namepw = this.crypto.concatenateStrings(name, password);
-	var data = Object.create(values);
+	var data = new Object();
 	data['alias'] = this.crypto.generateSecureHash(name, password);
 	data['salt'] = this.crypto.generateKey();
 	data['ksalt'] = this.crypto.generateKey();

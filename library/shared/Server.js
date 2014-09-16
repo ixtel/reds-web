@@ -51,6 +51,7 @@ exports.prototype.listen = function(request, response) {
 	try {
 		console.info(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
 		var session = new this.Session(this.config, request, response);
+		session.addListener("error", function(){response.end();});
 		session.addListener("error", this.disconnect.bind(this));
 		session.run();
 	}

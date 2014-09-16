@@ -2,7 +2,7 @@
 	"host": null,
 	"port": 8181,
 	"name": "reds.example.pod",
-	"forks": 1,
+	"workers": 1,
 	"log": "debug",
 	"crypto": ["sjcl-1", "cryptojs-1"],
 	"storage": {
