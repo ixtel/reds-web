@@ -20,11 +20,12 @@ module.exports = exports = function(config, request, response) {
 	// NOTE Will be set in run()
 	this.crypto = null;
 	this.storage = null;
-	// NOTE Setup domain
+	//* NOTE Setup domain
 	this.domain = domain.create();
 	this.domain.add(this.request);
 	this.domain.add(this.response);
 	this.domain.addListener("error", this.abort.bind(this));
+	//*/
 	// NOTE Parse URL
 	var purl = new Array();
 	purl.path = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
@@ -53,7 +54,7 @@ exports.prototype.run = function() {
 		this.crypto = this.createCryptoFacility(this.config.crypto[0]);
 		// TODO Select storage facility by purl
 		this.storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
-		this.storage.connect(this.domain.intercept(delegate.bind(this)));
+		this.storage.connect(delegate.bind(this));
 		this.request.addListener("data", receive.bind(this));
 		this.request.addListener("end", delegate.bind(this));
 	}

@@ -8,22 +8,17 @@ module.exports = exports = function(config, Session) {
 exports.prototype = Object.create(Server.prototype);
 
 exports.prototype.listen = function(request, response) {
-	try {
-		response.setHeader("Pragma", "no-cache");
-		response.setHeader("Cache-Control", "no-cache");
-		response.setHeader("Expires", "-1");
-		if (this.config.cors) {
-			response.setHeader('Access-Control-Allow-Origin', this.config.cors.origin);
-			if (request.method == 'OPTIONS') {
-				response.setHeader('Access-Control-Allow-Methods', this.config.cors.origin);
-				response.setHeader('Access-Control-Allow-Headers', this.config.cors.headers);
-				response.end();
-				return;
-			}
+	response.setHeader("Pragma", "no-cache");
+	response.setHeader("Cache-Control", "no-cache");
+	response.setHeader("Expires", "-1");
+	if (this.config.cors) {
+		response.setHeader('Access-Control-Allow-Origin', this.config.cors.origin);
+		if (request.method == 'OPTIONS') {
+			response.setHeader('Access-Control-Allow-Methods', this.config.cors.origin);
+			response.setHeader('Access-Control-Allow-Headers', this.config.cors.headers);
+			response.end();
+			return;
 		}
-		Server.prototype.listen.call(this, request, response);
 	}
-	catch (e) {
-		this.disconnect(e);
-	}
+	Server.prototype.listen.call(this, request, response);
 }

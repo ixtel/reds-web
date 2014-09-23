@@ -102,21 +102,29 @@ Client.prototype.createAccount = function(name, password, pod, podword, callback
 	data['ksalt'] = this.crypto.generateKey();
 	data['ssalt'] = this.crypto.generateKey();
 	var seed = this.crypto.generateSecureHash(namepw, data['salt']);
+	var kseed = this.crypto.generateSecureHash(namepw, data['salt']);
 	var authL = this.crypto.generateKeypair(seed);
+	var akeyL = this.crypto.generateKeypair(kseed);
 	data['auth_l'] = authL.publicKey;
+	data['akey_l'] = akeyL.publicKey;
 	data['pod'] = pod;
 	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
 	request.sendJson(data);
 
 	function onLoad() {
-		var data = request.responseJson;
-		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
+		console.log(request.responseJson);
+		var auth = this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']);
+		var akey = this.crypto.combineKeypair(akeyL.privateKey, request.responseJson['akey_p']);
+		var sseed = this.crypto.generateSecureHash(namepw, data['ssalt']);
+		var asec = this.crypto.generateKey(sseed);
 		Credentials[this.cid].account = {
-			'id': data['id'],
-			'alias': data['alias'],
-			'auth': auth
+			'id': request.responseJson['id'],
+			'alias': request.responseJson['alias'],
+			'auth': auth,
+			'akey': akey,
+			'asec': asec
 		};
-		callback({'id':data['id']});
+		callback({'id':request.responseJson['id']});
 	}
 }
 

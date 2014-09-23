@@ -5,12 +5,11 @@ var Route = require("../Route");
 
 exports.GET = function(session) {
 	var alias = (new Buffer(session.purl[0].value, 'base64')).toString('base64');
-	session.storage.readAccount(alias, session.domain.intercept(afterReadAccount));
+	session.storage.readAccount(alias, afterReadAccount);
 
-	function afterReadAccount(result) {
-		if (result == null) {
-			throw new HttpError(404, "alias not found");
-		}
+	function afterReadAccount(error, result) {
+		if (error)
+			throw error;
 		session.writeJSON(result);
 		session.end();
 	}
@@ -19,7 +18,7 @@ exports.GET = function(session) {
 exports.POST = function(session) {
 	var account = null;
 	var route = new Route(session.crypto, session.storage);
-	route.init(session.requestJSON['pod'], session.domain.intercept(afterInitRoute));
+	route.init(session.requestJSON['pod'], afterInitRoute);
 
 	function afterInitRoute() {
 		var authN = session.crypto.generateKeypair();
@@ -28,7 +27,8 @@ exports.POST = function(session) {
 		values['pod'] = route.pod['id'];
 		values['auth'] = auth;
 		values['auth_n'] = authN.publicKey;
-		session.storage.createAccount(values, session.domain.bind(afterCreateAccount));
+		values['auth_l'] = undefined;
+		session.storage.createNodeAccount(values, afterCreateAccount);
 	}
 
 	function afterCreateAccount(error, result) {
@@ -42,8 +42,8 @@ exports.POST = function(session) {
 		}
 		account = result;
 		var values = new Object();
-		values['id'] = account['id'],
-		values['akey_l'] = session.requestJSON['akey_l']
+		values['id'] = account['id'];
+		values['akey_l'] = session.requestJSON['akey_l'];
 		route.method = "POST";
 		route.path = "/!/account/"+account['id'];
 		route.sendJson(values, session.domain.bind(afterRoute));
@@ -51,9 +51,9 @@ exports.POST = function(session) {
 
 	function afterRoute(error) {
 		if (error)
-			return session.storage.deleteAccount(account['id'], session.domain.intercept(function() {
+			return session.storage.deleteAccount(account['id'], function() {
 				throw new HttpError(502, error.toString());
-			}));
+			});
 		account['akey_p'] = route.responseJson['akey_p'];
 		account['check'] = route.responseJson['check'];
 		session.writeJSON(account);
@@ -62,7 +62,6 @@ exports.POST = function(session) {
 }
 
 exports.PUT = function(session) {
-	console.log("PUT account");
 	session.writeJSON({
 		'id': Math.floor(Math.random()*1000)
 	});

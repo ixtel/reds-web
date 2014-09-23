@@ -14,10 +14,11 @@ exports.prototype.connect = function(callback) {
 	pg.connect(this.options, afterConnect.bind(this));
 
 	function afterConnect(error, client, done) {
+		cleanDomainLeaks('NodePg.connect');
 		this.$client = client;
 		this.$done = done;
-		callback && callback(error||null);
-	};
+		callback && callback(error);
+	}
 }
 
 exports.prototype.disconnect = function(callback) {
@@ -35,6 +36,7 @@ exports.prototype.createPod = function(values, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
+		cleanDomainLeaks('NodePg.createPod');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -47,13 +49,14 @@ exports.prototype.readPod = function(pod, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
+		cleanDomainLeaks('NodePg.readPod');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
 
 // INFO Account operations
 
-exports.prototype.createAccount = function(values, callback) {
+exports.prototype.createNodeAccount = function(values, callback) {
 	this.$client.query("INSERT INTO accounts (alias,salt,ksalt,ssalt,auth,auth_n) "+
 		"VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64'),decode($4,'base64'),decode($5,'base64'),decode($6,'base64')) "+
 		"RETURNING id,encode(auth_n,'base64') AS auth_n", [
@@ -66,6 +69,21 @@ exports.prototype.createAccount = function(values, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
+		cleanDomainLeaks('NodePg.createNodeAccount');
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.createPodAccount = function(values, callback) {
+	this.$client.query("INSERT INTO accounts (id,akey) "+
+		"VALUES ($1,decode($2,'base64')) "+
+		"RETURNING id", [
+		values['id'],
+		values['akey']
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		cleanDomainLeaks('NodePg.createPodAccount');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -79,6 +97,7 @@ exports.prototype.readAccount = function(alias, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
+		cleanDomainLeaks('NodePg.readAccount');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -90,6 +109,7 @@ exports.prototype.deleteAccount = function(id, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
+		cleanDomainLeaks('NodePg.deleteAccount');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
