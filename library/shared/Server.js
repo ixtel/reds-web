@@ -3,30 +3,6 @@ var http = require("http");
 var os = require("os");
 var domain = require("domain");
 
-global.listDomains = function() {
-	var adom = domain.active;
-	console.log("domain stack [");
-	for (var i=0; i<domain._stack.length; i++) {
-		console.log("index="+i+" equals_active="+(domain._stack[i] == adom));
-		console.log(require("util").inspect(domain._stack[i], { showHidden: true, depth: 1 }))
-	}
-	console.log("]");
-}
-
-global.cleanDomainLeaks = function(note) {
-	var counter = -1;
-	var adom = domain.active;
-	if (adom) {
-		while (domain.active==adom) {
-			counter++;
-			domain.active.exit();
-		}
-		console.log("DEBUG '"+note+"' domain leaks: "+counter);
-		adom.enter();
-	}
-}
-
-
 module.exports = exports = function(config, Session) {
 	this.hooks = new Object();
 	this.config = config;

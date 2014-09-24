@@ -54,7 +54,7 @@ exports.prototype.run = function() {
 		this.crypto = this.createCryptoFacility(this.config.crypto[0]);
 		// TODO Select storage facility by purl
 		this.storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
-		this.storage.connect(delegate.bind(this));
+		this.storage.connect(this.domain.intercept(delegate.bind(this)));
 		this.request.addListener("data", receive.bind(this));
 		this.request.addListener("end", delegate.bind(this));
 	}

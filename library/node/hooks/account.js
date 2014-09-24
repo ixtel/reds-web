@@ -18,7 +18,7 @@ exports.GET = function(session) {
 exports.POST = function(session) {
 	var account = null;
 	var route = new Route(session.crypto, session.storage);
-	route.init(session.requestJSON['pod'], afterInitRoute);
+	route.init(session.requestJSON['pod'], session.domain.intercept(afterInitRoute));
 
 	function afterInitRoute() {
 		var authN = session.crypto.generateKeypair();
@@ -28,7 +28,7 @@ exports.POST = function(session) {
 		values['auth'] = auth;
 		values['auth_n'] = authN.publicKey;
 		values['auth_l'] = undefined;
-		session.storage.createNodeAccount(values, afterCreateAccount);
+		session.storage.createNodeAccount(values, session.domain.bind(afterCreateAccount));
 	}
 
 	function afterCreateAccount(error, result) {
@@ -50,10 +50,11 @@ exports.POST = function(session) {
 	}
 
 	function afterRoute(error) {
-		if (error)
+		if (error) {
 			return session.storage.deleteAccount(account['id'], function() {
 				throw new HttpError(502, error.toString());
 			});
+		}
 		account['akey_p'] = route.responseJson['akey_p'];
 		account['check'] = route.responseJson['check'];
 		session.writeJSON(account);

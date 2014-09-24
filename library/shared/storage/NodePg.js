@@ -14,7 +14,6 @@ exports.prototype.connect = function(callback) {
 	pg.connect(this.options, afterConnect.bind(this));
 
 	function afterConnect(error, client, done) {
-		cleanDomainLeaks('NodePg.connect');
 		this.$client = client;
 		this.$done = done;
 		callback && callback(error);
@@ -36,7 +35,6 @@ exports.prototype.createPod = function(values, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
-		cleanDomainLeaks('NodePg.createPod');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -49,7 +47,6 @@ exports.prototype.readPod = function(pod, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
-		cleanDomainLeaks('NodePg.readPod');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -69,7 +66,6 @@ exports.prototype.createNodeAccount = function(values, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
-		cleanDomainLeaks('NodePg.createNodeAccount');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -83,7 +79,6 @@ exports.prototype.createPodAccount = function(values, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
-		cleanDomainLeaks('NodePg.createPodAccount');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -97,7 +92,6 @@ exports.prototype.readAccount = function(alias, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
-		cleanDomainLeaks('NodePg.readAccount');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -109,7 +103,6 @@ exports.prototype.deleteAccount = function(id, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
-		cleanDomainLeaks('NodePg.deleteAccount');
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
