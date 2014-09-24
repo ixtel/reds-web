@@ -9,7 +9,7 @@ exports.GET = function(session) {
 
 	function afterReadAccount(error, result) {
 		if (error)
-			throw error;
+			return session.abort(error);
 		session.writeJSON(result);
 		session.end();
 	}
@@ -20,7 +20,9 @@ exports.POST = function(session) {
 	var route = new Route(session.crypto, session.storage);
 	route.init(session.requestJSON['pod'], afterInitRoute);
 
-	function afterInitRoute() {
+	function afterInitRoute(error) {
+		if (error)
+			return session.abort(new HttpError(503, "pod not found"));
 		var authN = session.crypto.generateKeypair();
 		var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJSON['auth_l']);
 		var values = Object.create(session.requestJSON);
@@ -35,9 +37,9 @@ exports.POST = function(session) {
 		if (error !== null) {
 			switch (error.code) {
 				case "23505":
-					throw new HttpError(409, "alias already exists");
+					return session.abort(new HttpError(409, "alias already exists"));
 				default:
-					throw error;
+					return session.abort(error);
 			}
 		}
 		account = result;
@@ -46,13 +48,13 @@ exports.POST = function(session) {
 		values['akey_l'] = session.requestJSON['akey_l'];
 		route.method = "POST";
 		route.path = "/!/account/"+account['id'];
-		route.sendJson(values, session.domain.bind(afterRoute));
+		route.sendJson(values, afterRoute);
 	}
 
 	function afterRoute(error) {
 		if (error)
 			return session.storage.deleteAccount(account['id'], function() {
-				throw new HttpError(502, error.toString());
+				return session.abort(new HttpError(502, error.toString()));
 			});
 		account['akey_p'] = route.responseJson['akey_p'];
 		account['check'] = route.responseJson['check'];

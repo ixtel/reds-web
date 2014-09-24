@@ -25,7 +25,6 @@ exports.prototype.setup = function() {
 
 exports.prototype.connect = function() {
 	console.info(process.pid +" CONNECT "+this.config.host+" "+this.config.port);
-
 	this.httpd = http.createServer();
 	this.httpd.listen(this.config.port, this.config.host);
 	this.httpd.addListener("request", this.listen.bind(this));

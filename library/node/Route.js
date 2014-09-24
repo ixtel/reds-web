@@ -1,4 +1,3 @@
-var domain = require("domain");
 var events = require('events');
 var http = require("http");
 var HttpError = require("../shared/HttpError");
@@ -37,9 +36,6 @@ exports.prototype.sendJson = function(data, callback, type) {
 }
 
 exports.prototype.send = function(data, callback, type) {
-	var dom = domain.createDomain();
-	dom.addListener("error", onError.bind(this));
-	dom.enter();
 	var m = this.pod.url.match(/([^\/:]+)(?:\:(\d+))?(.*)/);
 	var req = http.request({
 		'hostname': m[1],
@@ -50,14 +46,13 @@ exports.prototype.send = function(data, callback, type) {
 	req.addListener('response', onResponse.bind(this));
 	req.setHeader("content-length", data ? Buffer.byteLength(data) : 0);
 	req.end(data);
-	dom.exit();
 
 	function onResponse(response) {
 		var responseText = "";
 		response.setEncoding('utf8');
 	
 		if (response.statusCode >= 400)
-			throw new HttpError(response.statusCode, "pod returned error");
+			return callback(new HttpError(response.statusCode, "pod returned error"));
 
 		response.addListener("data", function(chunk) {
 			responseText += chunk;
@@ -65,17 +60,9 @@ exports.prototype.send = function(data, callback, type) {
 
 		response.addListener("end", function() {
 			this.responseText = responseText;
-			cleanDomainLeaks('Route.send.response.end');
-			dom.exit();
 			callback(null, this);
 		}.bind(this));
 	}
-
-	function onError(error) {
-		cleanDomainLeaks('Route.send.onError');
-		dom.exit();
-		callback(error);
-	}	
 }
 
 Object.defineProperty(exports.prototype, "responseJson", {
@@ -85,6 +72,7 @@ Object.defineProperty(exports.prototype, "responseJson", {
 				this.$responseJson = this.responseText ? JSON.parse(this.responseText) : null;
 			}
 			catch (e) {
+				// TODO Handle by event
 				throw new HttpError(400, "route response contains invalid JSON");
 			}
 		}
