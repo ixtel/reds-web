@@ -10,6 +10,7 @@ var StorageFacilities = new FacilityManager();
 StorageFacilities.addFacility(require("./storage/NodePg.js"));
 
 module.exports = exports = function(config, request, response) {
+	events.EventEmitter.call(this);
 	this.$requestJSON = undefined;
 	this.$storageFacility = undefined;
 	this.config = config;
@@ -56,9 +57,9 @@ exports.prototype.run = function() {
 		if (--lock)
 			return;
 		if (!this.HookHandlers[this.purl.path])
-			throw new HttpError(404, "hook not found");
+			return this.abort(new HttpError(404, "hook not found"));
 		if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
-			throw new HttpError(501, "missing method");
+			return this.abort(new HttpError(501, "missing method"));
 		this.HookHandlers[this.purl.path][this.request.method](this);
 	}
 }
@@ -82,7 +83,7 @@ exports.prototype.abort = function(error) {
 			throw error;
 		}
 	}
-	catch (e) {
+	catch(e) {
 		try {
 			console.warn("ERROR "+e);
 			this.response.statusCode = 500;
@@ -90,7 +91,6 @@ exports.prototype.abort = function(error) {
 		}
 		catch (ee) {
 			console.error("DIZZY "+ee);
-			// TODO We should tell the admin about that
 		}
 		finally {
 			this.emit("error", e);
@@ -115,14 +115,8 @@ exports.prototype.writeJSON = function(data, type) {
 
 Object.defineProperty(exports.prototype, "requestJSON", {
 	get: function() {
-		if (this.$requestJSON === undefined) {
-			try {
-				this.$requestJSON = this.requestText ? JSON.parse(this.requestText) : null;
-			}
-			catch (e) {
-				throw new HttpError(400, "request contains invalid JSON");
-			}
-		}
+		if (this.$requestJSON === undefined)
+			this.$requestJSON = this.requestText ? JSON.parse(this.requestText) : null;
 		return this.$requestJSON;
 	}
 });
@@ -132,7 +126,7 @@ Object.defineProperty(exports.prototype, "storageFacility", {
 		if (this.$storageFacility === undefined) {
 			var StorageFacilitiy = this.StorageFacilities[this.config.storage.facility];
 			if (!StorageFacilitiy)
-				throw new Error("unknown storage facility");
+				return this.abort(new Error("unknown storage facility"));
 			this.$storageFacility = new StorageFacilitiy(this.config.storage.options);
 		}
 		return this.$storageFacility;

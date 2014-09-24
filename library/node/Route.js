@@ -3,6 +3,7 @@ var http = require("http");
 var HttpError = require("../shared/HttpError");
 
 module.exports = exports = function(crypto, storage) {
+	events.EventEmitter.call(this);
 	this.$responseJson = undefined;
 	this.crypto = crypto;
 	this.storage = storage;
@@ -12,30 +13,27 @@ module.exports = exports = function(crypto, storage) {
 	this.responseText = null;
 }
 
+exports.prototype = Object.create(events.EventEmitter.prototype);
+
 // TODO Handle unknown pod
-exports.prototype.init = function(pod, callback) {
+exports.prototype.init = function(pod) {
 	this.storage.readPod(pod, afterReadPod.bind(this));
 
 	function afterReadPod(error, result) {
+		if (error)
+			return this.emit("error", error)
 		this.pod = result;
-		callback(error||null);
+		this.emit("ready");
 	}
 }
 
-exports.prototype.sendJson = function(data, callback, type) {
-	if (data !== undefined) {
-		try {
-			var json = JSON.stringify(data);
-		}
-		catch (e) {
-			var error = new Error("request contains invalid JSON");
-			return callback(error);
-		}
-	}
-	this.send(json, callback, type||"application/json;charset=encoding");
+exports.prototype.sendJson = function(data, type) {
+	if (data!==undefined)
+		var json = JSON.stringify(data);
+	this.send(json, type||"application/json;charset=encoding");
 }
 
-exports.prototype.send = function(data, callback, type) {
+exports.prototype.send = function(data, type) {
 	var m = this.pod.url.match(/([^\/:]+)(?:\:(\d+))?(.*)/);
 	var req = http.request({
 		'hostname': m[1],
@@ -43,6 +41,7 @@ exports.prototype.send = function(data, callback, type) {
 		'method': this.method,
 		'path': m[3]+this.path
 	});
+	req.addListener("error", onError.bind(this));
 	req.addListener('response', onResponse.bind(this));
 	req.setHeader("content-length", data ? Buffer.byteLength(data) : 0);
 	req.end(data);
@@ -52,7 +51,11 @@ exports.prototype.send = function(data, callback, type) {
 		response.setEncoding('utf8');
 	
 		if (response.statusCode >= 400)
-			return callback(new HttpError(response.statusCode, "pod returned error"));
+			return this.emit("error", new HttpError(response.statusCode, "pod returned error"));
+
+		response.addListener("error", function(error) {
+			this.emit("error", error);
+		}.bind(this));
 
 		response.addListener("data", function(chunk) {
 			responseText += chunk;
@@ -60,22 +63,19 @@ exports.prototype.send = function(data, callback, type) {
 
 		response.addListener("end", function() {
 			this.responseText = responseText;
-			callback(null, this);
+			this.emit("response", this);
 		}.bind(this));
+	}
+
+	function onError(error) {
+		this.emit("error", error);
 	}
 }
 
 Object.defineProperty(exports.prototype, "responseJson", {
 	get: function() {
-		if (this.$responseJson === undefined) {
-			try {
-				this.$responseJson = this.responseText ? JSON.parse(this.responseText) : null;
-			}
-			catch (e) {
-				// TODO Handle by event
-				throw new HttpError(400, "route response contains invalid JSON");
-			}
-		}
+		if (this.$responseJson === undefined)
+			this.$responseJson = this.responseText ? JSON.parse(this.responseText) : null;
 		return this.$responseJson;
 	}
 });
