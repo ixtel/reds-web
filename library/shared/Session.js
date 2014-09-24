@@ -1,4 +1,3 @@
-var domain = require("domain");
 var events = require("events");
 var FacilityManager = require("./FacilityManager");
 var HttpError = require("./HttpError");
@@ -11,6 +10,7 @@ var StorageFacilities = new FacilityManager();
 StorageFacilities.addFacility(require("./storage/NodePg.js"));
 
 module.exports = exports = function(config, request, response) {
+	events.EventEmitter.call(this);
 	this.$requestJSON = undefined;
 	this.$storageFacility = undefined;
 	this.config = config;
@@ -20,12 +20,6 @@ module.exports = exports = function(config, request, response) {
 	// NOTE Will be set in run()
 	this.crypto = null;
 	this.storage = null;
-	//* NOTE Setup domain
-	this.domain = domain.create();
-	this.domain.add(this.request);
-	this.domain.add(this.response);
-	this.domain.addListener("error", this.abort.bind(this));
-	//*/
 	// NOTE Parse URL
 	var purl = new Array();
 	purl.path = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
@@ -47,17 +41,13 @@ StorageFacilities.addFinalFactoryToObject("createStorageFacility", exports.proto
 
 exports.prototype.run = function() {
 	var lock = 2;
-	this.domain.run(connect.bind(this));
-
-	function connect() {
-		// TODO Select crypto facility by content-type
-		this.crypto = this.createCryptoFacility(this.config.crypto[0]);
-		// TODO Select storage facility by purl
-		this.storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
-		this.storage.connect(this.domain.intercept(delegate.bind(this)));
-		this.request.addListener("data", receive.bind(this));
-		this.request.addListener("end", delegate.bind(this));
-	}
+	// TODO Select crypto facility by content-type
+	this.crypto = this.createCryptoFacility(this.config.crypto[0]);
+	// TODO Select storage facility by purl
+	this.storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
+	this.storage.connect(delegate.bind(this));
+	this.request.addListener("data", receive.bind(this));
+	this.request.addListener("end", delegate.bind(this));
 
 	function receive(chunk) {
 		this.requestText += chunk;
@@ -67,9 +57,9 @@ exports.prototype.run = function() {
 		if (--lock)
 			return;
 		if (!this.HookHandlers[this.purl.path])
-			throw new HttpError(404, "hook not found");
+			return this.abort(new HttpError(404, "hook not found"));
 		if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
-			throw new HttpError(501, "missing method");
+			return this.abort(new HttpError(501, "missing method"));
 		this.HookHandlers[this.purl.path][this.request.method](this);
 	}
 }
@@ -93,7 +83,7 @@ exports.prototype.abort = function(error) {
 			throw error;
 		}
 	}
-	catch (e) {
+	catch(e) {
 		try {
 			console.warn("ERROR "+e);
 			this.response.statusCode = 500;
@@ -101,13 +91,9 @@ exports.prototype.abort = function(error) {
 		}
 		catch (ee) {
 			console.error("DIZZY "+ee);
-			// TODO We should tell the admin about that
 		}
 		finally {
-			if (this.listeners("error").length)
-				this.emit("error", e);
-			else
-				throw e;
+			this.emit("error", e);
 		}
 	}
 }
@@ -129,14 +115,8 @@ exports.prototype.writeJSON = function(data, type) {
 
 Object.defineProperty(exports.prototype, "requestJSON", {
 	get: function() {
-		if (this.$requestJSON === undefined) {
-			try {
-				this.$requestJSON = this.requestText ? JSON.parse(this.requestText) : null;
-			}
-			catch (e) {
-				throw new HttpError(400, "request contains invalid JSON");
-			}
-		}
+		if (this.$requestJSON === undefined)
+			this.$requestJSON = this.requestText ? JSON.parse(this.requestText) : null;
 		return this.$requestJSON;
 	}
 });
@@ -146,7 +126,7 @@ Object.defineProperty(exports.prototype, "storageFacility", {
 		if (this.$storageFacility === undefined) {
 			var StorageFacilitiy = this.StorageFacilities[this.config.storage.facility];
 			if (!StorageFacilitiy)
-				throw new Error("unknown storage facility");
+				return this.abort(new Error("unknown storage facility"));
 			this.$storageFacility = new StorageFacilitiy(this.config.storage.options);
 		}
 		return this.$storageFacility;

@@ -47,6 +47,8 @@ exports.prototype.readPod = function(pod, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
+		if (result.rows[0] === undefined)
+			error = new Error("pod not found");
 		callback(error||null, result?result.rows[0]:null);
 	}
 }

@@ -1,9 +1,9 @@
-var domain = require("domain");
 var events = require('events');
 var http = require("http");
 var HttpError = require("../shared/HttpError");
 
 module.exports = exports = function(crypto, storage) {
+	events.EventEmitter.call(this);
 	this.$responseJson = undefined;
 	this.crypto = crypto;
 	this.storage = storage;
@@ -13,78 +13,69 @@ module.exports = exports = function(crypto, storage) {
 	this.responseText = null;
 }
 
+exports.prototype = Object.create(events.EventEmitter.prototype);
+
 // TODO Handle unknown pod
-exports.prototype.init = function(pod, callback) {
+exports.prototype.init = function(pod) {
 	this.storage.readPod(pod, afterReadPod.bind(this));
 
 	function afterReadPod(error, result) {
+		if (error)
+			return this.emit("error", error)
 		this.pod = result;
-		callback(error||null);
+		this.emit("ready");
 	}
 }
 
-exports.prototype.sendJson = function(data, callback, type) {
-	if (data !== undefined) {
-		try {
-			var json = JSON.stringify(data);
-		}
-		catch (e) {
-			var error = new Error("request contains invalid JSON");
-			return callback(error);
-		}
-	}
-	this.send(json, callback, type||"application/json;charset=encoding");
+exports.prototype.sendJson = function(data, type) {
+	if (data!==undefined)
+		var json = JSON.stringify(data);
+	this.send(json, type||"application/json;charset=encoding");
 }
 
-exports.prototype.send = function(data, callback, type) {
-	var dom = domain.createDomain();
-	dom.addListener("error", onError.bind(this));
+exports.prototype.send = function(data, type) {
+	var m = this.pod.url.match(/([^\/:]+)(?:\:(\d+))?(.*)/);
+	var req = http.request({
+		'hostname': m[1],
+		'port': parseInt(m[2])||80,
+		'method': this.method,
+		'path': m[3]+this.path
+	});
+	req.addListener("error", onError.bind(this));
+	req.addListener('response', onResponse.bind(this));
+	req.setHeader("content-length", data ? Buffer.byteLength(data) : 0);
+	req.end(data);
+
+	function onResponse(response) {
+		var responseText = "";
+		response.setEncoding('utf8');
 	
-	dom.run(function() {
-		var m = this.pod.url.match(/([^\/:]+)(?:\:(\d+))?(.*)/);
-		var req = http.request({
-			'hostname': m[1],
-			'port': parseInt(m[2])||80,
-			'method': this.method,
-			'path': m[3]+this.path
+		if (response.statusCode >= 400)
+			return this.emit("error", new HttpError(response.statusCode, "pod returned error"));
+
+		response.addListener("error", function(error) {
+			this.emit("error", error);
+		}.bind(this));
+
+		response.addListener("data", function(chunk) {
+			responseText += chunk;
 		});
-		req.addListener('response', onResponse.bind(this));
-		req.setHeader("content-length", data ? Buffer.byteLength(data) : 0);
-		req.end(data);
 
-		function onResponse(response) {
-			var responseText = "";
-			response.setEncoding('utf8');
-
-			if (response.statusCode >= 400)
-				throw new HttpError(response.statusCode, "pod returned error");
-
-			response.addListener("data", function(chunk) {
-				responseText += chunk;
-			});
-
-			response.addListener("end", function() {
-				this.responseText = responseText;
-				callback(null, this);
-			}.bind(this));
-		}
-	}.bind(this));
+		response.addListener("end", function() {
+			this.responseText = responseText;
+			this.emit("response", this);
+		}.bind(this));
+	}
 
 	function onError(error) {
-		callback(error);
-	}	
+		this.emit("error", error);
+	}
 }
 
 Object.defineProperty(exports.prototype, "responseJson", {
 	get: function() {
-		if (this.$responseJson === undefined) {
-			try {
-				this.$responseJson = this.responseText ? JSON.parse(this.responseText) : null;
-			}
-			catch (e) {
-				throw new HttpError(400, "route response contains invalid JSON");
-			}
-		}
+		if (this.$responseJson === undefined)
+			this.$responseJson = this.responseText ? JSON.parse(this.responseText) : null;
 		return this.$responseJson;
 	}
 });
