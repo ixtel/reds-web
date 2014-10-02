@@ -1,3 +1,5 @@
+"use strict";
+
 var events = require("events");
 var FacilityManager = require("./FacilityManager");
 var HttpError = require("./HttpError");
@@ -40,6 +42,7 @@ CryptoFacilities.addFinalFactoryToObject("createCryptoFacility", exports.prototy
 StorageFacilities.addFinalFactoryToObject("createStorageFacility", exports.prototype);
 
 exports.prototype.run = function() {
+	console.log("REQUEST "+this.request.headers["content-type"]); // DEBUG
 	var lock = 2;
 	// TODO Select crypto facility by content-type
 	this.crypto = this.createCryptoFacility(this.config.crypto[0]);
@@ -56,6 +59,7 @@ exports.prototype.run = function() {
 	function delegate() {
 		if (--lock)
 			return;
+		console.log("REQUEST "+this.requestText); // DEBUG
 		if (!this.HookHandlers[this.purl.path])
 			return this.abort(new HttpError(404, "hook not found"));
 		if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
@@ -68,12 +72,13 @@ exports.prototype.end = function() {
 	this.response.end();
 	if (this.storage)
 		this.storage.disconnect();
+	console.log("RESPONSE "+this.response.getHeader("Content-Type")); // DEBUG
 }
 
 exports.prototype.abort = function(error) {
 	try {
 		if (error instanceof HttpError) {
-			console.info("ABORT "+error.toString());
+			console.warn("ABORT "+error.toString());
 			if  (error.code == 401)
 				this.response.setHeader("WWW-Authenticate", "REDS realm=\"node\"");
 			this.response.statusCode = error.code;
@@ -85,7 +90,7 @@ exports.prototype.abort = function(error) {
 	}
 	catch(e) {
 		try {
-			console.warn("ERROR "+e);
+			console.error("ERROR "+e);
 			this.response.statusCode = 500;
 			this.end();
 		}
@@ -99,12 +104,11 @@ exports.prototype.abort = function(error) {
 }
 
 exports.prototype.write = function(data, type) {
-	console.log("DEBUG response type: "+type); // DEBUG
-	console.log("DEBUG response data: "+data); // DEBUG
 	if (type && !this.response.headersSent)
 		this.response.setHeader("Content-Type", type);
 	if (data)
 		this.response.write(data, "utf8");
+	console.log("RESPONSE "+data); // DEBUG
 }
 
 exports.prototype.writeJSON = function(data, type) {

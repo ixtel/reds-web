@@ -1,3 +1,5 @@
+"use strict";
+
 var events = require('events');
 var http = require("http");
 var HttpError = require("../shared/HttpError");

@@ -3,7 +3,7 @@
 
 var HttpError = function(code, message) {
 	Error.call(this);
-	this.name = "REDS_SESSION_ERROR";
+	this.name = "REDS_HTTP_ERROR";
 	this.code = code || 500;
 	this.message = message || ""; 
 }

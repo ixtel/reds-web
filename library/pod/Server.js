@@ -1,3 +1,5 @@
+"use strict";
+
 var Server = require("../shared/Server");
 var PodSession = require("./Session");
 

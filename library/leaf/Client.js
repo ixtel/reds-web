@@ -31,7 +31,7 @@ CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared
 var Client = function(options) {
 	this.cid = Credentials.registerClient();
 	console.log(this.cid);
-	// TODO Find a way to handle crypto facilities individually for each node and pod
+	// TODO Find a way to handle multiple crypto facilities
 	this.crypto = this.createCryptoFacility(options.crypto[0]);
 	this.options = options;
 	// NOTE Hack to add DOM event handling to non-DOM object

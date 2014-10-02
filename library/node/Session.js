@@ -1,3 +1,5 @@
+"use strict";
+
 var Session = require("../shared/Session");
 
 module.exports = exports = function(config, request, response) {

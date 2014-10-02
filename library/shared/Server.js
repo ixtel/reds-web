@@ -1,3 +1,5 @@
+"use strict";
+
 var cluster = require("cluster");
 var http = require("http");
 var os = require("os");
@@ -19,19 +21,20 @@ exports.prototype.run = function() {
 }
 
 exports.prototype.setup = function() {
+	console.log("MASTER "+process.pid); // DEBUG
 	for (var i = 0; i < this.config.workers; i++)
 		cluster.fork();
 }
 
 exports.prototype.connect = function() {
-	console.info(process.pid +" CONNECT "+this.config.host+" "+this.config.port);
+	console.log("WORKER "+process.pid+" "+this.config.host+" "+this.config.port); // DEBUG
 	this.httpd = http.createServer();
 	this.httpd.listen(this.config.port, this.config.host);
 	this.httpd.addListener("request", this.listen.bind(this));
 }
 
 exports.prototype.listen = function(request, response) {
-	console.info(process.pid +" LISTEN "+request.method+" "+request.url); // DEBUG
+	console.log("LISTEN "+process.pid+" "+request.method+" "+request.url); // DEBUG
 	var session = new this.Session(this.config, request, response);
 	session.run();
 }
