@@ -2,7 +2,7 @@
 
 var leaf = new reds.leaf.Client({
 	'url': "http://node.reds-web.dev",
-	'crypto': ["cryptojs-1"]
+	'crypto': ["sjcl-1", "cryptojs-1"]
 });
 
 leaf.addEventListener("error", function(evt) {

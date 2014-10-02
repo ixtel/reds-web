@@ -37,13 +37,15 @@ Sjcl.prototype.concatenateStrings = function() {
 }
 
 Sjcl.prototype.generateSecureHash = function(data, salt) {
+	console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
 	var hashBits = sjcl.misc.pbkdf2(data, salt, 4096, 256);
 	return sjcl.codec.base64.fromBits(hashBits);
 }
 
 Sjcl.prototype.generateKey = function(seed) {
+	// TODO Is one pbkdf2 iteration enought to create a proper hash?
 	var keyBits = seed ? sjcl.misc.pbkdf2(seed, "", 1, 128) : sjcl.random.randomWords(4, 10);
-	return sjcl.codec.base64.fromBits(keyBits)
+	return sjcl.codec.base64.fromBits(keyBits);
 }
 
 Sjcl.prototype.generateKeypair = function(seed) {
@@ -90,7 +92,7 @@ Sjcl.prototype.encryptData = function(data, key, vector) {
 }
 
 Sjcl.prototype.decryptData = function(cdata, key, vector) {
-	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256)
+	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
 	var cdataBits = sjcl.codec.base64.toBits(cdata);

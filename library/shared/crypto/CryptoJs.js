@@ -16,9 +16,9 @@ cryptojs.algo.EvpKDF.cfg.iterations = 1;
 var Rng = function() {
 	// NOTE We assume that Node.JS is used when no window object exists.
 	if (typeof window !== 'undefined')
-		this.nextBytes = this.nextBytesWindowCrypto
+		this.nextBytes = this.nextBytesWindowCrypto;
 	else
-		this.nextBytes = this.nextBytesNodeJS
+		this.nextBytes = this.nextBytesNodeJS;
 }
 
 Rng.prototype.nextBytesWindowCrypto = function(arr) {
@@ -65,6 +65,7 @@ CryptoJs.prototype.concatenateStrings = function() {
 }
 
 CryptoJs.prototype.generateSecureHash = function(data, salt) {
+	console.warn("Not enough PBKDF2 iterations to be secure!");
 	var hash = cryptojs.PBKDF2(data, salt, {'keySize':256/32,'iterations':1000});
 	return cryptojs.enc.Base64.stringify(hash);	
 }
@@ -106,7 +107,7 @@ CryptoJs.prototype.combineKeypair = function(privateKey, publicKey, pad) {
 	var x = new BigInteger(cryptojs.enc.Hex.stringify(pri), 16);
 	var gx = new BigInteger(cryptojs.enc.Hex.stringify(pub), 16);
 	var s = gx.modPow(x, BigInteger.Groups.NIST2048.p);
-	var key = cryptojs.algo.EvpKDF.create().compute(s.toString(16), "")
+	var key = cryptojs.algo.EvpKDF.create().compute(s.toString(16), "");
 	if (pad) {
 		var pkey = cryptojs.algo.EvpKDF.create().compute(pad, "");
 		key.words[0] = key.words[0]^pkey.words[0];
@@ -114,7 +115,7 @@ CryptoJs.prototype.combineKeypair = function(privateKey, publicKey, pad) {
 		key.words[2] = key.words[2]^pkey.words[2];
 		key.words[3] = key.words[3]^pkey.words[3];
 	}
-	return cryptojs.enc.Base64.stringify(key)
+	return cryptojs.enc.Base64.stringify(key);
 }
 
 CryptoJs.prototype.generateHmac = function(data, key) {
