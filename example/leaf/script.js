@@ -2,7 +2,7 @@
 
 var leaf = new reds.leaf.Client({
 	'url': "http://node.reds-web.dev",
-	'crypto': ["sjcl-1", "cryptojs-1"]
+	'crypto': ["cryptojs-1"]
 });
 
 leaf.addEventListener("error", function(evt) {
@@ -23,6 +23,7 @@ function testCryptoFacility() {
 		document.forms["TestCryptoFacility"].elements['output'].value += text;
 	}
 
+	document.forms["TestCryptoFacility"].elements['output'].value = "";
 	log("name: "+leaf.crypto.name+"\n\n");
 
 	log("hmac = generateHmac(\"mydata\", \"foo\")");
@@ -31,7 +32,7 @@ function testCryptoFacility() {
 	time = Date.now()-start;
 	log(" ("+time+" ms)\nhmac = "+hmac+"\n\n");
 
-	log("shash = generateHmac(\"mydata\", \"foo\")");
+	log("shash = generateSecureHash(\"mydata\", \"foo\")");
 	start = Date.now();
 	var shash = leaf.crypto.generateSecureHash("mydata", "bar");
 	time = Date.now()-start;
@@ -93,6 +94,22 @@ function testCryptoFacility() {
 	var combined2 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey);
 	time = Date.now()-start;
 	log(" ("+time+" ms)\ncombined2 = "+combined2+"\n\n");
+
+	log("scombined1 = combineKeypair(pair1.privateKey, pair2.publicKey, \"secret\")");
+	start = Date.now();
+	var scombined1 = leaf.crypto.combineKeypair(pair1.privateKey, pair2.publicKey, "secret");
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nscombined1 = "+scombined1+"\n");
+	log("scombined2 = combineKeypair(pair2.privateKey, pair1.publicKey, \"secret\")");
+	start = Date.now();
+	var scombined2 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey, "secret");
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nscombined2 = "+scombined2+"\n");
+	log("scombined3 = combineKeypair(pair2.privateKey, pair1.publicKey, \"wrongsecret\")");
+	start = Date.now();
+	var scombined3 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey, "wrongsecret");
+	time = Date.now()-start;
+	log(" ("+time+" ms)\nscombined3 = "+scombined3+"\n\n");
 
 	log("cdata1 = encryptData(\"mydata\", key, vector)");
 	start = Date.now();
