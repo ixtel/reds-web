@@ -38,7 +38,7 @@ Sjcl.prototype.concatenateStrings = function() {
 
 Sjcl.prototype.generateSecureHash = function(data, salt) {
 	console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
-	var hashBits = sjcl.misc.pbkdf2(data, salt, 4096, 256);
+	var hashBits = sjcl.misc.pbkdf2(data, salt, 16000, 256);
 	return sjcl.codec.base64.fromBits(hashBits);
 }
 
@@ -63,6 +63,7 @@ Sjcl.prototype.combineKeypair = function(privateKey, publicKey, pad) {
 	var privateBn = sjcl.bn.fromBits(privateBits);
 	var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
 	var sharedBn = publicBn.mult(privateBn);
+	// TODO Is one pbkdf2 iteration enought to create a proper hash?
 	var keyBits = sjcl.misc.pbkdf2(sharedBn.toBits(), "", 1, 128)
 	if (pad) {
 		var padBits = sjcl.misc.pbkdf2(pad, "", 1, 128);
