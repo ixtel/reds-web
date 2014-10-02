@@ -100,13 +100,20 @@ CryptoJs.prototype.generateKeypair = function(seed) {
 	};
 }
 
-CryptoJs.prototype.combineKeypair = function(privateKey, publicKey) {
+CryptoJs.prototype.combineKeypair = function(privateKey, publicKey, pad) {
 	var pri = cryptojs.enc.Base64.parse(privateKey);
 	var pub = cryptojs.enc.Base64.parse(publicKey);
 	var x = new BigInteger(cryptojs.enc.Hex.stringify(pri), 16);
 	var gx = new BigInteger(cryptojs.enc.Hex.stringify(pub), 16);
 	var s = gx.modPow(x, BigInteger.Groups.NIST2048.p);
 	var key = cryptojs.algo.EvpKDF.create().compute(s.toString(16), "")
+	if (pad) {
+		var pkey = cryptojs.algo.EvpKDF.create().compute(pad, "");
+		key.words[0] = key.words[0]^pkey.words[0];
+		key.words[1] = key.words[1]^pkey.words[1];
+		key.words[2] = key.words[2]^pkey.words[2];
+		key.words[3] = key.words[3]^pkey.words[3];
+	}
 	return cryptojs.enc.Base64.stringify(key)
 }
 

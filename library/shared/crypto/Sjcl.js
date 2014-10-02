@@ -38,7 +38,6 @@ Sjcl.prototype.concatenateStrings = function() {
 
 Sjcl.prototype.generateSecureHash = function(data, salt) {
 	var hashBits = sjcl.misc.pbkdf2(data, salt, 4096, 256);
-	console.log(sjcl.codec.base64.fromBits(hashBits));
 	return sjcl.codec.base64.fromBits(hashBits);
 }
 
@@ -56,13 +55,20 @@ Sjcl.prototype.generateKeypair = function(seed) {
 	}
 }
 
-Sjcl.prototype.combineKeypair = function(privateKey, publicKey) {
+Sjcl.prototype.combineKeypair = function(privateKey, publicKey, pad) {
 	var privateBits = sjcl.codec.base64.toBits(privateKey);
 	var publicBits = sjcl.codec.base64.toBits(publicKey);
 	var privateBn = sjcl.bn.fromBits(privateBits);
 	var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
 	var sharedBn = publicBn.mult(privateBn);
 	var keyBits = sjcl.misc.pbkdf2(sharedBn.toBits(), "", 1, 128)
+	if (pad) {
+		var padBits = sjcl.misc.pbkdf2(pad, "", 1, 128);
+		keyBits[0] = keyBits[0]^padBits[0];
+		keyBits[1] = keyBits[1]^padBits[1];
+		keyBits[2] = keyBits[2]^padBits[2];
+		keyBits[3] = keyBits[3]^padBits[3];
+	}
 	return sjcl.codec.base64.fromBits(keyBits);
 }
 
