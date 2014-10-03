@@ -2,8 +2,9 @@
 "use strict";
 
 // NOTE The sjcl-1 implementation uses the following options
-//      cipher: AES128
+//      cipher: AES128-CCM
 //      hash: SHA256
+//      shash: PBKDF2-HMAC-SHA256
 //      curve: SECP256K1-1
 
 var sjcl = loadSjcl();
@@ -19,7 +20,7 @@ Sjcl.prototype.generateTimestamp = function() {
 	var low = now&0xffffffff;
 	var high = Math.floor(now/0xffffffff);
 	var timeBytes = [high, low];
-	var saltBytes = sjcl.random.randomWords(2, 10);
+	var saltBytes = sjcl.random.randomWords(6, 10);
 	return sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes));
 }
 
@@ -43,8 +44,8 @@ Sjcl.prototype.generateSecureHash = function(data, salt) {
 }
 
 Sjcl.prototype.generateKey = function(seed) {
-	// TODO Is one pbkdf2 iteration enought to create a proper hash?
-	var keyBits = seed ? sjcl.misc.pbkdf2(seed, "", 1, 128) : sjcl.random.randomWords(4, 10);
+	// TODO Is one pbkdf2 iteration enough to create a proper hash?
+	var keyBits = seed ? sjcl.hash.sha256.hash(seed) : sjcl.random.randomWords(8, 10);
 	return sjcl.codec.base64.fromBits(keyBits);
 }
 
@@ -57,16 +58,15 @@ Sjcl.prototype.generateKeypair = function(seed) {
 	}
 }
 
-Sjcl.prototype.combineKeypair = function(privateKey, publicKey, pad) {
+Sjcl.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
 	var privateBits = sjcl.codec.base64.toBits(privateKey);
 	var publicBits = sjcl.codec.base64.toBits(publicKey);
 	var privateBn = sjcl.bn.fromBits(privateBits);
 	var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
 	var sharedBn = publicBn.mult(privateBn);
-	// TODO Is one pbkdf2 iteration enought to create a proper hash?
-	var keyBits = sjcl.misc.pbkdf2(sharedBn.toBits(), "", 1, 128)
-	if (pad) {
-		var padBits = sjcl.misc.pbkdf2(pad, "", 1, 128);
+	var keyBits = sjcl.hash.sha256.hash(sharedBn.toBits());
+	if (padKey) {
+		var padBits = sjcl.hash.sha256.hash(sjcl.codec.base64.toBits(padKey));
 		keyBits[0] = keyBits[0]^padBits[0];
 		keyBits[1] = keyBits[1]^padBits[1];
 		keyBits[2] = keyBits[2]^padBits[2];
@@ -77,12 +77,14 @@ Sjcl.prototype.combineKeypair = function(privateKey, publicKey, pad) {
 
 Sjcl.prototype.generateHmac = function(data, key) {
 	var keyBits = sjcl.codec.base64.toBits(key);
-	var sha256Hash = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
-	var hmacBits = sha256Hash.encrypt(data);
+	var sha256Hmac = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
+	var hmacBits = sha256Hmac.encrypt(data);
 	return sjcl.codec.base64.fromBits(hmacBits);
 }
 
 Sjcl.prototype.encryptData = function(data, key, vector) {
+	// TODO Is one iteration enough to generate a decent key?
+	//      Can/Shall we use just a SHA256 HMAC instead?
 	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
@@ -93,6 +95,8 @@ Sjcl.prototype.encryptData = function(data, key, vector) {
 }
 
 Sjcl.prototype.decryptData = function(cdata, key, vector) {
+	// TODO Is one iteration enough to generate a decent key?
+	//      Can/Shall we use just a SHA256 HMAC instead?
 	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
 	var keyBits = derivedBits.slice(0, 4);
 	var ivBits = derivedBits.slice(4, 8);
