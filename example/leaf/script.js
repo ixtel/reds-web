@@ -32,11 +32,11 @@ function testCryptoFacility() {
 	time = Date.now()-start;
 	log(" ("+time+" ms)\nhmac = "+hmac+"\n\n");
 
-	log("shash = generateSecureHash(\"mydata\", \"foo\")");
+	log("hash = generateSecureHash(\"mydata\", \"foo\")");
 	start = Date.now();
-	var shash = leaf.crypto.generateSecureHash("mydata", "bar");
+	var hash = leaf.crypto.generateSecureHash("mydata", "bar");
 	time = Date.now()-start;
-	log(" ("+time+" ms)\nshash = "+shash+"\n\n");
+	log(" ("+time+" ms)\nhash = "+hash+"\n\n");
 
 	log("ts1 = generateTimestamp()");
 	start = Date.now();
@@ -60,16 +60,16 @@ function testCryptoFacility() {
 	time = Date.now()-start;
 	log(" ("+time+" ms)\ncp2 = "+cp2+"\n\n");
 
-	log("key = generateKey(\"foobar\")");
+	log("key = generateKey()");
 	start = Date.now();
-	var key = leaf.crypto.generateKey("foobar");
+	var key = leaf.crypto.generateKey();
 	time = Date.now()-start;
 	log(" ("+time+" ms)\nkey = "+key+"\n");
-	log("vector = generateKey()");
+	log("vec = generateKey()");
 	start = Date.now();
-	var vector = leaf.crypto.generateKey();
+	var vec = leaf.crypto.generateKey();
 	time = Date.now()-start;
-	log(" ("+time+" ms)\nvector = "+vector+"\n\n");
+	log(" ("+time+" ms)\nvec = "+vec+"\n\n");
 
 	log("pair1 = generateKeypair()");
 	var start = Date.now();
@@ -95,25 +95,20 @@ function testCryptoFacility() {
 	time = Date.now()-start;
 	log(" ("+time+" ms)\ncombined2 = "+combined2+"\n\n");
 
-	log("scombined1 = combineKeypair(pair1.privateKey, pair2.publicKey, \"secret\")");
+	log("scombined1 = combineKeypair(pair2.privateKey, pair1.publicKey, \"secret\")");
 	start = Date.now();
-	var scombined1 = leaf.crypto.combineKeypair(pair1.privateKey, pair2.publicKey, "secret");
+	var scombined1 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey, "secret");
 	time = Date.now()-start;
 	log(" ("+time+" ms)\nscombined1 = "+scombined1+"\n");
-	log("scombined2 = combineKeypair(pair2.privateKey, pair1.publicKey, \"secret\")");
+	log("scombined2 = combineKeypair(pair2.privateKey, pair1.publicKey, \"wrongsecret\")");
 	start = Date.now();
-	var scombined2 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey, "secret");
+	var scombined2 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey, "wrongsecret");
 	time = Date.now()-start;
-	log(" ("+time+" ms)\nscombined2 = "+scombined2+"\n");
-	log("scombined3 = combineKeypair(pair2.privateKey, pair1.publicKey, \"wrongsecret\")");
-	start = Date.now();
-	var scombined3 = leaf.crypto.combineKeypair(pair2.privateKey, pair1.publicKey, "wrongsecret");
-	time = Date.now()-start;
-	log(" ("+time+" ms)\nscombined3 = "+scombined3+"\n\n");
+	log(" ("+time+" ms)\nscombined2 = "+scombined2+"\n\n");
 
-	log("cdata1 = encryptData(\"mydata\", key, vector)");
+	log("cdata1 = encryptData(\"mydata\", key, vec)");
 	start = Date.now();
-	var cdata1 = leaf.crypto.encryptData("mydata", key, vector);
+	var cdata1 = leaf.crypto.encryptData("mydata", key, vec);
 	time = Date.now()-start;
 	log(" ("+time+" ms)\ncdata1 = "+cdata1+"\n");
 	log("cdata2 = encryptData(\"mydata\", combined1, combined2)");
@@ -122,14 +117,14 @@ function testCryptoFacility() {
 	time = Date.now()-start;
 	log(" ("+time+" ms)\ncdata2 = "+cdata2+"\n\n");
 
-	log("data1 = decryptData(cdata1, key, vector)");
-	var data1 = leaf.crypto.decryptData(cdata1, key, vector);
+	log("data1 = decryptData(cdata1, key, vec)");
+	var data1 = leaf.crypto.decryptData(cdata1, key, vec);
 	time = Date.now()-start;
 	log(" ("+time+" ms)\ndata1 = "+data1+"\n");
 	log("data2 = decryptData(cdata2, combined1, combined2)");
 	var data2 = leaf.crypto.decryptData(cdata2, combined1, combined2);
 	time = Date.now()-start;
-	log(" ("+time+" ms)\ndata2 = "+data2+"\n\n");
+	log(" ("+time+" ms)\ndata2 = "+data2+"\n");
 }
 
 // INFO Account actions
