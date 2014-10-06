@@ -1,9 +1,11 @@
 (function(){
 "use strict";
 
-// NOTE The cryptojs-1 implementation uses the following options
+// NOTE The cryptojs-1 implementation uses the following configuration
+//      keylength: 128bit
 //      cipher: AES128
 //      hash: SHA256
+//      shash: PBKDF2-HMAC-SHA256
 //      group: NIST2048
 
 var BigInteger = loadBigInteger();
@@ -37,7 +39,7 @@ Rng.prototype.nextBytesNodeJS = function(arr) {
 }
 
 var CryptoJs = function() {
-	// NOTE Nothig to here (but maybe in other facilities)
+	// NOTE Nothing to here (but maybe in other facilities)
 }
 
 CryptoJs.prototype.name = "cryptojs-1";
@@ -47,7 +49,7 @@ CryptoJs.prototype.generateTimestamp = function() {
 	var low = now&0xffffffff;
 	var high = Math.floor(now/0xffffffff);
 	var time = cryptojs.lib.WordArray.create([high, low]);
-	time.concat(cryptojs.lib.WordArray.random(64));
+	time.concat(cryptojs.lib.WordArray.random(8));
 	return cryptojs.enc.Base64.stringify(time);
 }
 
@@ -66,21 +68,16 @@ CryptoJs.prototype.concatenateStrings = function() {
 
 CryptoJs.prototype.generateSecureHash = function(data, salt) {
 	console.warn("Not enough PBKDF2 iterations to be secure!");
-	var hash = cryptojs.PBKDF2(data, salt, {'keySize':256/32,'iterations':1000});
+	var hash = cryptojs.PBKDF2(data, salt, {'keySize':KEYSIZE,'iterations':1000});
 	return cryptojs.enc.Base64.stringify(hash);	
 }
 
-CryptoJs.prototype.generateKey = function(seed) {
-	if (seed) {
-		var key = cryptojs.algo.EvpKDF.create().compute(seed, "");
-	}
-	else {
-		var key = cryptojs.lib.WordArray.random(KEYSIZE);
-	}
+CryptoJs.prototype.generateKey = function() {
+	var key = cryptojs.lib.WordArray.random(16);
 	return cryptojs.enc.Base64.stringify(key);
 }
 
-CryptoJs.prototype.generateKeypair = function(seed) {
+CryptoJs.prototype.generateKeypair = function() {
 	var group = BigInteger.Groups.NIST2048;
 	// NOTE Find 0 < x < p and 0 < gx < p
 	do {
@@ -101,26 +98,33 @@ CryptoJs.prototype.generateKeypair = function(seed) {
 	};
 }
 
-CryptoJs.prototype.combineKeypair = function(privateKey, publicKey, pad) {
+CryptoJs.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
 	var pri = cryptojs.enc.Base64.parse(privateKey);
 	var pub = cryptojs.enc.Base64.parse(publicKey);
 	var x = new BigInteger(cryptojs.enc.Hex.stringify(pri), 16);
 	var gx = new BigInteger(cryptojs.enc.Hex.stringify(pub), 16);
 	var s = gx.modPow(x, BigInteger.Groups.NIST2048.p);
 	var key = cryptojs.algo.EvpKDF.create().compute(s.toString(16), "");
-	if (pad) {
-		var pkey = cryptojs.algo.EvpKDF.create().compute(pad, "");
-		key.words[0] = key.words[0]^pkey.words[0];
-		key.words[1] = key.words[1]^pkey.words[1];
-		key.words[2] = key.words[2]^pkey.words[2];
-		key.words[3] = key.words[3]^pkey.words[3];
+	if (padKey) {
+		var pad = cryptojs.enc.Base64.parse(padKey);
+		key.words[0] = key.words[0]^pad.words[0];
+		key.words[1] = key.words[1]^pad.words[1];
+		key.words[2] = key.words[2]^pad.words[2];
+		key.words[3] = key.words[3]^pad.words[3];
+		key.words[4] = key.words[4]^pad.words[4];
+		key.words[5] = key.words[5]^pad.words[5];
+		key.words[6] = key.words[6]^pad.words[6];
+		key.words[7] = key.words[7]^pad.words[7];
 	}
 	return cryptojs.enc.Base64.stringify(key);
 }
 
 CryptoJs.prototype.generateHmac = function(data, key) {
 	var hmac = cryptojs.HmacSHA256(data, key);
-	return cryptojs.enc.Base64.stringify(hmac);
+	// TODO Is one iteration enough to generate a decent key?
+	//      Can/Shall we use just MD5 instead?
+	var hash = cryptojs.PBKDF2(hmac, "DEADBEEF", {'keySize':KEYSIZE,'iterations':1});
+	return cryptojs.enc.Base64.stringify(hash);
 }
 
 CryptoJs.prototype.encryptData = function(data, key, vector) {

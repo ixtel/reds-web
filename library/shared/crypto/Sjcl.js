@@ -1,7 +1,8 @@
 (function(){
 "use strict";
 
-// NOTE The sjcl-1 implementation uses the following options
+// NOTE The sjcl-1 implementation uses the following configuration
+//      keylength: 256bit
 //      cipher: AES128-CCM
 //      hash: SHA256
 //      shash: PBKDF2-HMAC-SHA256
@@ -10,7 +11,7 @@
 var sjcl = loadSjcl();
 
 var Sjcl = function() {
-	// NOTE Nothig to here (but maybe in other facilities)
+	// NOTE Nothing to here (but maybe in other facilities)
 }
 
 Sjcl.prototype.name = "sjcl-1";
@@ -43,9 +44,8 @@ Sjcl.prototype.generateSecureHash = function(data, salt) {
 	return sjcl.codec.base64.fromBits(hashBits);
 }
 
-Sjcl.prototype.generateKey = function(seed) {
-	// TODO Is one pbkdf2 iteration enough to create a proper hash?
-	var keyBits = seed ? sjcl.hash.sha256.hash(seed) : sjcl.random.randomWords(8, 10);
+Sjcl.prototype.generateKey = function() {
+	var keyBits = sjcl.random.randomWords(8, 10);
 	return sjcl.codec.base64.fromBits(keyBits);
 }
 
@@ -66,11 +66,15 @@ Sjcl.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
 	var sharedBn = publicBn.mult(privateBn);
 	var keyBits = sjcl.hash.sha256.hash(sharedBn.toBits());
 	if (padKey) {
-		var padBits = sjcl.hash.sha256.hash(sjcl.codec.base64.toBits(padKey));
+		var padBits = sjcl.codec.base64.toBits(padKey);
 		keyBits[0] = keyBits[0]^padBits[0];
 		keyBits[1] = keyBits[1]^padBits[1];
 		keyBits[2] = keyBits[2]^padBits[2];
 		keyBits[3] = keyBits[3]^padBits[3];
+		keyBits[4] = keyBits[4]^padBits[4];
+		keyBits[5] = keyBits[5]^padBits[5];
+		keyBits[6] = keyBits[6]^padBits[6];
+		keyBits[7] = keyBits[7]^padBits[7];
 	}
 	return sjcl.codec.base64.fromBits(keyBits);
 }
