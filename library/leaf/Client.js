@@ -40,7 +40,7 @@ var Client = function(options) {
 	this.dispatchEvent = eventTarget.dispatchEvent.bind(eventTarget);
 }
 
-CryptoFacilities.addFinalFactoryToObject("createCryptoFacility", Client.prototype);
+CryptoFacilities.addFactoryToObject("createCryptoFacility", Client.prototype);
 
 Client.prototype.$createRequest = function(method, path, callback) {
 	var request = new Request(this.crypto, Credentials[this.cid]);

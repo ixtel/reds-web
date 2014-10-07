@@ -14,16 +14,8 @@ FacilityManager.prototype.addFactoryToObject = function(factory, obj) {
 	obj[factory] = function(name, arg) {
 		if (facilities[name])
 			return new facilities[name](arg);
-		else
+		else if (Object.getPrototypeOf(this)[factory])
 			return Object.getPrototypeOf(this)[factory](name);
-	}
-}
-
-FacilityManager.prototype.addFinalFactoryToObject = function(factory, obj) {
-	var facilities = this.facilities;
-	obj[factory] = function(name, arg) {
-		if (facilities[name])
-			return new facilities[name](arg);
 		else
 			throw new Error("unknown facility "+name);
 	}

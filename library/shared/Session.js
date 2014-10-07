@@ -38,8 +38,8 @@ exports.prototype = Object.create(events.EventEmitter.prototype);
 
 exports.prototype.HookHandlers = null;
 
-CryptoFacilities.addFinalFactoryToObject("createCryptoFacility", exports.prototype);
-StorageFacilities.addFinalFactoryToObject("createStorageFacility", exports.prototype);
+CryptoFacilities.addFactoryToObject("createCryptoFacility", exports.prototype);
+StorageFacilities.addFactoryToObject("createStorageFacility", exports.prototype);
 
 exports.prototype.run = function() {
 	console.log("REQUEST "+this.request.headers["content-type"]); // DEBUG
