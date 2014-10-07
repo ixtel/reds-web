@@ -79,7 +79,6 @@ Client.prototype.signin = function(name, password, callback) {
 			'auth': blob.auth,
 			'akey': blob.akey
 		};
-		console.log(Credentials[this.cid].account);
 		callback({'id':Credentials[this.cid].account['id']});
 	}
 }
@@ -130,7 +129,6 @@ Client.prototype.createAccount = function(name, password, pod, podword, callback
 	
 	function onPutLoad() {
 		Credentials[this.cid].account = account;
-		console.log(Credentials[this.cid].account);
 		callback({'id':Credentials[this.cid].account['id']});
 	}
 }

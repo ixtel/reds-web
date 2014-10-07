@@ -15,7 +15,6 @@ exports.prototype.listen = function(request, response) {
 		if (request.method == 'OPTIONS') {
 			response.setHeader('Access-Control-Allow-Methods', this.config.cors.methods);
 			response.setHeader('Access-Control-Allow-Headers', this.config.cors.headers);
-			console.log(response.headers);
 			response.end();
 			return;
 		}

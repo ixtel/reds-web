@@ -135,11 +135,12 @@ function testCryptoFacility() {
 // INFO Account actions
 
 function signup(name, password, confirmation, pod, podword) {
-	console.log("signup: "+Array.prototype.slice.apply(arguments));
-	// if ((name.length == 0) || (password.length == 0))
-	// 	return alert("Name and password must not be empty!")
-	// if (password != confirmation)
-	// 	return alert("Password and confirmation mismatch!");
+	if ((name.length == 0) || (password.length == 0))
+		return alert("Name and password must not be empty!")
+	if (password != confirmation)
+		return alert("Password and confirmation mismatch!");
+	if ((pod.length == 0) || (podword.length == 0))
+		return alert("Pod and password must not be empty!")
 	leaf.createAccount(name, password, pod, podword, afterSignup);
 
 	function afterSignup(response) {
@@ -148,7 +149,6 @@ function signup(name, password, confirmation, pod, podword) {
 }
 
 function signin(name, password) {
-	console.log("signin: "+Array.prototype.slice.apply(arguments));
 	leaf.signin(name, password, afterSignin)
 
 	function afterSignin(response) {
@@ -156,67 +156,63 @@ function signin(name, password) {
 	}
 }
 
+function signout() {
+	leaf.signout(afterSignout)
+
+	function afterSignout(response) {
+		document.getElementById("Account").style['display'] = "";
+	}
+}
+
 function deleteAccount(account) {
-	console.log("signout: "+Array.prototype.slice.apply(arguments));
 	document.getElementById("Account").style['display'] = "";
 }
 
 function showAccount(account) {
-	console.log("showContact: "+Array.prototype.slice.apply(arguments));
 	document.getElementById("Account").style['display'] = "block";
 	document.getElementById("AccountId").value = account;
 	loadContactList(account);
 }
 
 function addContact(account, fields) {
-	console.log("addContact: "+Array.prototype.slice.apply(arguments));
 }
 
 function loadContactList(account, filter) {
-	console.log("loadContactList: "+Array.prototype.slice.apply(arguments));
 }
 
 // INFO Contact actions
 
 function showContact(contact) {
-	console.log("showContact: "+Array.prototype.slice.apply(arguments));
 	document.getElementById("Contact").style['display'] = "block";
 	document.getElementById("ContactId").value = contact;
 	loadAddressList(contact);
 }
 
 function saveContact(fields) {
-	console.log("saveContact: "+Array.prototype.slice.apply(arguments));
 }
 
 function deleteContact(contact) {
-	console.log("deleteContact: "+Array.prototype.slice.apply(arguments));
 	document.getElementById("Address").style['display'] = "";
 	document.getElementById("Contact").style['display'] = "";
 }
 
 function addAddress(contact, fields) {
-	console.log("addAddress: "+Array.prototype.slice.apply(arguments));
 }
 
 function loadAddressList(contact, filter) {
-	console.log("loadAddressList: "+Array.prototype.slice.apply(arguments));
 }
 
 // INFO Address actions
 
 function showAddress(address) {
-	console.log("showAddress: "+Array.prototype.slice.apply(arguments));
 	document.getElementById("Address").style['display'] = "block";
 	document.getElementById("AddressId").value = address;
 }
 
 function saveAddress(fields) {
-	console.log("saveAddress: "+Array.prototype.slice.apply(arguments));
 }
 
 function deleteAddress(address) {
-	console.log("deleteAddress: "+Array.prototype.slice.apply(arguments));
 	document.getElementById("Address").style['display'] = "";
 }
 
@@ -241,6 +237,11 @@ function init() {
 	document.getElementById("DeleteAccount").addEventListener("click", function(evt) {
 		evt.preventDefault();
 		deleteAccount(this.form.elements['id'].value);
+	}, false);
+
+	document.getElementById("SignOut").addEventListener("click", function(evt) {
+		evt.preventDefault();
+		signout();
 	}, false);
 
 	document.getElementById("AddContact").addEventListener("submit", function(evt) {

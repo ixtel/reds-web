@@ -43,10 +43,8 @@ Sjcl.prototype.concatenateStrings = function() {
 Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
 	console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
 	var index = this.generateHmac(data, salt);
-	if (!fresh && cache[index]) {
-		console.log("cached");
+	if (!fresh && cache[index])
 		return cache[index];
-	}
 	var hashBits = sjcl.misc.pbkdf2(data, salt, 16000, 256);
 	cache[index] = sjcl.codec.base64.fromBits(hashBits);
 	return cache[index];

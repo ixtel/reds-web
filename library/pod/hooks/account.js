@@ -22,7 +22,6 @@ exports.POST = function(session) {
 	var values = Object.create(session.requestJSON);
 	values['akey'] = akey;
 	values['akey_l'] = undefined;
-	console.log(JSON.stringify(values));
 	session.storage.createPodAccount(values, afterCreateAccount);
 
 	function afterCreateAccount(error, result) {

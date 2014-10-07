@@ -21,7 +21,7 @@
 		<label>Password <input type="password" name="password"></label><br>
 		<label>Confirmation <input type="password" name="confirmation"></label><br>
 		<label>Pod <input type="text" name="pod"></label><br>
-		<label>Password <input type="text" name="podword"></label>
+		<label>Password <input type="password" name="podword"></label>
 		<button type="submit">sign up</button>
 	</form>
 	<h2>Sign in</h2>
@@ -35,12 +35,16 @@
 		<h2>Account</h2>
 		<form id="EditContact">
 			<label>ID <input id="AccountId" type="text" name="id" readonly></label><br>
-			<label>Name <input type="text" name="name"></label><br>
-			<label>Password <input type="password" name="password"></label><br>
-			<label>Confirmation <input type="password" name="confirmation"></label><br>
-			<label>Pod <input type="text" name="pod"></label>
+			<label>Pod <input type="text" name="pod" readonly></label><br>
+			<label>Name <input type="text" name="name"></label>
 			<button type="submit">save</button>
 			<button id="DeleteAccount" type="button">delete</button>
+			<button id="SignOut" type="button">sign out</button>
+		</form>
+		<form id="UpdatePassword"><br>
+			<label>Password <input type="password" name="password"></label><br>
+			<label>Confirmation <input type="password" name="confirmation"></label>
+			<button type="submit">update</button>
 		</form>
 		<h3>Add contact</h3>
 		<form id="AddContact">
