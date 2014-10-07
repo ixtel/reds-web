@@ -43,10 +43,10 @@ Request.prototype.dispatchEvent = function(evt) {
 	return this.$xhr.dispatchEvent(evt);
 }
 
-Request.prototype.open = function(method, url) {
+Request.prototype.open = function(method, url, path) {
 	this.method = method;
-	this.url = url;
-	return this.$xhr.open(method, url, true);
+	this.path = path;
+	return this.$xhr.open(method, url+path, true);
 }
 
 Request.prototype.sign = function(credentials) {
@@ -59,7 +59,7 @@ Request.prototype.send = function(data, type) {
 		this.$xhr.setRequestHeader("Content-Type", type);
 	if (this.credentials) {
 		var time = this.crypto.generateTimestamp();
-		var msg = this.crypto.concatenateStrings(this.crypto.name, this.credentials['id'], this.method, this.url, type, data, time);
+		var msg = this.crypto.concatenateStrings(this.crypto.name, this.credentials['id'], this.method, this.path, type, data, time);
 		var sig = this.crypto.generateHmac(msg, this.credentials['auth']);
 		this.$xhr.setRequestHeader("Authorization", this.crypto.name+":"+this.credentials['id']+":"+sig+":"+time);
 	}
@@ -77,7 +77,7 @@ Request.prototype.sendJson = function(data, type) {
 			return;
 		}
 	}
-	this.send(json, type||"application/json;charset=encoding");
+	this.send(json, type||"application/json;charset=UTF-8");
 }
 
 Object.defineProperty(Request.prototype, "responseJson", {

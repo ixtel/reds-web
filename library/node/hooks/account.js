@@ -6,9 +6,9 @@ var Route = require("../Route");
 exports.GET = function(session) {
 	// NOTE Convert alias in url from base64url to base64
 	var alias = (new Buffer(session.purl[0].value, 'base64')).toString('base64');
-	session.storage.readAccount(alias, afterReadAccount);
+	session.storage.readAlias(alias, afterReadAlias);
 
-	function afterReadAccount(error, result) {
+	function afterReadAlias(error, result) {
 		if (error)
 			return session.abort(error);
 		session.writeJSON(result);
@@ -74,9 +74,15 @@ exports.POST = function(session) {
 // TODO Check request signature
 // TODO Route encrypted data to pod
 exports.PUT = function(session) {
-	var values = Object.create(session.requestJSON);
-	values['id'] = session.purl[0].value;
-	session.storage.updateAccount(values, afterUpdateAccount);
+	session.authorize(afterAuthorization);
+
+	function afterAuthorization(error) { 
+		if (error)
+			return session.abort(error);
+		var values = Object.create(session.requestJSON);
+		values['id'] = session.purl[0].value;
+		session.storage.updateAccount(values, afterUpdateAccount);
+	}
 	
 	function afterUpdateAccount(error, result) {
 		if (error)

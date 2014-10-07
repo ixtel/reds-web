@@ -47,7 +47,7 @@ Client.prototype.$createRequest = function(method, path, callback) {
 	request.addEventListener("send", onSend.bind(this));
 	request.addEventListener("load", onLoad.bind(this));
 	request.addEventListener("error", onError.bind(this));
-	request.open(method, this.options.url+path);
+	request.open(method, this.options.url, path);
 	return request;
 
 	function onSend(evt) {
