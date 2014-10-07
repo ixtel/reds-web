@@ -125,15 +125,3 @@ Object.defineProperty(exports.prototype, "requestJSON", {
 	}
 });
 
-Object.defineProperty(exports.prototype, "storageFacility", {
-	get: function() {
-		if (this.$storageFacility === undefined) {
-			var StorageFacilitiy = this.StorageFacilities[this.config.storage.facility];
-			if (!StorageFacilitiy)
-				return this.abort(new Error("unknown storage facility"));
-			this.$storageFacility = new StorageFacilitiy(this.config.storage.options);
-		}
-		return this.$storageFacility;
-	}
-});
-
