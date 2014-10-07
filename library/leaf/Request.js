@@ -5,12 +5,12 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 
 // INFO Leaf client module
 
-var Request = function(crypto, credentials) {
+var Request = function(crypto) {
 	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
 	this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
 	this.crypto = crypto;
-	this.credentials = credentials;
+	this.credentials = null;
 	this.responseType = null;
 	this.responseOptions = null;
 }
@@ -44,13 +44,25 @@ Request.prototype.dispatchEvent = function(evt) {
 }
 
 Request.prototype.open = function(method, url) {
+	this.method = method;
+	this.url = url;
 	return this.$xhr.open(method, url, true);
+}
+
+Request.prototype.sign = function(credentials) {
+	this.credentials = credentials;
 }
 
 Request.prototype.send = function(data, type) {
 	this.dispatchEvent(new Event("send"));
 	if (type)
 		this.$xhr.setRequestHeader("Content-Type", type);
+	if (this.credentials) {
+		var time = this.crypto.generateTimestamp();
+		var msg = this.crypto.concatenateStrings(this.crypto.name, this.credentials['id'], this.method, this.url, type, data, time);
+		var sig = this.crypto.generateHmac(msg, this.credentials['auth']);
+		this.$xhr.setRequestHeader("Authorization", this.crypto.name+":"+this.credentials['id']+":"+sig+":"+time);
+	}
 	return this.$xhr.send(data);
 }
 

@@ -43,7 +43,7 @@ var Client = function(options) {
 CryptoFacilities.addFactoryToObject("createCryptoFacility", Client.prototype);
 
 Client.prototype.$createRequest = function(method, path, callback) {
-	var request = new Request(this.crypto, Credentials[this.cid]);
+	var request = new Request(this.crypto);
 	request.addEventListener("send", onSend.bind(this));
 	request.addEventListener("load", onLoad.bind(this));
 	request.addEventListener("error", onError.bind(this));
@@ -121,6 +121,7 @@ Client.prototype.createAccount = function(name, password, pod, podword, callback
 			'auth': account['auth'],
 			'akey': account['akey']
 		}), asec, vec);
+		request.sign(account);
 		request.sendJson({
 			'blob': blob,
 			'vec': vec
