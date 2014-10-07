@@ -53,6 +53,20 @@ exports.prototype.readPod = function(pod, callback) {
 	}
 }
 
+// INFO Alias operations
+
+exports.prototype.readAlias = function(alias, callback) {
+	this.$client.query("SELECT id,encode(asalt,'base64') AS asalt,encode(blob,'base64') AS blob,encode(vec,'base64') AS vec "+
+		"FROM accounts "+
+		"WHERE alias=decode($1,'base64')", [
+		alias
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
 // INFO Account operations
 
 exports.prototype.createNodeAccount = function(values, callback) {
@@ -82,12 +96,11 @@ exports.prototype.createPodAccount = function(values, callback) {
 	}
 }
 
-// TODO Also handle id
-exports.prototype.readAccount = function(alias, callback) {
-	this.$client.query("SELECT id,encode(asalt,'base64') AS asalt,encode(blob,'base64') AS blob,encode(vec,'base64') AS vec "+
+exports.prototype.readAccount = function(id, callback) {
+	this.$client.query("SELECT id,encode(auth,'base64') AS auth "+
 		"FROM accounts "+
-		"WHERE alias=decode($1,'base64')", [
-		alias
+		"WHERE id=$1", [
+		id
 	], afterQuery);
 
 	function afterQuery(error, result) {
