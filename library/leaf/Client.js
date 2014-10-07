@@ -108,9 +108,7 @@ Client.prototype.createAccount = function(name, password, pod, podword, callback
 	});
 
 	function onPostLoad() {
-		// TODO Generate pkey from podword and psalt
-		var pkey = this.crypto.generateHmac("m4MXmAdd1oNlrP0PS9D3F2cCENDt1pqWR37jEPe7M+0=", "m4MXmAdd1oNlrP0PS9D3F2cCENDt1pqWR37jEPe7M+0=");
-		//var pkey = this.crypto.generateSecureHash(podword, request.responseJson['psalt']);
+		var pkey = this.crypto.generateSecureHash(podword, request.responseJson['psalt']);
 		account = {
 			'id': request.responseJson['id'],
 			'alias': alias,

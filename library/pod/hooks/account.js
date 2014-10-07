@@ -16,8 +16,7 @@ exports.GET = function(session) {
 }
 
 exports.POST = function(session) {
-	// TODO Pre-generate pkey from ppw and psalt
-	var pkey = session.crypto.generateHmac("m4MXmAdd1oNlrP0PS9D3F2cCENDt1pqWR37jEPe7M+0=", "m4MXmAdd1oNlrP0PS9D3F2cCENDt1pqWR37jEPe7M+0=");
+	var pkey = session.crypto.generateSecureHash(session.config['password'], session.config['salt']);
 	var akeyP = session.crypto.generateKeypair();
 	var akey = session.crypto.combineKeypair(akeyP.privateKey, session.requestJSON['akey_l'], pkey);
 	var values = Object.create(session.requestJSON);
@@ -35,10 +34,9 @@ exports.POST = function(session) {
 					return session.abort(error);
 			}
 		}
-		var check = "TODO calculate check";
 		var values = new Object();
 		values['akey_p'] = akeyP.publicKey;
-		values['psalt'] = "TODO pass salt from config";
+		values['psalt'] = session.config['salt'];
 		session.writeJSON(values);
 		session.end();
 	}
