@@ -35,6 +35,9 @@ exports.prototype.connect = function() {
 
 exports.prototype.listen = function(request, response) {
 	console.log("LISTEN "+process.pid+" "+request.method+" "+request.url); // DEBUG
+	response.setHeader("Pragma", "no-cache");
+	response.setHeader("Cache-Control", "no-cache");
+	response.setHeader("Expires", "-1");
 	var session = new this.Session(this.config, request, response);
 	session.run();
 }

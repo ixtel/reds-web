@@ -10,9 +10,6 @@ module.exports = exports = function(config, Session) {
 exports.prototype = Object.create(Server.prototype);
 
 exports.prototype.listen = function(request, response) {
-	response.setHeader("Pragma", "no-cache");
-	response.setHeader("Cache-Control", "no-cache");
-	response.setHeader("Expires", "-1");
 	if (this.config.cors) {
 		response.setHeader('Access-Control-Allow-Origin', this.config.cors.origin);
 		if (request.method == 'OPTIONS') {
