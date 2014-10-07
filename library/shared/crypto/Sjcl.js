@@ -10,6 +10,8 @@
 
 var sjcl = loadSjcl();
 
+var cache = new Object();
+
 var Sjcl = function() {
 	// NOTE Nothing to here (but maybe in other facilities)
 }
@@ -38,10 +40,16 @@ Sjcl.prototype.concatenateStrings = function() {
 	return values.join("\n");
 }
 
-Sjcl.prototype.generateSecureHash = function(data, salt) {
+Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
 	console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
+	var index = this.generateHmac(data, salt);
+	if (!fresh && cache[index]) {
+		console.log("cached");
+		return cache[index];
+	}
 	var hashBits = sjcl.misc.pbkdf2(data, salt, 16000, 256);
-	return sjcl.codec.base64.fromBits(hashBits);
+	cache[index] = sjcl.codec.base64.fromBits(hashBits);
+	return cache[index];
 }
 
 Sjcl.prototype.generateKey = function() {

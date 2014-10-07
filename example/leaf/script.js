@@ -32,11 +32,16 @@ function testCryptoFacility() {
 	time = Date.now()-start;
 	log(" ("+time+" ms)\nhmac = "+hmac+"\n\n");
 
-	log("hash = generateSecureHash(\"mydata\", \"foo\")");
+	log("hash1 = generateSecureHash(\"mydata\", \"foo\", true)");
 	start = Date.now();
-	var hash = leaf.crypto.generateSecureHash("mydata", "bar");
+	var hash1 = leaf.crypto.generateSecureHash("mydata", "bar", true);
 	time = Date.now()-start;
-	log(" ("+time+" ms)\nhash = "+hash+"\n\n");
+	log(" ("+time+" ms)\nhash1 = "+hash1+"\n");
+	log("hash2 = generateSecureHash(\"mydata\", \"foo\")");
+	start = Date.now();
+	var hash2 = leaf.crypto.generateSecureHash("mydata", "bar");
+	time = Date.now()-start;
+	log(" ("+time+" ms, might be cached)\nhash2 = "+hash2+"\n\n");
 
 	log("ts1 = generateTimestamp()");
 	start = Date.now();
