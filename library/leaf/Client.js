@@ -30,7 +30,6 @@ CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared
 
 var Client = function(options) {
 	this.cid = Credentials.registerClient();
-	console.log(this.cid);
 	// TODO Find a way to handle multiple crypto facilities
 	this.crypto = this.createCryptoFacility(options.crypto[0]);
 	this.options = options;
@@ -66,65 +65,75 @@ Client.prototype.$createRequest = function(method, path, callback) {
 }
 
 Client.prototype.signin = function(name, password, callback) {
-	var namepw = this.crypto.concatenateStrings(name, password);
 	var alias = this.crypto.generateSecureHash(name, password);
 	var aliasUrl = alias.replace('+','-').replace('/','_').replace('=','');
 	var request = this.$createRequest("GET", "/!/account/"+aliasUrl, onLoad.bind(this));
 	request.send();
 
 	function onLoad() {
-		var data = request.responseJson;
-		var seed = this.crypto.generateSecureHash(namepw, data['salt']);
-		var authL = this.crypto.generateKeypair(seed);
-		var auth = this.crypto.combineKeypair(authL.privateKey, data['auth_n']);
+		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
+		var blob = JSON.parse(this.crypto.decryptData(request.responseJson['blob'], asec, request.responseJson['vec']));
 		Credentials[this.cid].account = {
-			'id': data['id'],
-			'alias': data['alias'],
-			'auth': auth
+			'id': request.responseJson['id'],
+			'alias': alias,
+			'auth': blob.auth,
+			'akey': blob.akey
 		};
-		callback({'id':data['id']});
+		console.log(Credentials[this.cid].account);
+		callback({'id':Credentials[this.cid].account['id']});
 	}
 }
 
 Client.prototype.signout = function(callback) {
-	Credentials[id] = new Object();
-	// NOTE Call the callback asynchoniously
+	Credentials[this.cid] = new Object();
+	// NOTE Alawys call the callback asynchoniously
 	setTimeout(callback, 0);
 }
 
 // INFO Account operations
 
 Client.prototype.createAccount = function(name, password, pod, podword, callback) {
-	var namepw = this.crypto.concatenateStrings(name, password);
-	var data = new Object();
-	data['alias'] = this.crypto.generateSecureHash(name, password);
-	data['salt'] = this.crypto.generateKey();
-	data['ksalt'] = this.crypto.generateKey();
-	data['ssalt'] = this.crypto.generateKey();
-	var seed = this.crypto.generateSecureHash(namepw, data['salt']);
-	var kseed = this.crypto.generateSecureHash(namepw, data['salt']);
-	var authL = this.crypto.generateKeypair(seed);
-	var akeyL = this.crypto.generateKeypair(kseed);
-	data['auth_l'] = authL.publicKey;
-	data['akey_l'] = akeyL.publicKey;
-	data['pod'] = pod;
-	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
-	request.sendJson(data);
+	var account = null;
+	var alias = this.crypto.generateSecureHash(name, password);
+	var asalt = this.crypto.generateKey();
+	var authL = this.crypto.generateKeypair();
+	var akeyL = this.crypto.generateKeypair();
+	var request = this.$createRequest("POST", "/!/account", onPostLoad.bind(this));
+	request.sendJson({
+		'alias': alias,
+		'asalt': asalt,
+		'auth_l': authL.publicKey,
+		'akey_l': akeyL.publicKey,
+		'pod': pod
+	});
 
-	function onLoad() {
-		console.log(request.responseJson);
-		var auth = this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']);
-		var akey = this.crypto.combineKeypair(akeyL.privateKey, request.responseJson['akey_p']);
-		var sseed = this.crypto.generateSecureHash(namepw, data['ssalt']);
-		var asec = this.crypto.generateKey(sseed);
-		Credentials[this.cid].account = {
+	function onPostLoad() {
+		// TODO Generate pkey from podword and psalt
+		var pkey = this.crypto.generateHmac("m4MXmAdd1oNlrP0PS9D3F2cCENDt1pqWR37jEPe7M+0=", "m4MXmAdd1oNlrP0PS9D3F2cCENDt1pqWR37jEPe7M+0=");
+		//var pkey = this.crypto.generateSecureHash(podword, request.responseJson['psalt']);
+		account = {
 			'id': request.responseJson['id'],
-			'alias': request.responseJson['alias'],
-			'auth': auth,
-			'akey': akey,
-			'asec': asec
+			'alias': alias,
+			'auth': this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']),
+			'akey': this.crypto.combineKeypair(akeyL.privateKey, request.responseJson['akey_p'], pkey),
 		};
-		callback({'id':request.responseJson['id']});
+		request = this.$createRequest("PUT", "/!/account/"+account['id'], onPutLoad.bind(this));
+		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
+		var vec = this.crypto.generateTimestamp();
+		var blob = this.crypto.encryptData(JSON.stringify({
+			'auth': account['auth'],
+			'akey': account['akey']
+		}), asec, vec);
+		request.sendJson({
+			'blob': blob,
+			'vec': vec
+		});
+	}
+	
+	function onPutLoad() {
+		Credentials[this.cid].account = account;
+		console.log(Credentials[this.cid].account);
+		callback({'id':Credentials[this.cid].account['id']});
 	}
 }
 

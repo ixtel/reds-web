@@ -18,6 +18,7 @@ exports.GET = function(session) {
 
 exports.POST = function(session) {
 	var account = null;
+	var authN = session.crypto.generateKeypair();
 	var route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -25,7 +26,6 @@ exports.POST = function(session) {
 	route.init(session.requestJSON['pod']);
 
 	function onRouteReady() {
-		var authN = session.crypto.generateKeypair();
 		var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJSON['auth_l']);
 		var values = Object.create(session.requestJSON);
 		values['pod'] = route.pod['id'];
@@ -44,6 +44,7 @@ exports.POST = function(session) {
 				}
 			}
 			account = result;
+			account['auth_n'] = authN.publicKey;
 			var values = new Object();
 			values['id'] = account['id'];
 			values['akey_l'] = session.requestJSON['akey_l'];
@@ -55,7 +56,7 @@ exports.POST = function(session) {
 
 	function onRouteResponse() {
 		account['akey_p'] = route.responseJson['akey_p'];
-		account['check'] = route.responseJson['check'];
+		account['psalt'] = route.responseJson['psalt'];
 		session.writeJSON(account);
 		session.end();
 	}
@@ -70,11 +71,19 @@ exports.POST = function(session) {
 	}
 }
 
+// TODO Check request signature
+// TODO Route encrypted data to pod
 exports.PUT = function(session) {
-	session.writeJSON({
-		'id': Math.floor(Math.random()*1000)
-	});
-	session.end();
+	var values = Object.create(session.requestJSON);
+	values['id'] = session.purl[0].value;
+	session.storage.updateAccount(values, afterUpdateAccount);
+	
+	function afterUpdateAccount(error, result) {
+		if (error)
+			return session.abort(error);
+		session.writeJSON(result);
+		session.end();
+	}
 }
 
 exports.DELETE = function(session) {
