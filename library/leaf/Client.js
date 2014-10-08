@@ -130,9 +130,6 @@ Client.prototype.deleteAccount = function(callback) {
 // INFO Keyring operations
 
 Client.prototype.updateKeyring = function(callback) {
-	console.log(Credentials);
-	console.log(this.cid);
-	console.log(Credentials[this.cid]);
 	var vec = this.crypto.generateTimestamp();
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var keys = JSON.parse(JSON.stringify(Credentials[this.cid]));
