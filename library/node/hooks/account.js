@@ -11,6 +11,8 @@ exports.GET = function(session) {
 	function afterReadAlias(error, result) {
 		if (error)
 			return session.abort(error);
+		if (!result)
+			return session.abort(new HttpError(404, "alias not found"));
 		session.writeJSON(result);
 		session.end();
 	}
@@ -55,6 +57,8 @@ exports.PUT = function(session) {
 	function afterUpdateAccount(error, result) {
 		if (error)
 			return session.abort(error);
+		if (!result)
+			return session.abort(new HttpError(404, "account not found"));
 		session.writeJSON(result);
 		session.end();
 	}
@@ -69,9 +73,11 @@ exports.DELETE = function(session) {
 		session.storage.deleteAccount(session.purl[0].value, afterDeleteAccount);
 	}
 	
-	function afterDeleteAccount(error) {
+	function afterDeleteAccount(error, result) {
 		if (error)
 			return session.abort(error);
+		if (!result)
+			return session.abort(new HttpError(404, "account not found"));
 		session.end();
 	}
 }

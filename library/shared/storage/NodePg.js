@@ -112,7 +112,8 @@ exports.prototype.updateAccount = function(values, callback) {
 
 exports.prototype.deleteAccount = function(id, callback) {
 	this.$client.query("DELETE FROM accounts "+
-		"WHERE id=$1", [
+		"WHERE id=$1 "+
+		"RETURNING id", [
 		id
 	], afterQuery);
 
