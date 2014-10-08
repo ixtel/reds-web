@@ -61,6 +61,18 @@ exports.PUT = function(session) {
 }
 
 exports.DELETE = function(session) {
-	console.log("DELETE account");
-	session.end();
+	session.authorize(afterAuthorization);
+
+	function afterAuthorization(error) { 
+		if (error)
+			return session.abort(error);
+		session.storage.deleteAccount(session.purl[0].value, afterDeleteAccount);
+	}
+	
+	function afterDeleteAccount(error) {
+		if (error)
+			return session.abort(error);
+		session.writeJSON();
+		session.end();
+	}
 }

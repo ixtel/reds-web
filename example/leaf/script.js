@@ -142,6 +142,7 @@ function signup(name, password, confirmation) {
 	leaf.createAccount(name, password, afterSignup);
 
 	function afterSignup(response) {
+		document.getElementById("SignUp").reset();
 		showAccount(response['id']);
 	}
 }
@@ -150,6 +151,7 @@ function signin(name, password) {
 	leaf.signin(name, password, afterSignin)
 
 	function afterSignin(response) {
+		document.getElementById("SignIn").reset();
 		showAccount(response['id']);
 	}
 }
@@ -162,8 +164,12 @@ function signout() {
 	}
 }
 
-function deleteAccount(account) {
-	document.getElementById("Account").style['display'] = "";
+function deleteAccount() {
+	leaf.deleteAccount(afterDeleteAccount);
+
+	function afterDeleteAccount(response) {
+		document.getElementById("Account").style['display'] = "";
+	}
 }
 
 function showAccount(account) {

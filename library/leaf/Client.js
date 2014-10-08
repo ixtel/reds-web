@@ -116,6 +116,17 @@ Client.prototype.createAccount = function(name, password, callback) {
 	}
 }
 
+Client.prototype.deleteAccount = function(callback) {
+	var request = this.$createRequest("DELETE", "/!/account/"+Credentials[this.cid].account['id'], onLoad.bind(this));
+	request.sign(Credentials[this.cid].account);
+	request.send();
+
+	function onLoad() {
+		Credentials[this.cid] = new Object();
+		callback();
+	}
+}
+
 // INFO Keyring operations
 
 Client.prototype.updateKeyring = function(callback) {
@@ -126,7 +137,6 @@ Client.prototype.updateKeyring = function(callback) {
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var keys = JSON.parse(JSON.stringify(Credentials[this.cid]));
 	keys.account['asec'] = undefined;
-	console.log(keys);
 	keys = this.crypto.encryptData(JSON.stringify(keys), Credentials[this.cid].account['asec'], vec);
 	var request = this.$createRequest("PUT", "/!/account/"+Credentials[this.cid].account['id'], onLoad.bind(this));
 	request.sign(Credentials[this.cid].account);

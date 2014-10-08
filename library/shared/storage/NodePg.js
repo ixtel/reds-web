@@ -116,7 +116,7 @@ exports.prototype.deleteAccount = function(id, callback) {
 		id
 	], afterQuery);
 
-	function afterQuery(error, result) {
-		callback(error||null, result?result.rows[0]:null);
+	function afterQuery(error) {
+		callback(error||null);
 	}
 }
