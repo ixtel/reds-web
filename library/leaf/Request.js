@@ -16,18 +16,20 @@ var Request = function(crypto) {
 }
 
 Request.prototype.$onLoad = function(evt) {
+	var error, type, options;
 	if (this.$xhr.status >= 400) {
 		evt.stopImmediatePropagation();
-		var error = new HttpError(this.$xhr.status, this.$xhr.statusText);
+		error = new HttpError(this.$xhr.status, this.$xhr.statusText);
 		this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 	}
-	else {
-		this.responseOptions = new Object();
-		this.responseType = this.$xhr.getResponseHeader("Content-Type").replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s* /, function(m, p1, p2) {
+	else if (type = this.$xhr.getResponseHeader("Content-Type")) {
+		options = new Object();
+		this.responseType = type.replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s* /, function(m, p1, p2) {
 			if (p1.length)
 				options[p1] = p2;
 			return "";
 		});
+		this.responseOptions = options;
 	}
 }
 
@@ -54,25 +56,27 @@ Request.prototype.sign = function(credentials) {
 }
 
 Request.prototype.send = function(data, type) {
+	var time, msg, sig;
 	this.dispatchEvent(new Event("send"));
 	if (type)
 		this.$xhr.setRequestHeader("Content-Type", type);
 	if (this.credentials) {
-		var time = this.crypto.generateTimestamp();
-		var msg = this.crypto.concatenateStrings(this.crypto.name, this.credentials['id'], this.method, this.path, type, data, time);
-		var sig = this.crypto.generateHmac(msg, this.credentials['auth']);
+		time = this.crypto.generateTimestamp();
+		msg = this.crypto.concatenateStrings(this.crypto.name, this.credentials['id'], this.method, this.path, type, data, time);
+		sig = this.crypto.generateHmac(msg, this.credentials['auth']);
 		this.$xhr.setRequestHeader("Authorization", this.crypto.name+":"+this.credentials['id']+":"+sig+":"+time);
 	}
 	return this.$xhr.send(data);
 }
 
 Request.prototype.sendJson = function(data, type) {
+	var json, error;
 	if (data !== undefined) {
 		try {
-			var json = JSON.stringify(data);
+			json = JSON.stringify(data);
 		}
 		catch (e) {
-			var error = new Error("request contains invalid JSON");
+			error = new Error("request contains invalid JSON");
 			this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 			return;
 		}
@@ -82,12 +86,13 @@ Request.prototype.sendJson = function(data, type) {
 
 Object.defineProperty(Request.prototype, "responseJson", {
 	get: function() {
+		var error;
 		if (this.$responseJson === undefined) {
 			try {
 				this.$responseJson = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
 			}
 			catch (e) {
-				var error = new Error("response contains invalid JSON");
+				error = new Error("response contains invalid JSON");
 				this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 				return;
 			}

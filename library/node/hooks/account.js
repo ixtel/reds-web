@@ -72,7 +72,6 @@ exports.DELETE = function(session) {
 	function afterDeleteAccount(error) {
 		if (error)
 			return session.abort(error);
-		session.writeJSON();
 		session.end();
 	}
 }
