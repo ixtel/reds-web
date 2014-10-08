@@ -14,10 +14,13 @@ exports.prototype.HookHandlers = {
 }
 
 exports.prototype.authorize = function(callback) {
-	var authorization = this.request.headers['authorization'].split(":");
+	var authorization = this.request.headers['authorization']
+	if (!authorization)
+		return callback(new HttpError(401, "Missing authorization"));
+	authorization = authorization.split(":");
 	// NOTE Note this check won't be needed once the session can handle multiple facilities
 	if (authorization[0] != this.crypto.name)
-		return callback(new HttpError(500, "Unsupported crypto facility"))
+		return callback(new HttpError(500, "Unsupported crypto facility"));
 	this.storage.readAccount(authorization[1], afterReadAccount.bind(this));
 
 	function afterReadAccount(error, result) {
