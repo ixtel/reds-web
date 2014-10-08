@@ -9,5 +9,5 @@ module.exports = exports = function(config, request, response) {
 exports.prototype = Object.create(Session.prototype);
 
 exports.prototype.HookHandlers = {
-	'/!/account': require("./hooks/account")
+	// TODO Add some hooks here
 }

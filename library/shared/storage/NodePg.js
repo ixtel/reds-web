@@ -56,7 +56,7 @@ exports.prototype.readPod = function(pod, callback) {
 // INFO Alias operations
 
 exports.prototype.readAlias = function(alias, callback) {
-	this.$client.query("SELECT id,encode(asalt,'base64') AS asalt,encode(blob,'base64') AS blob,encode(vec,'base64') AS vec "+
+	this.$client.query("SELECT id,encode(asalt,'base64') AS asalt,encode(keys,'base64') AS keys,encode(vec,'base64') AS vec "+
 		"FROM accounts "+
 		"WHERE alias=decode($1,'base64')", [
 		alias
@@ -69,26 +69,13 @@ exports.prototype.readAlias = function(alias, callback) {
 
 // INFO Account operations
 
-exports.prototype.createNodeAccount = function(values, callback) {
+exports.prototype.createAccount = function(values, callback) {
 	this.$client.query("INSERT INTO accounts (alias,auth,asalt) "+
 		"VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64')) "+
 		"RETURNING id", [
 		values['alias'],
 		values['auth'],
 		values['asalt']
-	], afterQuery);
-
-	function afterQuery(error, result) {
-		callback(error||null, result?result.rows[0]:null);
-	}
-}
-
-exports.prototype.createPodAccount = function(values, callback) {
-	this.$client.query("INSERT INTO accounts (id,akey) "+
-		"VALUES ($1,decode($2,'base64')) "+
-		"RETURNING id", [
-		values['id'],
-		values['akey']
 	], afterQuery);
 
 	function afterQuery(error, result) {
@@ -110,10 +97,10 @@ exports.prototype.readAccount = function(id, callback) {
 
 exports.prototype.updateAccount = function(values, callback) {
 	this.$client.query("UPDATE accounts "+
-		"SET blob=decode($1,'base64'), vec=decode($2,'base64') "+
+		"SET keys=decode($1,'base64'), vec=decode($2,'base64') "+
 		"WHERE id=$3 "+
 		"RETURNING id", [ 
-		values['blob'],
+		values['keys'],
 		values['vec'],
 		values['id']
 	], afterQuery);

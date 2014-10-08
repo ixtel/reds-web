@@ -66,71 +66,77 @@ Client.prototype.$createRequest = function(method, path, callback) {
 
 Client.prototype.signin = function(name, password, callback) {
 	var alias = this.crypto.generateSecureHash(name, password);
-	var aliasUrl = alias.replace('+','-').replace('/','_').replace('=','');
+	var aliasUrl = alias.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 	var request = this.$createRequest("GET", "/!/account/"+aliasUrl, onLoad.bind(this));
 	request.send();
 
 	function onLoad() {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
-		var blob = JSON.parse(this.crypto.decryptData(request.responseJson['blob'], asec, request.responseJson['vec']));
-		Credentials[this.cid].account = {
-			'id': request.responseJson['id'],
-			'alias': alias,
-			'auth': blob.auth,
-			'akey': blob.akey
-		};
+		var keys = JSON.parse(this.crypto.decryptData(request.responseJson['keys'], asec, request.responseJson['vec']));
+		keys.account['asec'] = asec;
+		Credentials[this.cid] = keys;
 		callback({'id':Credentials[this.cid].account['id']});
 	}
 }
 
 Client.prototype.signout = function(callback) {
 	Credentials[this.cid] = new Object();
-	// NOTE Alawys call the callback asynchoniously
+	// NOTE Always call the callback asynchoniously
 	setTimeout(callback, 0);
 }
 
 // INFO Account operations
 
-Client.prototype.createAccount = function(name, password, pod, podword, callback) {
+Client.prototype.createAccount = function(name, password, callback) {
 	var account = null;
 	var alias = this.crypto.generateSecureHash(name, password);
 	var asalt = this.crypto.generateKey();
 	var authL = this.crypto.generateKeypair();
-	var akeyL = this.crypto.generateKeypair();
-	var request = this.$createRequest("POST", "/!/account", onPostLoad.bind(this));
+	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
 	request.sendJson({
 		'alias': alias,
 		'asalt': asalt,
-		'auth_l': authL.publicKey,
-		'akey_l': akeyL.publicKey,
-		'pod': pod
+		'auth_l': authL.publicKey
 	});
 
-	function onPostLoad() {
-		var pkey = this.crypto.generateSecureHash(podword, request.responseJson['psalt']);
-		account = {
+	function onLoad() {
+		var auth = this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']);
+		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
+		Credentials[this.cid].account = {
 			'id': request.responseJson['id'],
 			'alias': alias,
-			'auth': this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']),
-			'akey': this.crypto.combineKeypair(akeyL.privateKey, request.responseJson['akey_p'], pkey),
+			'auth': auth,
+			'asec' : asec
 		};
-		request = this.$createRequest("PUT", "/!/account/"+account['id'], onPutLoad.bind(this));
-		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
-		var vec = this.crypto.generateTimestamp();
-		var blob = this.crypto.encryptData(JSON.stringify({
-			'auth': account['auth'],
-			'akey': account['akey']
-		}), asec, vec);
-		request.sign(account);
-		request.sendJson({
-			'blob': blob,
-			'vec': vec
-		});
+		this.updateKeyring(afterUpdateKeyring.bind(this));
 	}
 	
-	function onPutLoad() {
-		Credentials[this.cid].account = account;
+	function afterUpdateKeyring() {
 		callback({'id':Credentials[this.cid].account['id']});
+	}
+}
+
+// INFO Keyring operations
+
+Client.prototype.updateKeyring = function(callback) {
+	console.log(Credentials);
+	console.log(this.cid);
+	console.log(Credentials[this.cid]);
+	var vec = this.crypto.generateTimestamp();
+	// NOTE This JSON dance is neccasary to create a real clone.
+	var keys = JSON.parse(JSON.stringify(Credentials[this.cid]));
+	keys.account['asec'] = undefined;
+	console.log(keys);
+	keys = this.crypto.encryptData(JSON.stringify(keys), Credentials[this.cid].account['asec'], vec);
+	var request = this.$createRequest("PUT", "/!/account/"+Credentials[this.cid].account['id'], onLoad.bind(this));
+	request.sign(Credentials[this.cid].account);
+	request.sendJson({
+		'keys': keys,
+		'vec': vec
+	});
+	
+	function onLoad() {
+		callback();
 	}
 }
 

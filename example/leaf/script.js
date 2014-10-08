@@ -134,14 +134,12 @@ function testCryptoFacility() {
 
 // INFO Account actions
 
-function signup(name, password, confirmation, pod, podword) {
+function signup(name, password, confirmation) {
 	if ((name.length == 0) || (password.length == 0))
 		return alert("Name and password must not be empty!")
 	if (password != confirmation)
 		return alert("Password and confirmation mismatch!");
-	if ((pod.length == 0) || (podword.length == 0))
-		return alert("Pod and password must not be empty!")
-	leaf.createAccount(name, password, pod, podword, afterSignup);
+	leaf.createAccount(name, password, afterSignup);
 
 	function afterSignup(response) {
 		showAccount(response['id']);
@@ -226,7 +224,7 @@ function init() {
 
 	document.getElementById("SignUp").addEventListener("submit", function(evt) {
 		evt.preventDefault();
-		signup(this.elements['name'].value, this.elements['password'].value, this.elements['confirmation'].value, this.elements['pod'].value, this.elements['podword'].value);
+		signup(this.elements['name'].value, this.elements['password'].value, this.elements['confirmation'].value);
 	}, false);
 
 	document.getElementById("SignIn").addEventListener("submit", function(evt) {

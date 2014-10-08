@@ -17,69 +17,37 @@ exports.GET = function(session) {
 }
 
 exports.POST = function(session) {
-	var account = null;
 	var authN = session.crypto.generateKeypair();
-	var route = new Route(session.crypto, session.storage);
-	route.addListener("error", onRouteError);
-	route.addListener("ready", onRouteReady);
-	route.addListener("response", onRouteResponse);
-	route.init(session.requestJSON['pod']);
+	var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJSON['auth_l']);
+	// NOTE We don't want to modify requestJSON so we create our own JSON object here
+	var values = JSON.parse(session.requestText);
+	values['auth'] = auth;
+	values['auth_l'] = undefined;
+	session.storage.createAccount(values, afterCreateAccount);
 
-	function onRouteReady() {
-		var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJSON['auth_l']);
-		var values = Object.create(session.requestJSON);
-		values['pod'] = route.pod['id'];
-		values['auth'] = auth;
-		values['auth_n'] = authN.publicKey;
-		values['auth_l'] = undefined;
-		session.storage.createNodeAccount(values, afterCreateAccount);
-
-		function afterCreateAccount(error, result) {
-			if (error !== null) {
-				switch (error.code) {
-					case "23505":
-						return session.abort(new HttpError(409, "alias already exists"));
-					default:
-						return session.abort(error);
-				}
+	function afterCreateAccount(error, result) {
+		if (error !== null) {
+			switch (error.code) {
+				case "23505":
+					return session.abort(new HttpError(409, "alias already exists"));
+				default:
+					return session.abort(error);
 			}
-			account = result;
-			account['auth_n'] = authN.publicKey;
-			var values = new Object();
-			values['id'] = account['id'];
-			values['akey_l'] = session.requestJSON['akey_l'];
-			route.method = "POST";
-			route.path = "/!/account/"+account['id'];
-			route.sendJson(values);
 		}
-	}
-
-	function onRouteResponse() {
-		account['akey_p'] = route.responseJson['akey_p'];
-		account['psalt'] = route.responseJson['psalt'];
-		session.writeJSON(account);
+		result['auth_n'] = authN.publicKey;
+		session.writeJSON(result);
 		session.end();
-	}
-
-	function onRouteError(error) {
-		if (account)
-			session.storage.deleteAccount(account['id'], function() {
-				session.abort(new HttpError(502, error.message));
-			});
-		else
-			session.abort(new HttpError(502, error.message));
 	}
 }
 
-// TODO Check request signature
-// TODO Route encrypted data to pod
 exports.PUT = function(session) {
 	session.authorize(afterAuthorization);
 
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
-		var values = Object.create(session.requestJSON);
+		// NOTE We don't want to modify requestJSON so we create our own JSON object here
+		var values = JSON.parse(session.requestText);
 		values['id'] = session.purl[0].value;
 		session.storage.updateAccount(values, afterUpdateAccount);
 	}
