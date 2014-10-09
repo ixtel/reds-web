@@ -56,7 +56,7 @@ exports.prototype.readPod = function(pod, callback) {
 // INFO Alias operations
 
 exports.prototype.readAlias = function(alias, callback) {
-	this.$client.query("SELECT id,encode(asalt,'base64') AS asalt,encode(keys,'base64') AS keys,encode(vec,'base64') AS vec "+
+	this.$client.query("SELECT id,encode(asalt,'base64') AS asalt,encode(vault,'base64') AS vault,encode(vec,'base64') AS vec "+
 		"FROM accounts "+
 		"WHERE alias=decode($1,'base64')", [
 		alias
@@ -97,10 +97,10 @@ exports.prototype.readAccount = function(id, callback) {
 
 exports.prototype.updateAccount = function(values, callback) {
 	this.$client.query("UPDATE accounts "+
-		"SET keys=decode($1,'base64'), vec=decode($2,'base64') "+
+		"SET vault=decode($1,'base64'), vec=decode($2,'base64') "+
 		"WHERE id=$3 "+
 		"RETURNING id", [ 
-		values['keys'],
+		values['vault'],
 		values['vec'],
 		values['id']
 	], afterQuery);

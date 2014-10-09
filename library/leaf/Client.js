@@ -6,18 +6,25 @@ var Request = window.reds ? reds.leaf.Request : require("./Request");
 
 // INFO Credential database
 
-var Credentials = new Object();
+var Vault = new Object();
 
-Credentials.registerClient = function() {
+Vault.registerClient = function() {
 	var id = Math.floor(Math.random()*0xffffffff);
-	while (Credentials[id])
+	while (Vault[id])
 		id = Math.floor(Math.random()*0xffffffff);
-	Credentials[id] = new Object();
+	this.resetClient(id);
 	return id;
 }
 
-Credentials.unregisterClient = function(id) {
-	delete Credentials[id];
+Vault.unregisterClient = function(id) {
+	delete Vault[id];
+}
+
+Vault.resetClient = function(id) {
+	Vault[id] = {
+		'keys': null,
+		'root': null,
+	};
 }
 
 // INFO Facility managers
@@ -29,7 +36,7 @@ CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared
 // INFO Client
 
 var Client = function(options) {
-	this.cid = Credentials.registerClient();
+	this.vid = Vault.registerClient();
 	// TODO Find a way to handle multiple crypto facilities
 	this.crypto = this.createCryptoFacility(options.crypto[0]);
 	this.options = options;
@@ -72,15 +79,16 @@ Client.prototype.signin = function(name, password, callback) {
 
 	function onLoad() {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
-		var keys = JSON.parse(this.crypto.decryptData(request.responseJson['keys'], asec, request.responseJson['vec']));
-		keys.account['asec'] = asec;
-		Credentials[this.cid] = keys;
-		callback({'id':Credentials[this.cid].account['id']});
+		var vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
+		Vault[this.vid].keys = vault.keys;
+		Vault[this.vid].root = vault.root;
+		Vault[this.vid].keys.account['asec'] = asec;
+		callback({'id':Vault[this.vid].keys.account['id']});
 	}
 }
 
 Client.prototype.signout = function(callback) {
-	Credentials[this.cid] = new Object();
+	Vault.resetClient(this.id);
 	// NOTE Always call the callback asynchoniously
 	setTimeout(callback, 0);
 }
@@ -102,43 +110,46 @@ Client.prototype.createAccount = function(name, password, callback) {
 	function onLoad() {
 		var auth = this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']);
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
-		Credentials[this.cid].account = {
-			'id': request.responseJson['id'],
-			'alias': alias,
-			'auth': auth,
-			'asec' : asec
+		Vault[this.vid].keys = {
+			'account': {
+				'id': request.responseJson['id'],
+				'alias': alias,
+				'auth': auth,
+				'asec' : asec
+			},
+			'domains': null
 		};
-		this.updateKeyring(afterUpdateKeyring.bind(this));
+		this.updateVault(afterUpdateVault.bind(this));
 	}
 	
-	function afterUpdateKeyring() {
-		callback({'id':Credentials[this.cid].account['id']});
+	function afterUpdateVault() {
+		callback({'id':Vault[this.vid].keys.account['id']});
 	}
 }
 
 Client.prototype.deleteAccount = function(callback) {
-	var request = this.$createRequest("DELETE", "/!/account/"+Credentials[this.cid].account['id'], onLoad.bind(this));
-	request.sign(Credentials[this.cid].account);
+	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].keys.account['id'], onLoad.bind(this));
+	request.sign(Vault[this.vid].keys.account);
 	request.send();
 
 	function onLoad() {
-		Credentials[this.cid] = new Object();
+		Vault.resetClient(this.id);
 		callback();
 	}
 }
 
-// INFO Keyring operations
+// INFO Vault operations
 
-Client.prototype.updateKeyring = function(callback) {
+Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
 	// NOTE This JSON dance is neccasary to create a real clone.
-	var keys = JSON.parse(JSON.stringify(Credentials[this.cid]));
-	keys.account['asec'] = undefined;
-	keys = this.crypto.encryptData(JSON.stringify(keys), Credentials[this.cid].account['asec'], vec);
-	var request = this.$createRequest("PUT", "/!/account/"+Credentials[this.cid].account['id'], onLoad.bind(this));
-	request.sign(Credentials[this.cid].account);
+	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
+	vault.keys.account['asec'] = undefined;
+	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].keys.account['asec'], vec);
+	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].keys.account['id'], onLoad.bind(this));
+	request.sign(Vault[this.vid].keys.account);
 	request.sendJson({
-		'keys': keys,
+		'vault': vault,
 		'vec': vec
 	});
 	
