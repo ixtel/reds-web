@@ -67,7 +67,8 @@ Client.prototype.$createRequest = function(method, path, callback) {
 	}
 
 	function onError(evt) {
-		this.dispatchEvent(new CustomEvent("error", {'detail':evt.detail}));
+		var error = new Error("connection error");
+		this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 	}
 }
 
@@ -138,7 +139,23 @@ Client.prototype.deleteAccount = function(callback) {
 	}
 }
 
+// INFO Entity operations
+
+Client.prototype.createEntity = function(selector, data, callback) {
+	callback({'id':23,'name':"foobar"});
+}
+
+Client.prototype.createRootEntity = function(pod, password, selector, data, callback) {
+	this.createDomain(pod, password, afterCreateDomain);
+
+	function afterCreateDomain(result) {
+		// TODO Create a real entity
+		callback({'id':23,'name':"foobar"});
+	}
+}
+
 // INFO Vault operations
+// NOTE These will usually be called only from within the client.
 
 Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
@@ -155,6 +172,22 @@ Client.prototype.updateVault = function(callback) {
 	
 	function onLoad() {
 		callback();
+	}
+}
+
+// INFO Domain operations
+// NOTE These will usually be called only from within the client.
+
+Client.prototype.createDomain = function(pod, password, callback) {
+	var dkeyL = this.crypto.generateKeypair();
+	var request = this.$createRequest("POST", "/!/domain", onLoad.bind(this));
+	request.sendJson({
+		'pod': pod,
+		'dkeyL': dkeyL.publicKey
+	});
+
+	function onLoad(result) {
+		callback(result);
 	}
 }
 

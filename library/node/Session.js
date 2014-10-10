@@ -10,7 +10,8 @@ module.exports = exports = function(config, request, response) {
 exports.prototype = Object.create(Session.prototype);
 
 exports.prototype.HookHandlers = {
-	'/!/account': require("./hooks/account")
+	'/!/account': require("./hooks/account"),
+	'/!/domain': require("./hooks/domain")
 }
 
 exports.prototype.authorize = function(callback) {

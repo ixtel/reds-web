@@ -44,19 +44,15 @@
 		</form>
 		<h3>Add contact</h3>
 		<form id="AddContact">
-			<label>Firstname <input type="text" name="firstname"></label><br>
-			<label>Familyname <input type="text" name="familyname"></label>
+			<label>Name <input type="text" name="name"></label><br>
+			<label>Pod <input type="text" name="pod"></label><br>
+			<label>Password <input type="text" name="password"></label>
 			<button type="submit">add</button>
 		</form>
 		<h3>Contact list</h3>
 		<form id="ContactList">
 			<label>Filter <input type="text" name="filter"></label><br>
-			<select name="list" size="10">
-			  <option value="1">Annika Schulz</option>
-			  <option value="2">Ina Tikalsky</option>
-			  <option value="3">Wiebke Kraft</option>
-			  <option value="4">Marc Behrens</option>
-			</select>
+			<select name="list" size="10"></select>
 			<button type="submit">show</button>
 			<button id="ReloadContactList" type="button">reload</button>
 		</form>

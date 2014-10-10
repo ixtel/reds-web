@@ -178,10 +178,21 @@ function showAccount(account) {
 	loadContactList(account);
 }
 
-function addContact(account, fields) {
+function addContact(name, pod, password) {
+	leaf.createRootEntity(pod, password, "/contact", {
+		'name': name
+	}, afterCreateRootEntity);
+
+	function afterCreateRootEntity(response) {
+		var option = document.createElement("option");
+		option.setAttribute("value", response['id']);
+		option.appendChild(document.createTextNode(response['name']));
+		console.log(document.getElementById("ContactList").elements['list']);
+		document.getElementById("ContactList").elements['list'].appendChild(option);
+	}
 }
 
-function loadContactList(account, filter) {
+function loadContactList(filter) {
 }
 
 // INFO Contact actions
@@ -250,7 +261,7 @@ function init() {
 
 	document.getElementById("AddContact").addEventListener("submit", function(evt) {
 		evt.preventDefault();
-		addContact(document.getElementById("AccountId").value, this.elements);
+		addContact(this.elements['name'].value, this.elements['pod'].value, this.elements['password'].value);
 	}, false);
 
 	document.getElementById("ContactList").addEventListener("submit", function(evt) {
