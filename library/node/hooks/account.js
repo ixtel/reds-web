@@ -24,7 +24,7 @@ exports.POST = function(session) {
 	// NOTE We don't want to modify requestJSON so we create our own JSON object here
 	var values = JSON.parse(session.requestText);
 	values['auth'] = auth;
-	values['auth_l'] = undefined;
+	delete values['auth_l'];
 	session.storage.createAccount(values, afterCreateAccount);
 
 	function afterCreateAccount(error, result) {

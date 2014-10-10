@@ -9,5 +9,5 @@ module.exports = exports = function(config, request, response) {
 exports.prototype = Object.create(Session.prototype);
 
 exports.prototype.HookHandlers = {
-	// TODO Add some hooks here
+	'/!/domain': require("./hooks/domain.js")
 }

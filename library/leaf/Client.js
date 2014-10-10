@@ -67,7 +67,7 @@ Client.prototype.$createRequest = function(method, path, callback) {
 	}
 
 	function onError(evt) {
-		var error = new Error("connection error");
+		var error = evt.detail||new Error("connection error");
 		this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 	}
 }
@@ -118,7 +118,7 @@ Client.prototype.createAccount = function(name, password, callback) {
 				'auth': auth,
 				'asec' : asec
 			},
-			'domains': null
+			'domain': {}
 		};
 		this.updateVault(afterUpdateVault.bind(this));
 	}
@@ -139,21 +139,6 @@ Client.prototype.deleteAccount = function(callback) {
 	}
 }
 
-// INFO Entity operations
-
-Client.prototype.createEntity = function(selector, data, callback) {
-	callback({'id':23,'name':"foobar"});
-}
-
-Client.prototype.createRootEntity = function(pod, password, selector, data, callback) {
-	this.createDomain(pod, password, afterCreateDomain);
-
-	function afterCreateDomain(result) {
-		// TODO Create a real entity
-		callback({'id':23,'name':"foobar"});
-	}
-}
-
 // INFO Vault operations
 // NOTE These will usually be called only from within the client.
 
@@ -161,7 +146,7 @@ Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
-	vault.keys.account['asec'] = undefined;
+	delete vault.keys.account['asec'];
 	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].keys.account['asec'], vec);
 	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].keys.account['id'], onLoad.bind(this));
 	request.sign(Vault[this.vid].keys.account);
@@ -183,11 +168,34 @@ Client.prototype.createDomain = function(pod, password, callback) {
 	var request = this.$createRequest("POST", "/!/domain", onLoad.bind(this));
 	request.sendJson({
 		'pod': pod,
-		'dkeyL': dkeyL.publicKey
+		'dkey_l': dkeyL.publicKey
 	});
 
 	function onLoad(result) {
-		callback(result);
+		var pkey, domain;
+		pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
+		domain = {
+			'did': request.responseJson['did'],
+			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
+		};
+		console.log(domain);
+		Vault[this.vid].keys.domain[domain['did']] = domain;
+		callback({'did':domain['did']});
+	}
+}
+
+// INFO Entity operations
+
+Client.prototype.createEntity = function(selector, data, callback) {
+	callback({'id':23,'name':"foobar"});
+}
+
+Client.prototype.createRootEntity = function(pod, password, selector, data, callback) {
+	this.createDomain(pod, password, afterCreateDomain);
+
+	function afterCreateDomain(result) {
+		// TODO Create a real entity
+		callback({'id':23,'name':"foobar"});
 	}
 }
 

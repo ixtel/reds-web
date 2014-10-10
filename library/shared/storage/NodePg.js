@@ -121,3 +121,42 @@ exports.prototype.deleteAccount = function(id, callback) {
 		callback(error||null);
 	}
 }
+
+// INFO Domain operations
+
+exports.prototype.registerDomain = function(values, callback) {
+	this.$client.query("INSERT INTO domains (pid) "+
+		"VALUES ($1) "+
+		"RETURNING did", [
+		values['pid']
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.createDomain = function(values, callback) {
+	this.$client.query("INSERT INTO domains (did, dkey) "+
+		"VALUES ($1,decode($2,'base64')) "+
+		"RETURNING did", [
+		values['did'],
+		values['dkey']
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.deleteDomain = function(id, callback) {
+	this.$client.query("DELETE FROM domains "+
+		"WHERE did=$1 "+
+		"RETURNING did", [
+		id
+	], afterQuery);
+
+	function afterQuery(error) {
+		callback(error||null);
+	}
+}
