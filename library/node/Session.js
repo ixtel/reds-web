@@ -15,6 +15,17 @@ exports.prototype.HookHandlers = {
 	'/!/domain/ticket': require("./hooks/ticket.js")
 }
 
+exports.prototype.delegate = function() {
+	if (!this.purl.path.match(/^\/!\//)) {
+		console.log("TODO route to pod");
+		this.writeJSON({'id':23,'name':"foobar"});
+		this.end();
+	}
+	else {
+		Session.prototype.delegate.call(this);
+	}
+}
+
 exports.prototype.authorize = function(callback) {
 	var authorization = this.request.headers['authorization']
 	if (!authorization)

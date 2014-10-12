@@ -206,6 +206,7 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 // INFO Entity operations
 
 Client.prototype.createRootEntity = function(selector, data, domain, callback) {
+	var request;
 	if (typeof domain == "object")
 		this.createDomain(domain['url'], domain['password'], afterCreateDomain.bind(this));
 	else
@@ -221,9 +222,12 @@ Client.prototype.createRootEntity = function(selector, data, domain, callback) {
 	}
 
 	function afterUpdateVault() {
-		console.log(data);
-		// TODO Create a real entity
-		callback({'id':23,'name':"foobar"});
+		request = this.$createRequest("POST", "/contact", onLoad.bind(this));
+		request.sendJson(data);
+	}
+
+	function onLoad() {
+		callback(request.responseJson);
 	}
 }
 

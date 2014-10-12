@@ -60,12 +60,16 @@ exports.prototype.run = function() {
 		if (--lock)
 			return;
 		console.log("REQUEST "+this.requestText); // DEBUG
-		if (!this.HookHandlers[this.purl.path])
-			return this.abort(new HttpError(404, "hook not found"));
-		if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
-			return this.abort(new HttpError(501, "missing method"));
-		this.HookHandlers[this.purl.path][this.request.method](this);
+		this.delegate();
 	}
+}
+
+exports.prototype.delegate = function() {
+	if (!this.HookHandlers[this.purl.path])
+		return this.abort(new HttpError(404, "hook not found"));
+	if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
+		return this.abort(new HttpError(501, "missing method"));
+	this.HookHandlers[this.purl.path][this.request.method](this);
 }
 
 exports.prototype.end = function() {
