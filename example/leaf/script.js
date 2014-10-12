@@ -178,16 +178,18 @@ function showAccount(account) {
 	loadContactList(account);
 }
 
-function addContact(name, pod, password) {
-	leaf.createRootEntity(pod, password, "/contact", {
+function addContact(name, url, password) {
+	leaf.createRootEntity("/contact", {
 		'name': name
+	}, {
+		'url': url,
+		'password': password
 	}, afterCreateRootEntity);
 
 	function afterCreateRootEntity(response) {
 		var option = document.createElement("option");
 		option.setAttribute("value", response['id']);
 		option.appendChild(document.createTextNode(response['name']));
-		console.log(document.getElementById("ContactList").elements['list']);
 		document.getElementById("ContactList").elements['list'].appendChild(option);
 	}
 }

@@ -84,6 +84,7 @@ Client.prototype.signin = function(name, password, callback) {
 		Vault[this.vid].keys = vault.keys;
 		Vault[this.vid].root = vault.root;
 		Vault[this.vid].keys.account['asec'] = asec;
+		console.log(Vault[this.vid]);
 		callback({'id':Vault[this.vid].keys.account['id']});
 	}
 }
@@ -156,6 +157,7 @@ Client.prototype.updateVault = function(callback) {
 	});
 	
 	function onLoad() {
+		console.log(Vault[this.vid]);
 		callback();
 	}
 }
@@ -178,14 +180,13 @@ Client.prototype.createDomain = function(pod, password, callback) {
 			'did': request.responseJson['did'],
 			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
 		};
-		console.log(domain);
 		Vault[this.vid].keys.domain[domain['did']] = domain;
 		callback({'did':domain['did']});
 	}
 }
 
 Client.prototype.createOwnerTicket = function(did, callback) {
-	var tkeyL, request;
+	var tkeyL, request, domain;
 	tkeyL = this.crypto.generateKeypair();
 	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
 	request.sendJson({
@@ -194,30 +195,33 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	});
 
 	function onLoad(result) {
-		var domain;
 		domain = Vault[this.vid].keys.domain[did];
 		domain['tid'] = request.responseJson['tid'],
 		domain['tflags'] = request.responseJson['tflags'],
 		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p'])
-		console.log(domain);
-		callback({'tid':domain['did'],'tid':domain['tid']});
+		callback({'tid':domain['tid'],'did':domain['did']});
 	}
 }
 
 // INFO Entity operations
 
-Client.prototype.createEntity = function(selector, data, callback) {
-	callback({'id':23,'name':"foobar"});
-}
-
-Client.prototype.createRootEntity = function(pod, password, selector, data, callback) {
-	this.createDomain(pod, password, afterCreateDomain.bind(this));
+Client.prototype.createRootEntity = function(selector, data, domain, callback) {
+	if (typeof domain == "object")
+		this.createDomain(domain['url'], domain['password'], afterCreateDomain.bind(this));
+	else
+		afterUpdateVault.call(this);
 
 	function afterCreateDomain(result) {
 		this.createOwnerTicket(result['did'], afterCreateOwnerTicket.bind(this));
 	}
 
 	function afterCreateOwnerTicket(result) {
+		data['did'] = result['did'];
+		this.updateVault(afterUpdateVault.bind(this));
+	}
+
+	function afterUpdateVault() {
+		console.log(data);
 		// TODO Create a real entity
 		callback({'id':23,'name':"foobar"});
 	}
