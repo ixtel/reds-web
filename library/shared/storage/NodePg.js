@@ -42,7 +42,7 @@ exports.prototype.createPod = function(values, callback) {
 exports.prototype.readPod = function(pod, callback) {
 	this.$client.query("SELECT id,url "+
 		"FROM pods "+
-		"WHERE url=$1", [
+		"WHERE "+(typeof pod == "number" ? "id" : "url")+"=$1", [
 		pod
 	], afterQuery);
 
@@ -124,6 +124,7 @@ exports.prototype.deleteAccount = function(id, callback) {
 
 // INFO Domain operations
 
+// TODO Merge with create
 exports.prototype.registerDomain = function(values, callback) {
 	this.$client.query("INSERT INTO domains (pid) "+
 		"VALUES ($1) "+
@@ -149,6 +150,18 @@ exports.prototype.createDomain = function(values, callback) {
 	}
 }
 
+exports.prototype.readDomain = function(did, callback) {
+	this.$client.query("SELECT * "+
+		"FROM domains "+
+		"WHERE did=$1", [
+		did
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
 exports.prototype.deleteDomain = function(id, callback) {
 	this.$client.query("DELETE FROM domains "+
 		"WHERE did=$1 "+
@@ -158,5 +171,21 @@ exports.prototype.deleteDomain = function(id, callback) {
 
 	function afterQuery(error) {
 		callback(error||null);
+	}
+}
+
+// INFO Ticket operations
+
+exports.prototype.createTicket = function(values, callback) {
+	this.$client.query("INSERT INTO tickets (did, tkey, tflags) "+
+		"VALUES ($1,decode($2,'base64'), $3) "+
+		"RETURNING tid, tflags", [
+		values['did'],
+		values['tkey'],
+		values['tflags']
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
 	}
 }

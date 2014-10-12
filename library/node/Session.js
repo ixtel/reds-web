@@ -11,7 +11,8 @@ exports.prototype = Object.create(Session.prototype);
 
 exports.prototype.HookHandlers = {
 	'/!/account': require("./hooks/account"),
-	'/!/domain': require("./hooks/domain")
+	'/!/domain': require("./hooks/domain"),
+	'/!/domain/ticket': require("./hooks/ticket.js")
 }
 
 exports.prototype.authorize = function(callback) {

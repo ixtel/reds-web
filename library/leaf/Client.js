@@ -184,6 +184,26 @@ Client.prototype.createDomain = function(pod, password, callback) {
 	}
 }
 
+Client.prototype.createOwnerTicket = function(did, callback) {
+	var tkeyL, request;
+	tkeyL = this.crypto.generateKeypair();
+	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
+	request.sendJson({
+		'did': did,
+		'tkey_l': tkeyL.publicKey
+	});
+
+	function onLoad(result) {
+		var domain;
+		domain = Vault[this.vid].keys.domain[did];
+		domain['tid'] = request.responseJson['tid'],
+		domain['tflags'] = request.responseJson['tflags'],
+		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p'])
+		console.log(domain);
+		callback({'tid':domain['did'],'tid':domain['tid']});
+	}
+}
+
 // INFO Entity operations
 
 Client.prototype.createEntity = function(selector, data, callback) {
@@ -191,13 +211,20 @@ Client.prototype.createEntity = function(selector, data, callback) {
 }
 
 Client.prototype.createRootEntity = function(pod, password, selector, data, callback) {
-	this.createDomain(pod, password, afterCreateDomain);
+	this.createDomain(pod, password, afterCreateDomain.bind(this));
 
 	function afterCreateDomain(result) {
+		this.createOwnerTicket(result['did'], afterCreateOwnerTicket.bind(this));
+	}
+
+	function afterCreateOwnerTicket(result) {
 		// TODO Create a real entity
 		callback({'id':23,'name':"foobar"});
 	}
 }
+
+// INFO Ticket operations
+
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
 typeof exports=='object' ? module.exports=exports=Client : ((self.reds=self.reds||new Object()).leaf=reds.leaf||new Object()).Client=Client;

@@ -29,6 +29,16 @@ exports.prototype.init = function(pod) {
 	}
 }
 
+exports.prototype.resolve = function(did) {
+	this.storage.readDomain(did, afterReadDomain.bind(this));
+
+	function afterReadDomain(error, result) {
+		if (error)
+			return this.emit("error", error)
+		this.init(result['pid']);
+	}
+}
+
 exports.prototype.sendJson = function(data, type) {
 	if (data!==undefined)
 		var json = JSON.stringify(data);

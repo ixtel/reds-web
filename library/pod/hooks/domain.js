@@ -2,19 +2,6 @@
 
 var HttpError = require("../../shared/HttpError");
 
-exports.GET = function(session) {
-	var alias = (new Buffer(session.purl[0].value, 'base64')).toString('base64');
-	session.storage.readAccount(alias, afterReadAccount);
-
-	function afterReadAccount(result) {
-		if (result == null) {
-			session.aboirt(new HttpError(404, "alias not found"));
-		}
-		session.writeJSON(result);
-		session.end();
-	}
-}
-
 exports.POST = function(session) {
 	var pkey, dkeyP, dkey, values;
 	pkey = session.crypto.generateSecureHash(session.config['password'], session.config['salt']);
@@ -24,7 +11,6 @@ exports.POST = function(session) {
 	values = JSON.parse(session.requestText);
 	values['dkey'] = dkey;
 	delete values['dkey_l'];
-	console.log(values);
 	session.storage.createDomain(values, afterCreateDomain);
 
 	function afterCreateDomain(error, result) {
