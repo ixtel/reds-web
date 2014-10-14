@@ -12,18 +12,8 @@ exports.prototype = Object.create(Session.prototype);
 exports.prototype.HookHandlers = {
 	'/!/account': require("./hooks/account"),
 	'/!/domain': require("./hooks/domain"),
-	'/!/domain/ticket': require("./hooks/ticket.js")
-}
-
-exports.prototype.delegate = function() {
-	if (!this.purl.path.match(/^\/!\//)) {
-		console.log("TODO route to pod");
-		this.writeJSON({'id':23,'name':"foobar"});
-		this.end();
-	}
-	else {
-		Session.prototype.delegate.call(this);
-	}
+	'/!/domain/ticket': require("./hooks/ticket.js"),
+	'*': require("./hooks/entity.js")
 }
 
 exports.prototype.authorize = function(callback) {

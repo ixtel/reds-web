@@ -189,3 +189,33 @@ exports.prototype.createTicket = function(values, callback) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
+
+// INFO Entity operations
+
+exports.prototype.registerEntity = function(type, values, callback) {
+	this.$client.query("INSERT INTO entities (tid, did) "+
+		"VALUES ((SELECT tid FROM types WHERE name=$1), $2) "+
+		"RETURNING eid", [
+		type,
+		values['did']
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.createEntity = function(type, values, callback) {
+	// TODO Check type for SQL injection!
+	this.$client.query("INSERT INTO "+type+" (eid, did, text) "+
+		"VALUES ($1,$2,$3) "+
+		"RETURNING *", [
+		values['eid'],
+		values['did'],
+		values['text']
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}

@@ -205,7 +205,7 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 
 // INFO Entity operations
 
-Client.prototype.createRootEntity = function(selector, data, domain, callback) {
+Client.prototype.createEntity = function(selector, data, domain, callback) {
 	var request;
 	if (typeof domain == "object")
 		this.createDomain(domain['url'], domain['password'], afterCreateDomain.bind(this));

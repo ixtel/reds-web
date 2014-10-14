@@ -179,17 +179,17 @@ function showAccount(account) {
 }
 
 function addContact(name, url, password) {
-	leaf.createRootEntity("/contact", {
-		'name': name
+	leaf.createEntity("/contact", {
+		'text': name
 	}, {
 		'url': url,
 		'password': password
-	}, afterCreateRootEntity);
+	}, afterCreateEntity);
 
-	function afterCreateRootEntity(response) {
+	function afterCreateEntity(response) {
 		var option = document.createElement("option");
-		option.setAttribute("value", response['id']);
-		option.appendChild(document.createTextNode(response['name']));
+		option.setAttribute("value", response['eid']);
+		option.appendChild(document.createTextNode(response['text']));
 		document.getElementById("ContactList").elements['list'].appendChild(option);
 	}
 }

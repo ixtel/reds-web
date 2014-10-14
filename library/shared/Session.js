@@ -65,11 +65,13 @@ exports.prototype.run = function() {
 }
 
 exports.prototype.delegate = function() {
-	if (!this.HookHandlers[this.purl.path])
+	var hook;
+	hook = this.purl.path.match(/^\/!/) ? this.purl.path : "*";
+	if (!this.HookHandlers[hook])
 		return this.abort(new HttpError(404, "hook not found"));
-	if (typeof this.HookHandlers[this.purl.path][this.request.method] !== "function")
+	if (typeof this.HookHandlers[hook][this.request.method] !== "function")
 		return this.abort(new HttpError(501, "missing method"));
-	this.HookHandlers[this.purl.path][this.request.method](this);
+	this.HookHandlers[hook][this.request.method](this);
 }
 
 exports.prototype.end = function() {
