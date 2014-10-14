@@ -29,7 +29,7 @@ exports.prototype.authorize = function(callback) {
 	function afterReadAccount(error, result) {
 		if (error)
 			return callback(error);
-		var msg = this.crypto.concatenateStrings(authorization[0], authorization[1], this.request.method, this.request.url, this.request.headers['content-type'], this.requestText, authorization[3]);
+		var msg = this.crypto.concatenateStrings(authorization[0], authorization[1], this.request.method, this.request.url, this.request.headers['content-type'], this.requestText||"", authorization[3]);
 		var sig = this.crypto.generateHmac(msg, result['auth']);
 		if (sig == authorization[2])
 			return callback();

@@ -6,6 +6,8 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 // INFO Leaf client module
 
 var Request = function(crypto) {
+	this.$data = undefined;
+	this.$type = "application/octet-stream";
 	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
 	this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
@@ -45,31 +47,13 @@ Request.prototype.dispatchEvent = function(evt) {
 	return this.$xhr.dispatchEvent(evt);
 }
 
-Request.prototype.open = function(method, url, path) {
+Request.prototype.open = function(method, node, path) {
 	this.method = method;
 	this.path = path;
-	return this.$xhr.open(method, url+path, true);
+	return this.$xhr.open(method, node+path, true);
 }
 
-Request.prototype.sign = function(credentials) {
-	this.credentials = credentials;
-}
-
-Request.prototype.send = function(data, type) {
-	var time, msg, sig;
-	this.dispatchEvent(new Event("send"));
-	if (type)
-		this.$xhr.setRequestHeader("Content-Type", type);
-	if (this.credentials) {
-		time = this.crypto.generateTimestamp();
-		msg = this.crypto.concatenateStrings(this.crypto.name, this.credentials['id'], this.method, this.path, type, data, time);
-		sig = this.crypto.generateHmac(msg, this.credentials['auth']);
-		this.$xhr.setRequestHeader("Authorization", this.crypto.name+":"+this.credentials['id']+":"+sig+":"+time);
-	}
-	return this.$xhr.send(data);
-}
-
-Request.prototype.sendJson = function(data, type) {
+Request.prototype.writeJson = function(data, type) {
 	var json, error;
 	if (data !== undefined) {
 		try {
@@ -81,7 +65,28 @@ Request.prototype.sendJson = function(data, type) {
 			return;
 		}
 	}
-	this.send(json, type||"application/json;charset=UTF-8");
+	this.write(json, type||"application/json;charset=UTF-8");
+}
+
+Request.prototype.write = function(data, type) {
+	if (this.$data!==undefined)
+		throw new Error("Multiple Request.write calls are not supported yet (TODO)");
+	this.$type = type||"text/plain";
+	this.$data = data;
+}
+
+Request.prototype.sign = function(credentials) {
+	var time, msg, sig;
+	time = this.crypto.generateTimestamp();
+	msg = this.crypto.concatenateStrings(this.crypto.name, credentials['id'], this.method, this.path, this.$type, this.$data, time);
+	sig = this.crypto.generateHmac(msg, credentials['auth']);
+	this.$xhr.setRequestHeader("Authorization", this.crypto.name+":"+credentials['id']+":"+sig+":"+time);
+}
+
+Request.prototype.send = function() {
+	this.dispatchEvent(new Event("send"));
+	this.$xhr.setRequestHeader("Content-Type", this.$type);
+	return this.$xhr.send(this.$data);
 }
 
 Object.defineProperty(Request.prototype, "responseJson", {

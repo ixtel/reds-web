@@ -103,11 +103,12 @@ Client.prototype.createAccount = function(name, password, callback) {
 	var asalt = this.crypto.generateKey();
 	var authL = this.crypto.generateKeypair();
 	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
-	request.sendJson({
+	request.writeJson({
 		'alias': alias,
 		'asalt': asalt,
 		'auth_l': authL.publicKey
 	});
+	request.send();
 
 	function onLoad() {
 		var auth = this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']);
@@ -150,11 +151,12 @@ Client.prototype.updateVault = function(callback) {
 	delete vault.keys.account['asec'];
 	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].keys.account['asec'], vec);
 	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].keys.account['id'], onLoad.bind(this));
-	request.sign(Vault[this.vid].keys.account);
-	request.sendJson({
+	request.writeJson({
 		'vault': vault,
 		'vec': vec
 	});
+	request.sign(Vault[this.vid].keys.account);
+	request.send();
 	
 	function onLoad() {
 		console.log(Vault[this.vid]);
@@ -168,10 +170,11 @@ Client.prototype.updateVault = function(callback) {
 Client.prototype.createDomain = function(pod, password, callback) {
 	var dkeyL = this.crypto.generateKeypair();
 	var request = this.$createRequest("POST", "/!/domain", onLoad.bind(this));
-	request.sendJson({
+	request.writeJson({
 		'pod': pod,
 		'dkey_l': dkeyL.publicKey
 	});
+	request.send();
 
 	function onLoad(result) {
 		var pkey, domain;
@@ -189,10 +192,11 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	var tkeyL, request, domain;
 	tkeyL = this.crypto.generateKeypair();
 	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
-	request.sendJson({
+	request.writeJson({
 		'did': did,
 		'tkey_l': tkeyL.publicKey
 	});
+	request.send();
 
 	function onLoad(result) {
 		domain = Vault[this.vid].keys.domain[did];
@@ -223,7 +227,8 @@ Client.prototype.createEntity = function(selector, data, domain, callback) {
 
 	function afterUpdateVault() {
 		request = this.$createRequest("POST", "/contact", onLoad.bind(this));
-		request.sendJson(data);
+		request.writeJson(data);
+		request.end();
 	}
 
 	function onLoad() {
