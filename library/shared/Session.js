@@ -23,15 +23,32 @@ module.exports = exports = function(config, request, response) {
 	this.crypto = null;
 	this.storage = null;
 	// NOTE Parse URL
+	// TODO Move into getter
 	var purl = new Array();
 	purl.path = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
 		purl.push({
-			'key': p1,
-			'value': p2
+			'key': p1||null,
+			'value': p2||null
 		});
 		return p1;
 	});
 	this.purl = purl;
+	// NOTE Parse Content-Type
+	// TODO Move into getter
+	var type;
+	if (type = this.request.headers['content-type']) {
+		var options = new Object();
+		type = type.replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s*/, function(m, p1, p2) {
+			if (p1.length)
+				options[p1] = p2;
+			return "";
+		});
+	}
+	this.ptype = {
+		'name': type||null,
+		'options': options||null
+	};
+	// TODO Create a getter for authorization like the ones above
 }
 
 exports.prototype = Object.create(events.EventEmitter.prototype);

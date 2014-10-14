@@ -192,17 +192,16 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	var tkeyL, request, domain;
 	tkeyL = this.crypto.generateKeypair();
 	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
-	request.writeJson({
-		'did': did,
+	request.writeDomain({
 		'tkey_l': tkeyL.publicKey
-	});
+	}, Vault[this.vid].keys.domain[did]);
 	request.send();
 
 	function onLoad(result) {
 		domain = Vault[this.vid].keys.domain[did];
-		domain['tid'] = request.responseJson['tid'],
-		domain['tflags'] = request.responseJson['tflags'],
-		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p'])
+		domain['tid'] = request.responseDomain['tid'],
+		domain['tflags'] = request.responseDomain['tflags'],
+		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseDomain['tkey_p'])
 		callback({'tid':domain['tid'],'did':domain['did']});
 	}
 }
@@ -210,7 +209,7 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 // INFO Entity operations
 
 Client.prototype.createEntity = function(selector, data, domain, callback) {
-	var request;
+	var request, did;
 	if (typeof domain == "object")
 		this.createDomain(domain['url'], domain['password'], afterCreateDomain.bind(this));
 	else
@@ -221,18 +220,18 @@ Client.prototype.createEntity = function(selector, data, domain, callback) {
 	}
 
 	function afterCreateOwnerTicket(result) {
-		data['did'] = result['did'];
+		did = result['did'];
 		this.updateVault(afterUpdateVault.bind(this));
 	}
 
 	function afterUpdateVault() {
 		request = this.$createRequest("POST", "/contact", onLoad.bind(this));
-		request.writeJson(data);
-		request.end();
+		request.writeDomain(data, Vault[this.vid].keys.domain[did]);
+		request.send();
 	}
 
 	function onLoad() {
-		callback(request.responseJson);
+		callback(request.responseDomain);
 	}
 }
 

@@ -4,20 +4,17 @@ var HttpError = require("../../shared/HttpError");
 var Route = require("../Route");
 
 exports.POST = function(session) {
-	var type, did, route, entity;
+	var type, route, entity;
 	type = session.purl[session.purl.length-1].key;
-	// TODO Derive did from content-type
-	// did = parseInt(session.request.headers['content-type'].match(/did=(\d+)/)[1]);
-	did = session.requestJSON['did'];
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
 	route.addListener("response", onRouteResponse);
-	route.resolve(did);
+	route.resolve(session.ptype.options['did']);
 
 	function onRouteReady() {
 		session.storage.registerEntity(type, {
-			'did': did
+			'did': session.ptype.options['did']
 		}, afterRegisterEntity);
 	}
 

@@ -56,6 +56,7 @@ exports.prototype.send = function(data, type) {
 	req.addListener("error", onError.bind(this));
 	req.addListener('response', onResponse.bind(this));
 	req.setHeader("content-length", data ? Buffer.byteLength(data) : 0);
+	req.setHeader("content-type", type);
 	req.end(data);
 
 	function onResponse(response) {
