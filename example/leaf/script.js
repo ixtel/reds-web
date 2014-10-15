@@ -195,6 +195,19 @@ function addContact(name, url, password) {
 }
 
 function loadContactList(filter) {
+	leaf.readEntities("/contact", afterReadEntities.bind(this));
+
+	function afterReadEntities(response) {
+		var contactList, i;
+		contactList = document.getElementById("ContactList");
+		console.log(response);
+		for (i=0; i<response.length; i++) {
+			var option = document.createElement("option");
+			option.setAttribute("value", response[i]['eid']);
+			option.appendChild(document.createTextNode(response[i]['text']));
+			contactList.elements['list'].appendChild(option);
+		}
+	}
 }
 
 // INFO Contact actions

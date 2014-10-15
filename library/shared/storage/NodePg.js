@@ -205,6 +205,19 @@ exports.prototype.registerEntity = function(type, values, callback) {
 	}
 }
 
+exports.prototype.selectEntities = function(type, did, callback) {
+	this.$client.query("SELECT entities.eid "+
+		"FROM entities JOIN types ON entities.tid=types.tid "+
+		"WHERE types.name=$1 AND entities.did=$2", [
+		type,
+		did
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows:null);
+	}	
+}
+
 exports.prototype.createEntity = function(type, values, callback) {
 	// TODO Check type for SQL injection!
 	this.$client.query("INSERT INTO "+type+" (eid, did, text) "+
@@ -217,5 +230,17 @@ exports.prototype.createEntity = function(type, values, callback) {
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.readEntities = function(type, eids, callback) {
+	// TODO Check type and eids for SQL injection!
+	this.$client.query("SELECT * "+
+		"FROM "+type+" "+
+		"WHERE eid IN ("+eids.join(",")+")",
+	afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows:null);
 	}
 }

@@ -23,3 +23,16 @@ exports.POST = function(session) {
 		session.end();
 	}
 }
+
+exports.GET = function(session) {
+	session.storage.readEntities(session.purl[0].key, session.purl[0].value.split(","), afterReadEntities);
+
+	function afterReadEntities(error, result) {
+		if (error !== null)
+			return session.abort(error);
+		if (result.length == 0)
+			return session.abort(new HttpError(404, "entities not found"));
+		session.writeJSON(result);
+		session.end();
+	}
+}

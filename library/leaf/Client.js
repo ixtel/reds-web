@@ -49,9 +49,11 @@ var Client = function(options) {
 
 CryptoFacilities.addFactoryToObject("createCryptoFacility", Client.prototype);
 
-Client.prototype.$createRequest = function(method, path, callback) {
+Client.prototype.$createRequest = function(method, path, onload, onerror) {
 	var request = new Request(this.crypto);
 	request.addEventListener("send", onSend.bind(this));
+	onload && request.addEventListener("load", onload);
+	onerror && request.addEventListener("error", onerror);
 	request.addEventListener("load", onLoad.bind(this));
 	request.addEventListener("error", onError.bind(this));
 	request.open(method, this.options.url, path);
@@ -63,7 +65,6 @@ Client.prototype.$createRequest = function(method, path, callback) {
 
 	function onLoad(evt) {
 		this.dispatchEvent(new Event("load"));
-		callback(evt);
 	}
 
 	function onError(evt) {
@@ -208,7 +209,7 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 
 // INFO Entity operations
 
-Client.prototype.createEntity = function(selector, data, domain, callback) {
+Client.prototype.createEntity = function(path, data, domain, callback) {
 	var request, did;
 	if (typeof domain == "object")
 		this.createDomain(domain['url'], domain['password'], afterCreateDomain.bind(this));
@@ -225,18 +226,57 @@ Client.prototype.createEntity = function(selector, data, domain, callback) {
 	}
 
 	function afterUpdateVault() {
-		request = this.$createRequest("POST", "/contact", onLoad.bind(this));
+		request = this.$createRequest("POST", path, onLoad.bind(this));
 		request.writeDomain(data, Vault[this.vid].keys.domain[did]);
 		request.send();
 	}
 
 	function onLoad() {
+
 		callback(request.responseDomain);
 	}
 }
 
-// INFO Ticket operations
+// TODO Handle child entities
+Client.prototype.readEntities = function(path, callback) {
+	var eids, count, results, did, request;
+	if (eids = path.match(/[\d,]+$/))
+		eids = eids[0].split(",");
+	if (eids) {
+		throw new Error("TODO resolve domain for known eids");
+	}
+	else {
+		count = 0;
+		results = new Array();
+		for (did in Vault[this.vid].keys.domain) {
+			count++;
+			readEntitiesForDomain.call(this, did, afterReadEntity.bind(this));
+		}
+	}
 
+	function readEntitiesForDomain(did, callback) {
+		var request;
+		request = this.$createRequest("GET", path, onLoad, onError);
+		request.writeDomain(undefined, Vault[this.vid].keys.domain[did]);
+		request.send();
+
+		function onLoad() {
+			results = results.concat(request.responseJson);
+			if (--count == 0)
+				callback();
+		}
+
+		function onError(evt) {
+			evt.stopImmediatePropagation();
+			if (--count == 0)
+				callback();
+		}
+	}
+
+	function afterReadEntity() {
+		callback(results);
+	}
+}
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
 typeof exports=='object' ? module.exports=exports=Client : ((self.reds=self.reds||new Object()).leaf=reds.leaf||new Object()).Client=Client;
