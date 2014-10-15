@@ -21,10 +21,7 @@ Vault.unregisterClient = function(id) {
 }
 
 Vault.resetClient = function(id) {
-	Vault[id] = {
-		'keys': null,
-		'root': null,
-	};
+	Vault[id] = new Object();
 }
 
 // INFO Facility managers
@@ -82,11 +79,10 @@ Client.prototype.signin = function(name, password, callback) {
 	function onLoad() {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
 		var vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
-		Vault[this.vid].keys = vault.keys;
-		Vault[this.vid].root = vault.root;
-		Vault[this.vid].keys.account['asec'] = asec;
+		Vault[this.vid] = vault;
+		Vault[this.vid].account['asec'] = asec;
 		console.log(Vault[this.vid]);
-		callback({'id':Vault[this.vid].keys.account['id']});
+		callback({'id':Vault[this.vid].account['id']});
 	}
 }
 
@@ -114,7 +110,7 @@ Client.prototype.createAccount = function(name, password, callback) {
 	function onLoad() {
 		var auth = this.crypto.combineKeypair(authL.privateKey, request.responseJson['auth_n']);
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
-		Vault[this.vid].keys = {
+		Vault[this.vid] = {
 			'account': {
 				'id': request.responseJson['id'],
 				'alias': alias,
@@ -127,13 +123,13 @@ Client.prototype.createAccount = function(name, password, callback) {
 	}
 	
 	function afterUpdateVault() {
-		callback({'id':Vault[this.vid].keys.account['id']});
+		callback({'id':Vault[this.vid].account['id']});
 	}
 }
 
 Client.prototype.deleteAccount = function(callback) {
-	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].keys.account['id'], onLoad.bind(this));
-	request.sign(Vault[this.vid].keys.account);
+	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
+	request.sign(Vault[this.vid].account);
 	request.send();
 
 	function onLoad() {
@@ -149,14 +145,14 @@ Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
-	delete vault.keys.account['asec'];
-	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].keys.account['asec'], vec);
-	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].keys.account['id'], onLoad.bind(this));
+	delete vault.account['asec'];
+	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
+	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
 	request.writeJson({
 		'vault': vault,
 		'vec': vec
 	});
-	request.sign(Vault[this.vid].keys.account);
+	request.sign(Vault[this.vid].account);
 	request.send();
 	
 	function onLoad() {
@@ -184,7 +180,7 @@ Client.prototype.createDomain = function(pod, password, callback) {
 			'did': request.responseJson['did'],
 			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
 		};
-		Vault[this.vid].keys.domain[domain['did']] = domain;
+		Vault[this.vid].domain[domain['did']] = domain;
 		callback({'did':domain['did']});
 	}
 }
@@ -195,11 +191,11 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
 	request.writeDomain({
 		'tkey_l': tkeyL.publicKey
-	}, Vault[this.vid].keys.domain[did]);
+	}, Vault[this.vid].domain[did]);
 	request.send();
 
 	function onLoad(result) {
-		domain = Vault[this.vid].keys.domain[did];
+		domain = Vault[this.vid].domain[did];
 		domain['tid'] = request.responseDomain['tid'],
 		domain['tflags'] = request.responseDomain['tflags'],
 		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseDomain['tkey_p'])
@@ -227,7 +223,7 @@ Client.prototype.createEntity = function(path, data, domain, callback) {
 
 	function afterUpdateVault() {
 		request = this.$createRequest("POST", path, onLoad.bind(this));
-		request.writeDomain(data, Vault[this.vid].keys.domain[did]);
+		request.writeDomain(data, Vault[this.vid].domain[did]);
 		request.send();
 	}
 
@@ -248,7 +244,7 @@ Client.prototype.readEntities = function(path, callback) {
 	else {
 		count = 0;
 		results = new Array();
-		for (did in Vault[this.vid].keys.domain) {
+		for (did in Vault[this.vid].domain) {
 			count++;
 			readEntitiesForDomain.call(this, did, afterReadEntity.bind(this));
 		}
@@ -257,7 +253,7 @@ Client.prototype.readEntities = function(path, callback) {
 	function readEntitiesForDomain(did, callback) {
 		var request;
 		request = this.$createRequest("GET", path, onLoad, onError);
-		request.writeDomain(undefined, Vault[this.vid].keys.domain[did]);
+		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
