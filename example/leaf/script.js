@@ -160,7 +160,7 @@ function signout() {
 	leaf.signout(afterSignout)
 
 	function afterSignout(response) {
-		document.getElementById("Account").style['display'] = "";
+		hideAccount();
 	}
 }
 
@@ -168,14 +168,20 @@ function deleteAccount() {
 	leaf.deleteAccount(afterDeleteAccount);
 
 	function afterDeleteAccount(response) {
-		document.getElementById("Account").style['display'] = "";
+		hideAccount();
 	}
 }
 
 function showAccount(account) {
 	document.getElementById("Account").style['display'] = "block";
 	document.getElementById("AccountId").value = account;
-	loadContactList(account);
+	loadContactList();
+}
+
+function hideAccount(account) {
+	document.getElementById("Account").style['display'] = "";
+	document.getElementById("AccountId").value = "";
+	clearContactList();
 }
 
 function addContact(name, url, password) {
@@ -200,7 +206,6 @@ function loadContactList(filter) {
 	function afterReadEntities(response) {
 		var contactList, i;
 		contactList = document.getElementById("ContactList");
-		console.log(response);
 		for (i=0; i<response.length; i++) {
 			var option = document.createElement("option");
 			option.setAttribute("value", response[i]['eid']);
@@ -208,6 +213,13 @@ function loadContactList(filter) {
 			contactList.elements['list'].appendChild(option);
 		}
 	}
+}
+
+function clearContactList() {
+	var contactList = document.getElementById("ContactList");
+	contactList.elements['filter'].value = "";
+	while (contactList.elements['list'].lastChild)
+		contactList.elements['list'].removeChild(contactList.elements['list'].lastChild);
 }
 
 // INFO Contact actions
@@ -286,7 +298,8 @@ function init() {
 
 	document.getElementById("ReloadContactList").addEventListener("click", function(evt) {
 		evt.preventDefault();
-		loadContactList(document.getElementById("AccountId").value, this.form.elements['filter'].value);
+		clearContactList();
+		loadContactList(this.form.elements['filter'].value);
 	}, false);
 
 	document.getElementById("EditContact").addEventListener("submit", function(evt) {
