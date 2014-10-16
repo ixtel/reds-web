@@ -203,6 +203,24 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	}
 }
 
+Client.prototype.resolveDomain = function(path, callback) {
+	var match, request, dids;
+	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/\*)?$/);
+	if (match[1]) {
+		throw new Error("TODO resolve domain for known eids");
+	}
+	else {
+		dids = Object.keys(Vault[this.vid].domain); 
+		callback(dids);
+	}
+
+	function onLoad() {
+		console.log(request.responseType);
+		dids = request.responseType.options['did'].split(",");
+		callback(dids);
+	}
+} 
+
 // INFO Entity operations
 
 Client.prototype.createEntity = function(path, data, domain, callback) {
@@ -228,31 +246,23 @@ Client.prototype.createEntity = function(path, data, domain, callback) {
 	}
 
 	function onLoad() {
-
 		callback(request.responseDomain);
 	}
 }
 
-// TODO Handle child entities
 Client.prototype.readEntities = function(path, callback) {
 	var eids, count, results, did, request;
-	if (eids = path.match(/[\d,]+$/))
-		eids = eids[0].split(",");
-	if (eids) {
-		throw new Error("TODO resolve domain for known eids");
-	}
-	else {
-		count = 0;
+	this.resolveDomain(path, afterResolveDomain.bind(this));
+
+	function afterResolveDomain(dids) {
 		results = new Array();
-		for (did in Vault[this.vid].domain) {
-			count++;
-			readEntitiesForDomain.call(this, did, afterReadEntity.bind(this));
-		}
+		for (count=0; count < dids.length; count++)
+			readEntitiesForDomain.call(this, dids[count], afterReadEntity.bind(this));
 	}
 
 	function readEntitiesForDomain(did, callback) {
 		var request;
-		request = this.$createRequest("GET", path, onLoad, onError);
+		request = this.$createRequest("GET", path, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.send();
 
