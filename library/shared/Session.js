@@ -14,7 +14,8 @@ StorageFacilities.addFacility(require("./storage/NodePg.js"));
 module.exports = exports = function(config, request, response) {
 	events.EventEmitter.call(this);
 	this.$requestJSON = undefined;
-	this.$storageFacility = undefined;
+	this.$selector = undefined;
+	this.$type = undefined;
 	this.config = config;
 	this.request = request;
 	this.response = response;
@@ -22,33 +23,6 @@ module.exports = exports = function(config, request, response) {
 	// NOTE Will be set in run()
 	this.crypto = null;
 	this.storage = null;
-	// NOTE Parse URL
-	// TODO Move into getter
-	var purl = new Array();
-	purl.path = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
-		purl.push({
-			'key': p1||null,
-			'value': p2||null
-		});
-		return p1;
-	});
-	this.purl = purl;
-	// NOTE Parse Content-Type
-	// TODO Move into getter
-	var type;
-	if (type = this.request.headers['content-type']) {
-		var options = new Object();
-		type = type.replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s*/, function(m, p1, p2) {
-			if (p1.length)
-				options[p1] = p2;
-			return "";
-		});
-	}
-	this.ptype = {
-		'name': type||null,
-		'options': options||null
-	};
-	// TODO Create a getter for authorization like the ones above
 }
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
@@ -63,7 +37,7 @@ exports.prototype.run = function() {
 	var lock = 2;
 	// TODO Select crypto facility by content-type
 	this.crypto = this.createCryptoFacility(this.config.crypto[0]);
-	// TODO Select storage facility by purl
+	// TODO Select storage facility by selector
 	this.storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
 	this.storage.connect(delegate.bind(this));
 	this.request.addListener("data", receive.bind(this));
@@ -83,7 +57,7 @@ exports.prototype.run = function() {
 
 exports.prototype.delegate = function() {
 	var hook;
-	hook = this.purl.path.match(/^\/!/) ? this.purl.path : "*";
+	hook = this.selector.hook.match(/^\/!/) ? this.selector.hook : "*";
 	if (!this.HookHandlers[hook])
 		return this.abort(new HttpError(404, "hook not found"));
 	if (typeof this.HookHandlers[hook][this.request.method] !== "function")
@@ -148,3 +122,37 @@ Object.defineProperty(exports.prototype, "requestJSON", {
 	}
 });
 
+Object.defineProperty(exports.prototype, "selector", {
+	get: function() {
+		if (this.$selector === undefined) {
+			this.$selector = new Array();
+			this.$selector.hook = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
+				this.$selector.push({
+					'key': p1||null,
+					'value': p2||null
+				});
+				return p1;
+			}.bind(this));
+		}
+		return this.$selector;
+	}
+});
+
+Object.defineProperty(exports.prototype, "type", {
+	get: function() {
+		if (this.$type === undefined) {
+			this.$type = {
+				'name': null,
+				'options': {}
+			};
+			if (this.request.headers['content-type']) {
+				this.$type.name = this.request.headers['content-type'].replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s*/, function(m, p1, p2) {
+					if (p1.length)
+						this.$type.options[p1] = p2;
+					return "";
+				}.bind(this));
+			}
+		}
+		return this.$type;
+	}
+});

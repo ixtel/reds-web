@@ -17,23 +17,39 @@ exports.prototype.HookHandlers = {
 }
 
 exports.prototype.authorize = function(callback) {
-	var authorization = this.request.headers['authorization']
-	if (!authorization)
+	if (!this.authorization)
 		return callback(new HttpError(401, "Missing authorization"));
-	authorization = authorization.split(":");
 	// NOTE Note this check won't be needed once the session can handle multiple facilities
-	if (authorization[0] != this.crypto.name)
+	if (this.authorization['crypto'] != this.crypto.name)
 		return callback(new HttpError(500, "Unsupported crypto facility"));
-	this.storage.readAccount(authorization[1], afterReadAccount.bind(this));
+	this.storage.readAccount(this.authorization['aid'], afterReadAccount.bind(this));
 
 	function afterReadAccount(error, result) {
 		if (error)
 			return callback(error);
-		var msg = this.crypto.concatenateStrings(authorization[0], authorization[1], this.request.method, this.request.url, this.request.headers['content-type'], this.requestText||"", authorization[3]);
+		var msg = this.crypto.concatenateStrings(this.authorization['crypto'], this.authorization['aid'], this.request.method, this.request.url, this.request.headers['content-type'], this.requestText||"", this.authorization['vector']);
 		var sig = this.crypto.generateHmac(msg, result['auth']);
-		if (sig == authorization[2])
+		if (sig == this.authorization['signature'])
 			return callback();
 		else
 			return callback(new HttpError(403, "Invalid authorization"));
 	}
 }
+
+Object.defineProperty(exports.prototype, "authorization", {
+	get: function() {
+		if (this.$authorization === undefined) {
+			this.$authorization = this.request.headers['authorization']||null;
+			if (this.$authorization) {
+				this.$authorization = this.$authorization.split(":");
+				this.$authorization = {
+					'crypto': this.$authorization[0],
+					'aid': this.$authorization[1],
+					'signature': this.$authorization[2],
+					'vector': this.$authorization[3]
+				};
+			}
+		}
+		return this.$authorization;
+	}
+});

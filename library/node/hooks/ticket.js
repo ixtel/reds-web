@@ -9,11 +9,11 @@ exports.POST = function(session) {
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
 	route.addListener("response", onRouteResponse);
-	route.resolve(session.purl[0].value);
+	route.resolve(session.selector[0].value);
 
 	function onRouteReady() {
 		route.method = "POST";
-		route.path = "/!/domain/"+session.purl[0].value+"/ticket";
+		route.path = "/!/domain/"+session.selector[0].value+"/ticket";
 		route.sendJson(session.requestJSON);
 	}
 

@@ -8,7 +8,7 @@ exports.POST = function(session) {
 	tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJSON['tkey_l']);
 	// NOTE We don't want to modify requestJSON so we create our own JSON object here
 	values = JSON.parse(session.requestText);
-	values['did'] = session.purl[0].value;
+	values['did'] = session.selector[0].value;
 	values['tkey'] = tkey;
 	// TODO Set tflags correctly
 	values['tflags'] = 0xFF;

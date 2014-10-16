@@ -5,7 +5,7 @@ var Route = require("../Route");
 
 exports.GET = function(session) {
 	// NOTE Convert alias in url from base64url to base64
-	var alias = (new Buffer(session.purl[0].value, 'base64')).toString('base64');
+	var alias = (new Buffer(session.selector[0].value, 'base64')).toString('base64');
 	session.storage.readAlias(alias, afterReadAlias);
 
 	function afterReadAlias(error, result) {
@@ -50,7 +50,7 @@ exports.PUT = function(session) {
 			return session.abort(error);
 		// NOTE We don't want to modify requestJSON so we create our own JSON object here
 		var values = JSON.parse(session.requestText);
-		values['id'] = session.purl[0].value;
+		values['id'] = session.selector[0].value;
 		session.storage.updateAccount(values, afterUpdateAccount);
 	}
 	
@@ -70,7 +70,7 @@ exports.DELETE = function(session) {
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
-		session.storage.deleteAccount(session.purl[0].value, afterDeleteAccount);
+		session.storage.deleteAccount(session.selector[0].value, afterDeleteAccount);
 	}
 	
 	function afterDeleteAccount(error, result) {

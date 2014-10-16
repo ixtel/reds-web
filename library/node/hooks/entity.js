@@ -6,16 +6,16 @@ var Route = require("../Route");
 // TODO Handle child entities
 exports.POST = function(session) {
 	var type, route, entity;
-	type = session.purl[session.purl.length-1].key;
+	type = session.selector[session.selector.length-1].key;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
 	route.addListener("response", onRouteResponse);
-	route.resolve(session.ptype.options['did']);
+	route.resolve(session.type.options['did']);
 
 	function onRouteReady() {
 		session.storage.registerEntity(type, {
-			'did': session.ptype.options['did']
+			'did': session.type.options['did']
 		}, afterRegisterEntity);
 	}
 
@@ -46,15 +46,15 @@ exports.POST = function(session) {
 // TODO Handle child entities
 exports.GET = function(session) {
 	var type, route, entity;
-	type = session.purl[session.purl.length-1].key;
+	type = session.selector[session.selector.length-1].key;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
 	route.addListener("response", onRouteResponse);
-	route.resolve(session.ptype.options['did']);
+	route.resolve(session.type.options['did']);
 
 	function onRouteReady() {
-		session.storage.selectEntities(type, session.ptype.options['did'], afterSelectEntities);
+		session.storage.selectEntities(type, session.type.options['did'], afterSelectEntities);
 	}
 
 	function afterSelectEntities(error, result) {
