@@ -192,12 +192,13 @@ exports.prototype.createTicket = function(values, callback) {
 
 // INFO Entity operations
 
-exports.prototype.registerEntity = function(type, values, callback) {
+// TODO Handle child entities
+exports.prototype.registerEntity = function(selector, did, callback) {
 	this.$client.query("INSERT INTO entities (tid, did) "+
 		"VALUES ((SELECT tid FROM types WHERE name=$1), $2) "+
 		"RETURNING eid", [
-		type,
-		values['did']
+		selector.last.key,
+		did
 	], afterQuery);
 
 	function afterQuery(error, result) {
@@ -205,11 +206,12 @@ exports.prototype.registerEntity = function(type, values, callback) {
 	}
 }
 
-exports.prototype.selectEntities = function(type, did, callback) {
+// TODO Handle child entities
+exports.prototype.selectEntities = function(selector, did, callback) {
 	this.$client.query("SELECT entities.eid "+
 		"FROM entities JOIN types ON entities.tid=types.tid "+
 		"WHERE types.name=$1 AND entities.did=$2", [
-		type,
+		selector.last.key,
 		did
 	], afterQuery);
 

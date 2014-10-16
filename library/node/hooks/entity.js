@@ -3,10 +3,8 @@
 var HttpError = require("../../shared/HttpError");
 var Route = require("../Route");
 
-// TODO Handle child entities
 exports.POST = function(session) {
-	var type, route, entity;
-	type = session.selector[session.selector.length-1].key;
+	var route, entity;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -14,16 +12,14 @@ exports.POST = function(session) {
 	route.resolve(session.type.options['did']);
 
 	function onRouteReady() {
-		session.storage.registerEntity(type, {
-			'did': session.type.options['did']
-		}, afterRegisterEntity);
+		session.storage.registerEntity(session.selector, session.type.options['did'], afterRegisterEntity);
 	}
 
 	function afterRegisterEntity(error, result) {
 		if (error)
 			return session.abort(error);
 		route.method = "POST";
-		route.path = "/"+type+"/"+result['eid'];
+		route.path = "/"+session.selector.last.key+"/"+result['eid'];
 		route.send(session.requestText, session.request.headers['content-type']);
 	}
 
@@ -45,8 +41,7 @@ exports.POST = function(session) {
 
 // TODO Handle child entities
 exports.GET = function(session) {
-	var type, route, entity;
-	type = session.selector[session.selector.length-1].key;
+	var route, entity;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -54,7 +49,7 @@ exports.GET = function(session) {
 	route.resolve(session.type.options['did']);
 
 	function onRouteReady() {
-		session.storage.selectEntities(type, session.type.options['did'], afterSelectEntities);
+		session.storage.selectEntities(session.selector, session.type.options['did'], afterSelectEntities);
 	}
 
 	function afterSelectEntities(error, result) {
@@ -67,7 +62,7 @@ exports.GET = function(session) {
 		for (i=0; i<result.length; i++)
 			eids.push(result[i]['eid']);
 		route.method = "GET";
-		route.path = "/"+type+"/"+eids.join(",");
+		route.path = "/"+session.selector.last.key+"/"+eids.join(",");
 		route.send(session.requestText, session.request.headers['content-type']);
 	}
 

@@ -131,6 +131,7 @@ Object.defineProperty(exports.prototype, "selector", {
 					'key': p1||null,
 					'value': p2||null
 				});
+				this.$selector.last = this.$selector[this.$selector.length-1];
 				return p1;
 			}.bind(this));
 		}

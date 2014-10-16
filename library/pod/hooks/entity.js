@@ -8,7 +8,7 @@ exports.POST = function(session) {
 	values = JSON.parse(session.requestText);
 	values['eid'] = session.selector[0].value;
 	values['did'] = session.type.options['did'];
-	session.storage.createEntity(session.selector[0].key, values, afterCreateEntity);
+	session.storage.createEntity(session.selector.last.key, values, afterCreateEntity);
 
 	function afterCreateEntity(error, result) {
 		if (error !== null) {
@@ -25,7 +25,7 @@ exports.POST = function(session) {
 }
 
 exports.GET = function(session) {
-	session.storage.readEntities(session.selector[0].key, session.selector[0].value.split(","), afterReadEntities);
+	session.storage.readEntities(session.selector.last.key, session.selector.last.value.split(","), afterReadEntities);
 
 	function afterReadEntities(error, result) {
 		if (error !== null)
