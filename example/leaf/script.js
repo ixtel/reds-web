@@ -225,9 +225,14 @@ function clearContactList() {
 // INFO Contact actions
 
 function showContact(contact) {
-	document.getElementById("Contact").style['display'] = "block";
-	document.getElementById("ContactId").value = contact;
-	loadAddressList(contact);
+	leaf.readEntities("/contact/"+contact, afterReadEntities.bind(this));
+
+	function afterReadEntities(response) {
+		document.getElementById("Contact").style['display'] = "block";
+		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
+		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
+		loadAddressList(contact);
+	}
 }
 
 function saveContact(fields) {

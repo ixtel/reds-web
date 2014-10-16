@@ -207,7 +207,10 @@ Client.prototype.resolveDomain = function(path, callback) {
 	var match, request, dids;
 	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/\*)?$/);
 	if (match[1]) {
-		throw new Error("TODO resolve domain for known eids");
+		// NOTE This will fail for now
+		// TODO Implement some kind of caching to reduce HEAD requests
+		request = this.$createRequest("HEAD", match[1], onLoad.bind(this));
+		request.send();
 	}
 	else {
 		dids = Object.keys(Vault[this.vid].domain); 
