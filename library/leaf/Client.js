@@ -218,7 +218,7 @@ Client.prototype.resolveDomain = function(path, callback) {
 	}
 
 	function onLoad() {
-		console.log(request.responseType);
+		var dids;
 		dids = request.responseType.options['did'].split(",");
 		callback(dids);
 	}

@@ -39,7 +39,23 @@ exports.POST = function(session) {
 	}
 }
 
-// TODO Handle child entities
+exports.HEAD = function(session) {
+	session.storage.selectEntities(session.selector, session.type.options['did'], afterSelectEntities);
+
+	function afterSelectEntities(error, result) {
+		var dids, i;
+		if (error)
+			return session.abort(error);
+		if (result.length == 0)
+			return session.abort(new HttpError(404, "entities not found"));
+		dids = new Array();
+		for (i=0; i<result.length; i++)
+			dids.push(result[i]['did']);
+		session.write(undefined, "application/x.reds.domain;did="+dids.join(","));
+		session.end();
+	}
+}
+
 exports.GET = function(session) {
 	var route, entity;
 	route = new Route(session.crypto, session.storage);

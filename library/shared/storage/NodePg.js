@@ -206,22 +206,33 @@ exports.prototype.registerEntity = function(selector, did, callback) {
 	}
 }
 
-// TODO Handle child entities
+// TODO Check for SQL injection!
 exports.prototype.selectEntities = function(selector, did, callback) {
-	this.$client.query("SELECT entities.eid "+
-		"FROM entities JOIN types ON entities.tid=types.tid "+
-		"WHERE types.name=$1 AND entities.did=$2", [
-		selector.last.key,
-		did
-	], afterQuery);
-
+	var from, where;
+	from = " FROM ";
+	where = " WHERE ";
+	for (var i=selector.length-1,r=0; i>=0; i--,r++) {
+		if (r>0)
+			from += "JOIN entities e"+r+" ON r"+(r-1)+".parent=e"+r+".eid JOIN types t"+r+" ON e"+r+".tid=t"+r+".id ";
+		else
+			from += "entities e"+r+" JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
+		if (!selector[i].value)
+			where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".did="+did+" ";
+		else
+			where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".eid IN ("+selector[i].value+") ";
+		if (i>0) {
+			from += "JOIN relations r"+r+" ON e"+r+".eid=r"+r+".child ";
+			where += "AND ";
+		}
+	}
+	this.$client.query("SELECT e0.eid,e0.did"+from+where, afterQuery);
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows:null);
 	}	
 }
 
+// TODO Check for SQL injection!
 exports.prototype.createEntity = function(type, values, callback) {
-	// TODO Check type for SQL injection!
 	this.$client.query("INSERT INTO "+type+" (eid, did, text) "+
 		"VALUES ($1,$2,$3) "+
 		"RETURNING *", [
@@ -235,8 +246,8 @@ exports.prototype.createEntity = function(type, values, callback) {
 	}
 }
 
+// TODO Check for SQL injection!
 exports.prototype.readEntities = function(type, eids, callback) {
-	// TODO Check type and eids for SQL injection!
 	this.$client.query("SELECT * "+
 		"FROM "+type+" "+
 		"WHERE eid IN ("+eids.join(",")+")",
