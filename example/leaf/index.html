@@ -31,12 +31,12 @@
 	<div id="Account">
 		<hr>
 		<h2>Account</h2>
-		<form id="EditContact">
+		<form id="EditAccount">
 			<label>ID <input id="AccountId" type="text" name="id" readonly></label>
 			<button id="DeleteAccount" type="button">delete</button>
 			<button id="SignOut" type="button">sign out</button>
 		</form>
-		<form id="UpdatePassword"><br>
+		<form id="UpdateAccount"><br>
 			<label>Password <input type="password" name="password"></label><br>
 			<label>Confirmation <input type="password" name="confirmation"></label>
 			<button type="submit">update</button>
@@ -61,10 +61,11 @@
 		<h2>Contact</h2>
 		<h3>Edit contact</h3>
 		<form id="EditContact">
-			<label>ID <input id="ContactId" type="text" name="id" readonly></label><br>
-			<label>Name <input type="text" name="name"></label><br>
-			<button type="submit">save</button>
+			<label>ID <input id="ContactId" type="text" name="id" readonly></label>
 			<button id="DeleteContact" type="button">delete</button>
+			<button id="HideContact" type="button">hide</button><br>
+			<label>Name <input type="text" name="name"></label>
+			<button type="submit">save</button>
 		</form>
 		<h3>Add address</h3>
 		<form id="AddAddress">
@@ -90,11 +91,12 @@
 		<h2>Address</h2>
 		<h3>Edit address</h3>
 		<form id="EditAddress">
-			<label>ID <input id="AddressId" type="text" name="id" readonly></label><br>
+			<label>ID <input id="AddressId" type="text" name="id" readonly></label>
+			<button id="DeleteAddress" type="button">delete</button>
+			<button id="HideAddress" type="button">hide</button><br>
 			<label>Street <input type="text" name="street"></label><br>
 			<label>City <input type="text" name="city"></label>
 			<button type="submit">save</button>
-			<button id="DeleteAddress" type="button">delete</button>
 		</form>
 	</div>
 	<hr>

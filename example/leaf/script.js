@@ -179,8 +179,9 @@ function showAccount(account) {
 }
 
 function hideAccount(account) {
+	hideContact();
 	document.getElementById("Account").style['display'] = "";
-	document.getElementById("AccountId").value = "";
+	document.getElementById("EditAccount").elements['id'].value = "";
 	clearContactList();
 }
 
@@ -230,17 +231,23 @@ function showContact(contact) {
 	function afterReadEntities(response) {
 		document.getElementById("Contact").style['display'] = "block";
 		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
-		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
+		document.getElementById("EditContact").elements['name'].value = response[0]['text'];
 		loadAddressList(contact);
 	}
+}
+
+function hideContact(contact) {
+	hideAddress();
+	document.getElementById("Contact").style['display'] = "";
+	document.getElementById("EditContact").elements['id'].value = "";
+	document.getElementById("EditContact").elements['name'].value = "";
+	clearAddressList();
 }
 
 function saveContact(fields) {
 }
 
 function deleteContact(contact) {
-	document.getElementById("Address").style['display'] = "";
-	document.getElementById("Contact").style['display'] = "";
 }
 
 function addAddress(contact, fields) {
@@ -249,18 +256,26 @@ function addAddress(contact, fields) {
 function loadAddressList(contact, filter) {
 }
 
+function clearAddressList(contact) {
+}
+
 // INFO Address actions
 
 function showAddress(address) {
 	document.getElementById("Address").style['display'] = "block";
-	document.getElementById("AddressId").value = address;
+}
+
+function hideAddress(address) {
+	document.getElementById("Address").style['display'] = "";
+	document.getElementById("EditAddress").elements['id'].value = "";
+	document.getElementById("EditAddress").elements['street'].value = "";
+	document.getElementById("EditAddress").elements['city'].value = "";
 }
 
 function saveAddress(fields) {
 }
 
-function deleteAddress(address) {
-	document.getElementById("Address").style['display'] = "";
+function deleteAddress(fields) {
 }
 
 // INFO Page initialization
@@ -317,6 +332,11 @@ function init() {
 		deleteContact(this.form.elements['id'].value);
 	}, false);
 
+	document.getElementById("HideContact").addEventListener("click", function(evt) {
+		evt.preventDefault();
+		hideContact();
+	}, false);
+
 	document.getElementById("AddressList").addEventListener("submit", function(evt) {
 		evt.preventDefault();
 		showAddress(this.elements['list'].value);
@@ -340,6 +360,11 @@ function init() {
 	document.getElementById("DeleteAddress").addEventListener("click", function(evt) {
 		evt.preventDefault();
 		deleteAddress(this.form.elements['id'].value);
+	}, false);
+
+	document.getElementById("HideAddress").addEventListener("click", function(evt) {
+		evt.preventDefault();
+		hideAddress();
 	}, false);
 }
 
