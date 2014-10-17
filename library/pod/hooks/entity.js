@@ -19,7 +19,8 @@ exports.POST = function(session) {
 					return session.abort(error);
 			}
 		}
-		session.writeJSON(result);
+		// TODO Send domain data
+		session.writeJSON(result, "application/x.reds.domain");
 		session.end();
 	}
 }
@@ -32,7 +33,8 @@ exports.GET = function(session) {
 			return session.abort(error);
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
-		session.writeJSON(result);
+		// TODO Send domain data
+		session.writeJSON(result, "application/x.reds.domain");
 		session.end();
 	}
 }

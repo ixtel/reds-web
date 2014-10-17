@@ -26,11 +26,12 @@ exports.POST = function(session) {
 		};
 		route.method = "POST";
 		route.path = "/!/domain/"+domain['did'];
-		route.sendJson(domain);
+		route.writeJson(domain);
+		route.send();
 	}
 
 	function onRouteResponse() {
-		session.writeJSON(route.responseJson);
+		session.write(route.responseText, route.responseType);
 		session.end();
 	}
 

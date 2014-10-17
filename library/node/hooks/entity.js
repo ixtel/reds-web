@@ -20,12 +20,12 @@ exports.POST = function(session) {
 			return session.abort(error);
 		route.method = "POST";
 		route.path = "/"+session.selector.last.key+"/"+result['eid'];
-		route.send(session.requestText, session.request.headers['content-type']);
+		route.write(session.requestText, session.request.headers['content-type']);
+		route.send();
 	}
 
 	function onRouteResponse() {
-		// TODO Pass content type
-		session.writeJSON(route.responseJson);
+		session.write(route.responseText, route.responseType);
 		session.end();
 	}
 
@@ -79,12 +79,12 @@ exports.GET = function(session) {
 			eids.push(result[i]['eid']);
 		route.method = "GET";
 		route.path = "/"+session.selector.last.key+"/"+eids.join(",");
-		route.send(session.requestText, session.request.headers['content-type']);
+		route.write(session.requestText, session.request.headers['content-type']);
+		route.send();
 	}
 
 	function onRouteResponse() {
-		// TODO Pass content type
-		session.writeJSON(route.responseJson);
+		session.write(route.responseText, route.responseType);
 		session.end();
 	}
 

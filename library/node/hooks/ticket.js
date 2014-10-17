@@ -14,11 +14,12 @@ exports.POST = function(session) {
 	function onRouteReady() {
 		route.method = "POST";
 		route.path = "/!/domain/"+session.selector[0].value+"/ticket";
-		route.sendJson(session.requestJSON);
+		route.write(session.requestText, session.request.headers['content-type']);
+		route.send();
 	}
 
 	function onRouteResponse() {
-		session.writeJSON(route.responseJson);
+		session.write(route.responseText, route.responseType);
 		session.end();
 	}
 
