@@ -6,6 +6,8 @@ var HttpError = require("../shared/HttpError");
 
 module.exports = exports = function(crypto, storage) {
 	events.EventEmitter.call(this);
+	this.$data = "";
+	this.$type = "application/octet-stream";
 	this.$responseJson = undefined;
 	this.crypto = crypto;
 	this.storage = storage;
@@ -13,6 +15,7 @@ module.exports = exports = function(crypto, storage) {
 	this.method = null;
 	this.path = null;
 	this.responseText = null;
+	this.responseType = null;
 }
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
@@ -39,10 +42,32 @@ exports.prototype.resolve = function(did) {
 	}
 }
 
-exports.prototype.sendJson = function(data, type) {
+exports.prototype.writeJson = function(data, type) {
 	if (data!==undefined)
 		var json = JSON.stringify(data);
-	this.send(json, type||"application/json;charset=encoding");
+	this.write(json, type||"application/json;charset=encoding");
+}
+
+exports.prototype.writeJson = function(data, type) {
+	var json, error;
+	if (data !== undefined) {
+		try {
+			json = JSON.stringify(data);
+		}
+		catch (e) {
+			error = new Error("request contains invalid JSON");
+			this.emit("error", error);
+			return;
+		}
+	}
+	this.write(json, type||"application/json;charset=UTF-8");
+}
+
+exports.prototype.write = function(data, type) {
+	if (this.$data.length)
+		throw new Error("Multiple Route.write calls are not supported yet (TODO)");
+	this.$type = type||"application/octet-stream";
+	this.$data = data||"";
 }
 
 exports.prototype.send = function(data, type) {
@@ -55,9 +80,9 @@ exports.prototype.send = function(data, type) {
 	});
 	req.addListener("error", onError.bind(this));
 	req.addListener('response', onResponse.bind(this));
-	req.setHeader("content-length", data ? Buffer.byteLength(data) : 0);
-	req.setHeader("content-type", type);
-	req.end(data);
+	req.setHeader("content-length", this.$data ? Buffer.byteLength(this.$data) : 0);
+	req.setHeader("content-type", this.$type);
+	req.end(this.$data);
 
 	function onResponse(response) {
 		var responseText = "";
@@ -76,6 +101,7 @@ exports.prototype.send = function(data, type) {
 
 		response.addListener("end", function() {
 			this.responseText = responseText;
+			this.responseType = response.headers['content-type'];
 			this.emit("response", this);
 		}.bind(this));
 	}
