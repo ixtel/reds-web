@@ -270,7 +270,8 @@ Client.prototype.readEntities = function(path, callback) {
 		request.send();
 
 		function onLoad() {
-			results = results.concat(request.responseJson);
+			if (request.responseJson)
+				results = results.concat(request.responseJson);
 			if (--count == 0)
 				callback();
 		}

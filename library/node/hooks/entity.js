@@ -100,8 +100,15 @@ exports.GET = function(session) {
 		var eids, i;
 		if (error)
 			return session.abort(error);
-		if (result.length == 0)
-			return session.abort(new HttpError(404, "entities not found"));
+		if (result.length == 0) {
+			// NOTE Only return an error if the request asked for a specific eid
+			console.log(session.selector);
+			if (session.selector.last.value)
+				return session.abort(new HttpError(404, "entities not found"));
+			else
+				// TODO The 204 case should be handle by session end
+				return session.abort(new HttpError(204, "empty response"));
+		}
 		eids = new Array();
 		for (i=0; i<result.length; i++)
 			eids.push(result[i]['eid']);
