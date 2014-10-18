@@ -5,11 +5,16 @@ var Route = require("../Route");
 
 exports.POST = function(session) {
 	var route, entity;
-	route = new Route(session.crypto, session.storage);
-	route.addListener("error", onRouteError);
-	route.addListener("ready", onRouteReady);
-	route.addListener("response", onRouteResponse);
-	route.resolve(session.type.options['did']);
+	if (session.selector.last.value) {
+		session.storage.linkEntities(session.selector, afterLinkEntities);
+	}
+	else {
+		route = new Route(session.crypto, session.storage);
+		route.addListener("error", onRouteError);
+		route.addListener("ready", onRouteReady);
+		route.addListener("response", onRouteResponse);
+		route.resolve(session.type.options['did']);
+	}
 
 	function onRouteReady() {
 		session.storage.registerEntity(session.selector, session.type.options['did'], afterRegisterEntity);
@@ -17,25 +22,48 @@ exports.POST = function(session) {
 
 	function afterRegisterEntity(error, result) {
 		if (error)
-			return session.abort(error);
+			return onError(error);
+		entity = result;
 		route.method = "POST";
-		route.path = "/"+session.selector.last.key+"/"+result['eid'];
+		route.path = "/"+session.selector.last.key+"/"+entity['eid'];
 		route.write(session.requestText, session.request.headers['content-type']);
 		route.send();
 	}
 
 	function onRouteResponse() {
+		var rselector;
 		session.write(route.responseText, route.responseType);
-		session.end();
+		if (session.selector.length == 1)
+			return session.end();
+		// NOTE This JSON dance is neccasary to create a real clone.
+		rselector = JSON.parse(JSON.stringify(session.selector));
+		rselector.last = rselector[rselector.length-1];
+		rselector.last.value = route.responseJson['eid'];
+		session.storage.linkEntities(rselector, afterLinkEntities);
 	}
 
 	function onRouteError(error) {
+		onError(new HttpError(502, error.message));
+	}
+
+	function afterLinkEntities(error, result) {
+		if (error)
+			return onError(error);
+		// NOTE As long as we don't support mime multipart responses,
+		//      the linking result can only be sent when the routing
+		//      response hasn't been written already.
+		if (!route)
+			session.writeJSON(result);
+		session.end();
+	}
+
+	function onError(error) {
 		if (entity)
-			session.storage.deleteEntity(entity['eid'], function() {
-				session.abort(new HttpError(502, error.message));
+			session.storage.unregisterEntity(entity['eid'], function() {
+				session.abort(error);
 			});
 		else
-			session.abort(new HttpError(502, error.message));
+			session.abort(error);
 	}
 }
 
@@ -57,7 +85,7 @@ exports.HEAD = function(session) {
 }
 
 exports.GET = function(session) {
-	var route, entity;
+	var route;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -89,11 +117,6 @@ exports.GET = function(session) {
 	}
 
 	function onRouteError(error) {
-		if (entity)
-			session.storage.deleteEntity(entity['eid'], function() {
-				session.abort(new HttpError(502, error.message));
-			});
-		else
-			session.abort(new HttpError(502, error.message));
+		session.abort(new HttpError(502, error.message));
 	}
 }

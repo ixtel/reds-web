@@ -192,13 +192,31 @@ exports.prototype.createTicket = function(values, callback) {
 
 // INFO Entity operations
 
-// TODO Handle child entities
 exports.prototype.registerEntity = function(selector, did, callback) {
 	this.$client.query("INSERT INTO entities (tid, did) "+
 		"VALUES ((SELECT tid FROM types WHERE name=$1), $2) "+
 		"RETURNING eid", [
 		selector.last.key,
 		did
+	], afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+// NOTE Dummy stub
+exports.prototype.unregisterEntity = function(selector, callback) {
+	callback(null);
+}
+
+// TODO Handle multiple parent entities and parent levels
+exports.prototype.linkEntities = function(selector, callback) {
+	this.$client.query("INSERT INTO relations (parent, child) "+
+		"VALUES ($1, $2) "+
+		"RETURNING parent, child", [
+		selector[selector.length-2].value,
+		selector.last.value
 	], afterQuery);
 
 	function afterQuery(error, result) {
