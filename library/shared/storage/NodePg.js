@@ -231,7 +231,7 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 	where = " WHERE ";
 	for (var i=selector.length-1,r=0; i>=0; i--,r++) {
 		if (r>0)
-			from += "JOIN entities e"+r+" ON r"+(r-1)+".parent=e"+r+".eid JOIN types t"+r+" ON e"+r+".tid=t"+r+".id ";
+			from += "JOIN entities e"+r+" ON r"+(r-1)+".parent=e"+r+".eid JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
 		else
 			from += "entities e"+r+" JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
 		if (!selector[i].value)
@@ -251,13 +251,19 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.createEntity = function(type, values, callback) {
-	this.$client.query("INSERT INTO "+type+" (eid, did, text) "+
-		"VALUES ($1,$2,$3) "+
-		"RETURNING *", [
-		values['eid'],
-		values['did'],
-		values['text']
-	], afterQuery);
+	var fields, pindex, parray, field;
+	fields = new Array();
+	pindex = new Array();
+	parray = new Array();
+	for (field in values) {
+		fields.push(field);
+		parray.push(values[field]);
+		pindex.push("$"+parray.length);
+	}
+	this.$client.query("INSERT INTO "+type+" ("+fields.join(",")+") "+
+		"VALUES ("+pindex.join(",")+") "+
+		"RETURNING *",
+	parray, afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
