@@ -205,9 +205,8 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 
 Client.prototype.resolveDomain = function(path, callback) {
 	var match, request, dids;
-	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/\*)?$/);
+	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/)?$/);
 	if (match[1]) {
-		// NOTE This will fail for now
 		// TODO Implement some kind of caching to reduce HEAD requests
 		request = this.$createRequest("HEAD", match[1], onLoad.bind(this));
 		request.send();
@@ -228,10 +227,10 @@ Client.prototype.resolveDomain = function(path, callback) {
 
 Client.prototype.createEntity = function(path, data, domain, callback) {
 	var request, did;
-	if (typeof domain == "object")
+	if (domain && domain['url'])
 		this.createDomain(domain['url'], domain['password'], afterCreateDomain.bind(this));
 	else
-		afterUpdateVault.call(this);
+		this.resolveDomain(path, afterResolveDomain.bind(this));
 
 	function afterCreateDomain(result) {
 		this.createOwnerTicket(result['did'], afterCreateOwnerTicket.bind(this));
@@ -240,6 +239,11 @@ Client.prototype.createEntity = function(path, data, domain, callback) {
 	function afterCreateOwnerTicket(result) {
 		did = result['did'];
 		this.updateVault(afterUpdateVault.bind(this));
+	}
+
+	function afterResolveDomain(dids) {
+		did = dids[0];
+		afterUpdateVault.call(this);
 	}
 
 	function afterUpdateVault() {
