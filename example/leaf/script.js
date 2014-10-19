@@ -187,7 +187,7 @@ function hideAccount(account) {
 
 function addContact(name, url, password) {
 	leaf.createEntity("/contact", {
-		'text': name
+		'name': name
 	}, {
 		'url': url,
 		'password': password
@@ -196,8 +196,9 @@ function addContact(name, url, password) {
 	function afterCreateEntity(response) {
 		var option = document.createElement("option");
 		option.setAttribute("value", response['eid']);
-		option.appendChild(document.createTextNode(response['text']));
+		option.appendChild(document.createTextNode(response['name']));
 		document.getElementById("ContactList").elements['list'].appendChild(option);
+		document.getElementById("AddContact").reset();
 	}
 }
 
@@ -210,14 +211,15 @@ function loadContactList(filter) {
 		for (i=0; i<response.length; i++) {
 			var option = document.createElement("option");
 			option.setAttribute("value", response[i]['eid']);
-			option.appendChild(document.createTextNode(response[i]['text']));
+			option.appendChild(document.createTextNode(response[i]['name']));
 			contactList.elements['list'].appendChild(option);
 		}
 	}
 }
 
 function clearContactList() {
-	var contactList = document.getElementById("ContactList");
+	var contactList;
+	contactList = document.getElementById("ContactList");
 	contactList.elements['filter'].value = "";
 	while (contactList.elements['list'].lastChild)
 		contactList.elements['list'].removeChild(contactList.elements['list'].lastChild);
@@ -231,7 +233,7 @@ function showContact(contact) {
 	function afterReadEntities(response) {
 		document.getElementById("Contact").style['display'] = "block";
 		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
-		document.getElementById("EditContact").elements['name'].value = response[0]['text'];
+		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
 		loadAddressList(contact);
 	}
 }
@@ -250,13 +252,43 @@ function saveContact(fields) {
 function deleteContact(contact) {
 }
 
-function addAddress(contact, fields) {
+function addAddress(contact, street, city) {
+	leaf.createEntity("/contact/"+contact+"/address/", {
+		'street': street,
+		'city': city
+	}, null, afterCreateEntity);
+
+	function afterCreateEntity(response) {
+		var option = document.createElement("option");
+		option.setAttribute("value", response['eid']);
+		option.appendChild(document.createTextNode(response['street']+", "+response['city']));
+		document.getElementById("AddressList").elements['list'].appendChild(option);
+		document.getElementById("AddAddress").reset();
+	}
 }
 
 function loadAddressList(contact, filter) {
+	leaf.readEntities("/contact/"+contact+"/address", afterReadEntities.bind(this));
+
+	function afterReadEntities(response) {
+		console.log(response);
+		var addressList, i;
+		addressList = document.getElementById("AddressList");
+		for (i=0; i<response.length; i++) {
+			var option = document.createElement("option");
+			option.setAttribute("value", response[i]['eid']);
+			option.appendChild(document.createTextNode(response[i]['street']+", "+response[i]['city']));
+			addressList.elements['list'].appendChild(option);
+		}
+	}
 }
 
 function clearAddressList(contact) {
+	var addressList;
+	addressList = document.getElementById("AddressList");
+	addressList.elements['filter'].value = "";
+	while (addressList.elements['list'].lastChild)
+		addressList.elements['list'].removeChild(addressList.elements['list'].lastChild);
 }
 
 // INFO Address actions
@@ -344,7 +376,7 @@ function init() {
 
 	document.getElementById("AddAddress").addEventListener("submit", function(evt) {
 		evt.preventDefault();
-		addAddress(document.getElementById("ContactId").value, this.elements);
+		addAddress(document.getElementById("ContactId").value, this.elements['street'].value, this.elements['city'].value);
 	}, false);
 
 	document.getElementById("ReloadAddressList").addEventListener("click", function(evt) {
