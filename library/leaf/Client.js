@@ -274,6 +274,7 @@ Client.prototype.readEntities = function(path, callback) {
 		request.send();
 
 		function onLoad() {
+			// TODO Read entities from other domains
 			if (request.responseJson)
 				results = results.concat(request.responseJson);
 			if (--count == 0)
@@ -281,6 +282,44 @@ Client.prototype.readEntities = function(path, callback) {
 		}
 
 		function onError(evt) {
+			// TODO Display error after all requests returned
+			evt.stopImmediatePropagation();
+			if (--count == 0)
+				callback();
+		}
+	}
+
+	function afterReadEntity() {
+		callback(results);
+	}
+}
+
+Client.prototype.updateEntities = function(path, data, callback) {
+	var eids, count, results, did, request;
+	this.resolveDomain(path, afterResolveDomain.bind(this));
+
+	function afterResolveDomain(dids) {
+		results = new Array();
+		for (count=0; count < dids.length; count++)
+			updateEntitiesForDomain.call(this, dids[count], afterReadEntity.bind(this));
+	}
+
+	function updateEntitiesForDomain(did, callback) {
+		var request;
+		request = this.$createRequest("PUT", path, onLoad.bind(this), onError.bind(this));
+		request.writeDomain(data, Vault[this.vid].domain[did]);
+		request.send();
+
+		function onLoad() {
+			// TODO Update entities from other domains
+			if (request.responseJson)
+				results = results.concat(request.responseJson);
+			if (--count == 0)
+				callback();
+		}
+
+		function onError(evt) {
+			// TODO Display error after all requests returned
 			evt.stopImmediatePropagation();
 			if (--count == 0)
 				callback();

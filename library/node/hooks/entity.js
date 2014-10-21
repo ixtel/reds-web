@@ -127,3 +127,47 @@ exports.GET = function(session) {
 		session.abort(new HttpError(502, error.message));
 	}
 }
+
+exports.PUT = function(session) {
+	var route;
+	route = new Route(session.crypto, session.storage);
+	route.addListener("error", onRouteError);
+	route.addListener("ready", onRouteReady);
+	route.addListener("response", onRouteResponse);
+	route.resolve(session.type.options['did']);
+
+	function onRouteReady() {
+		session.storage.selectEntities(session.selector, session.type.options['did'], afterSelectEntities);
+	}
+
+	function afterSelectEntities(error, result) {
+		var eids, i;
+		if (error)
+			return session.abort(error);
+		if (result.length == 0) {
+			// NOTE Only return an error if the request asked for a specific eid
+			console.log(session.selector);
+			if (session.selector.last.value)
+				return session.abort(new HttpError(404, "entities not found"));
+			else
+				// TODO The 204 case should be handle by session end
+				return session.abort(new HttpError(204, "empty response"));
+		}
+		eids = new Array();
+		for (i=0; i<result.length; i++)
+			eids.push(result[i]['eid']);
+		route.method = "PUT";
+		route.path = "/"+session.selector.last.key+"/"+eids.join(",");
+		route.write(session.requestText, session.request.headers['content-type']);
+		route.send();
+	}
+
+	function onRouteResponse() {
+		session.write(route.responseText, route.responseType);
+		session.end();
+	}
+
+	function onRouteError(error) {
+		session.abort(new HttpError(502, error.message));
+	}
+}

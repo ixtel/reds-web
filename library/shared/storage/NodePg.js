@@ -251,19 +251,19 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.createEntity = function(type, values, callback) {
-	var fields, pindex, parray, field;
+	var fields, vals, params, field;
 	fields = new Array();
-	pindex = new Array();
-	parray = new Array();
+	vals = new Array();
+	params = new Array();
 	for (field in values) {
 		fields.push(field);
-		parray.push(values[field]);
-		pindex.push("$"+parray.length);
+		params.push(values[field]);
+		vals.push("$"+params.length);
 	}
 	this.$client.query("INSERT INTO "+type+" ("+fields.join(",")+") "+
-		"VALUES ("+pindex.join(",")+") "+
+		"VALUES ("+vals.join(",")+") "+
 		"RETURNING *",
-	parray, afterQuery);
+	params, afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -276,6 +276,41 @@ exports.prototype.readEntities = function(type, eids, callback) {
 		"FROM "+type+" "+
 		"WHERE eid IN ("+eids.join(",")+")",
 	afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows:null);
+	}
+}
+
+// TODO Check for SQL injection!
+exports.prototype.updateEntities = function(type, values, callback) {
+	var ids, fields, params, set, field, i;
+	ids = new Array();
+	fields = new Object();
+	params = new Array();
+	for (i=0; i<values.length; i++) {
+		params.push(values[i]['eid']);
+		ids.push("$"+params.length);
+		for (field in values[i]) {
+			if (field != 'eid') {
+				if (!fields[field])
+					fields[field] = "";
+				// NOTE psql seems to escape numbers as strings when they're
+				//      used inside a when-then clause
+				if (typeof values[i][field] == 'number') {
+					fields[field] += "when eid="+ids[ids.length-1]+" then "+values[i][field];
+				}
+				else {
+					params.push(values[i][field]);
+					fields[field] += "when eid="+ids[ids.length-1]+" then $"+params.length;
+				}
+			}
+		}
+	}
+	set = new Array();
+	for (field in fields)
+		set.push(field+"=case "+fields[field]+" end");
+	this.$client.query("UPDATE "+type+" SET "+set.join(",")+" WHERE eid IN ("+ids.join(",")+") RETURNING *", params, afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows:null);
