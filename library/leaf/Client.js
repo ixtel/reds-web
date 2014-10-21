@@ -258,13 +258,14 @@ Client.prototype.createEntity = function(path, data, domain, callback) {
 }
 
 Client.prototype.readEntities = function(path, callback) {
-	var eids, count, results, did, request;
+	var eids, count, results, errors, did, request;
 	this.resolveDomain(path, afterResolveDomain.bind(this));
 
 	function afterResolveDomain(dids) {
 		results = new Array();
+		errors = new Array();
 		for (count=0; count < dids.length; count++)
-			readEntitiesForDomain.call(this, dids[count], afterReadEntity.bind(this));
+			readEntitiesForDomain.call(this, dids[count], afterReadEntitiesForDomain.bind(this));
 	}
 
 	function readEntitiesForDomain(did, callback) {
@@ -282,26 +283,29 @@ Client.prototype.readEntities = function(path, callback) {
 		}
 
 		function onError(evt) {
-			// TODO Display error after all requests returned
 			evt.stopImmediatePropagation();
+			errors.push(evt.detail);
 			if (--count == 0)
 				callback();
 		}
 	}
 
-	function afterReadEntity() {
+	function afterReadEntitiesForDomain() {
+		if (errors.length)
+			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		callback(results);
 	}
 }
 
 Client.prototype.updateEntities = function(path, data, callback) {
-	var eids, count, results, did, request;
+	var eids, count, results, errors, did, request;
 	this.resolveDomain(path, afterResolveDomain.bind(this));
 
 	function afterResolveDomain(dids) {
 		results = new Array();
+		errors = new Array();
 		for (count=0; count < dids.length; count++)
-			updateEntitiesForDomain.call(this, dids[count], afterReadEntity.bind(this));
+			updateEntitiesForDomain.call(this, dids[count], afterUpdateEntitiesForDomain.bind(this));
 	}
 
 	function updateEntitiesForDomain(did, callback) {
@@ -319,14 +323,15 @@ Client.prototype.updateEntities = function(path, data, callback) {
 		}
 
 		function onError(evt) {
-			// TODO Display error after all requests returned
 			evt.stopImmediatePropagation();
 			if (--count == 0)
 				callback();
 		}
 	}
 
-	function afterReadEntity() {
+	function afterUpdateEntitiesForDomain() {
+		if (errors.length)
+			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		callback(results);
 	}
 }
