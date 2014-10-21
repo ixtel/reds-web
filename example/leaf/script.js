@@ -7,7 +7,10 @@ var leaf = new reds.leaf.Client({
 
 leaf.addEventListener("error", function(evt) {
 	evt.preventDefault();
-	alert(evt.detail);
+	if (evt.detail.length)
+		alert(evt.detail.join("\n"));
+	else
+		alert(evt.detail);
 });
 
 function convertElementsToObject(elements) {
@@ -203,6 +206,7 @@ function addContact(name, url, password) {
 }
 
 function loadContactList(filter) {
+	clearContactList();
 	leaf.readEntities("/contact", afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
@@ -246,10 +250,24 @@ function hideContact(contact) {
 	clearAddressList();
 }
 
-function saveContact(fields) {
+function saveContact(contact, name) {
+	leaf.updateEntities("/contact/"+contact, [
+		{'eid':contact, 'name': name}
+	], afterUpdateEntities.bind(this));
+
+	function afterUpdateEntities(response) {
+		document.getElementById("Contact").style['display'] = "block";
+		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
+		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
+	}
 }
 
 function deleteContact(contact) {
+	leaf.deleteEntities("/contact/"+contact, afterDeleteEntities);
+
+	function afterDeleteEntities(response) {
+		hideContact();
+	}
 }
 
 function addAddress(contact, street, city) {
@@ -268,6 +286,7 @@ function addAddress(contact, street, city) {
 }
 
 function loadAddressList(contact, filter) {
+	clearAddressList();
 	leaf.readEntities("/contact/"+contact+"/address", afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
@@ -294,7 +313,14 @@ function clearAddressList(contact) {
 // INFO Address actions
 
 function showAddress(address) {
-	document.getElementById("Address").style['display'] = "block";
+	leaf.readEntities("/address/"+address, afterReadEntities.bind(this));
+
+	function afterReadEntities(response) {
+		document.getElementById("Address").style['display'] = "block";
+		document.getElementById("EditAddress").elements['id'].value = response[0]['eid'];
+		document.getElementById("EditAddress").elements['street'].value = response[0]['street'];
+		document.getElementById("EditAddress").elements['city'].value = response[0]['city'];
+	}
 }
 
 function hideAddress(address) {
@@ -304,10 +330,26 @@ function hideAddress(address) {
 	document.getElementById("EditAddress").elements['city'].value = "";
 }
 
-function saveAddress(fields) {
+function saveAddress(address, street, city) {
+	leaf.updateEntities("/address/"+address, [
+		{'eid':address, 'street': street, 'city': city}
+	], null, afterUpdateEntities);
+
+	function afterUpdateEntities(response) {
+		document.getElementById("Address").style['display'] = "block";
+		document.getElementById("EditAddress").elements['id'].value = response[0]['eid'];
+		document.getElementById("EditAddress").elements['street'].value = response[0]['street'];
+		document.getElementById("EditAddress").elements['city'].value = response[0]['city'];
+	}
 }
 
-function deleteAddress(fields) {
+function deleteAddress(address) {
+	console.log("foo");
+	leaf.deleteEntities("/address/"+address, afterDeleteEntities);
+
+	function afterDeleteEntities(response) {
+		hideAddress();
+	}
 }
 
 // INFO Page initialization
@@ -356,7 +398,7 @@ function init() {
 
 	document.getElementById("EditContact").addEventListener("submit", function(evt) {
 		evt.preventDefault();
-		saveContact(convertElementsToObject(this.elements));
+		saveContact(this.elements['id'].value, this.elements['name'].value);
 	}, false);
 
 	document.getElementById("DeleteContact").addEventListener("click", function(evt) {
@@ -386,7 +428,7 @@ function init() {
 
 	document.getElementById("EditAddress").addEventListener("submit", function(evt) {
 		evt.preventDefault();
-		saveAddress(convertElementsToObject(this.elements));
+		saveAddress(this.elements['id'].value, this.elements['street'].value, this.elements['city'].value);
 	}, false);
 
 	document.getElementById("DeleteAddress").addEventListener("click", function(evt) {
