@@ -210,7 +210,7 @@ exports.prototype.unregisterEntity = function(selector, callback) {
 	callback(null);
 }
 
-// TODO Handle multiple parent entities and parent levels
+// TODO Handle multiple entities and parent levels
 exports.prototype.linkEntities = function(selector, callback) {
 	this.$client.query("INSERT INTO relations (parent, child) "+
 		"VALUES ($1, $2) "+
@@ -220,6 +220,31 @@ exports.prototype.linkEntities = function(selector, callback) {
 	], afterQuery);
 
 	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+// TODO Handle multiple entities and parent levels
+exports.prototype.unlinkEntities = function(selector, callback) {
+	this.$client.query("ALTER TABLE relations DISABLE TRIGGER USER", afterDisableQuery.bind(this));
+
+	function afterDisableQuery(error, result) {
+		if (error)
+			return callback(error);
+		this.$client.query("DELETE FROM relations "+
+			"WHERE parent=$1 AND child=$2", [
+			selector[selector.length-2].value,
+			selector.last.value
+		], afterDeleteQuery.bid(this));
+	}
+
+	function afterDeleteQuery(error, result) {
+		if (error)
+			return callback(error);
+		this.$client.query("ALTER TABLE relations ENABLE TRIGGER USER", afterEnableQuery);
+	}
+
+	function afterEnableQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
