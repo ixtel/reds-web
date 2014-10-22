@@ -243,7 +243,7 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 			where += "AND ";
 		}
 	}
-	this.$client.query("SELECT e0.eid,e0.did"+from+where, afterQuery);
+	this.$client.query("SELECT e0.eid,e0.did,t0.name AS type"+from+where, afterQuery);
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows:null);
 	}	

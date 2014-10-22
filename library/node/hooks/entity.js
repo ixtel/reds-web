@@ -97,23 +97,30 @@ exports.GET = function(session) {
 	}
 
 	function afterSelectEntities(error, result) {
-		var eids, i;
+		var types, eids, i, type;
 		if (error)
 			return session.abort(error);
 		if (result.length == 0) {
-			// NOTE Only return an error if the request asked for a specific eid
-			console.log(session.selector);
+			// NOTE Only return an error if the request asked for specific eids
 			if (session.selector.last.value)
 				return session.abort(new HttpError(404, "entities not found"));
 			else
-				// TODO The 204 case should be handle by session end
+				// TODO The 204 case should be handled by session end
 				return session.abort(new HttpError(204, "empty response"));
 		}
+		types = new Object();
+		for (i=0; i<result.length; i++) {
+			if (!types[result[i]['type']])
+				types[result[i]['type']] = result[i]['eid'];
+			else
+				types[result[i]['type']] += ","+result[i]['eid'];
+		}
 		eids = new Array();
-		for (i=0; i<result.length; i++)
-			eids.push(result[i]['eid']);
+		for (type in types) {
+			eids.push(types[type]);
+		}
 		route.method = "GET";
-		route.path = "/"+session.selector.last.key+"/"+eids.join(",");
+		route.path = "/"+Object.keys(types).join(",")+"/"+eids.join(";");
 		route.write(session.requestText, session.request.headers['content-type']);
 		route.send();
 	}
@@ -141,23 +148,30 @@ exports.PUT = function(session) {
 	}
 
 	function afterSelectEntities(error, result) {
-		var eids, i;
+		var types, eids, i, type;
 		if (error)
 			return session.abort(error);
 		if (result.length == 0) {
-			// NOTE Only return an error if the request asked for a specific eid
-			console.log(session.selector);
+			// NOTE Only return an error if the request asked for specific eids
 			if (session.selector.last.value)
 				return session.abort(new HttpError(404, "entities not found"));
 			else
-				// TODO The 204 case should be handle by session end
+				// TODO The 204 case should be handled by session end
 				return session.abort(new HttpError(204, "empty response"));
 		}
+		types = new Object();
+		for (i=0; i<result.length; i++) {
+			if (!types[result[i]['type']])
+				types[result[i]['type']] = result[i]['eid'];
+			else
+				types[result[i]['type']] += ","+result[i]['eid'];
+		}
 		eids = new Array();
-		for (i=0; i<result.length; i++)
-			eids.push(result[i]['eid']);
+		for (type in types) {
+			eids.push(types[type]);
+		}
 		route.method = "PUT";
-		route.path = "/"+session.selector.last.key+"/"+eids.join(",");
+		route.path = "/"+Object.keys(types).join(",")+"/"+eids.join(";");
 		route.write(session.requestText, session.request.headers['content-type']);
 		route.send();
 	}
