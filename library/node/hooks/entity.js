@@ -59,7 +59,7 @@ exports.POST = function(session) {
 
 	function onError(error) {
 		if (entity)
-			session.storage.unregisterEntity(entity['eid'], function() {
+			session.storage.unregisterEntity([entity['eid']], session.type.options['did'], function() {
 				session.abort(error);
 			});
 		else
@@ -84,6 +84,7 @@ exports.HEAD = function(session) {
 	}
 }
 
+// TODO Return entities in different domains
 exports.GET = function(session) {
 	var route;
 	route = new Route(session.crypto, session.storage);
@@ -135,6 +136,7 @@ exports.GET = function(session) {
 	}
 }
 
+// TODO Return entities in different domains
 exports.PUT = function(session) {
 	var route;
 	route = new Route(session.crypto, session.storage);
@@ -177,6 +179,70 @@ exports.PUT = function(session) {
 	}
 
 	function onRouteResponse() {
+		session.write(route.responseText, route.responseType);
+		session.end();
+	}
+
+	function onRouteError(error) {
+		session.abort(new HttpError(502, error.message));
+	}
+}
+
+// TODO Add ability to just unlink entities
+// TODO Return entities in different domains
+exports.DELETE = function(session) {
+	var route, eids;
+	route = new Route(session.crypto, session.storage);
+	route.addListener("error", onRouteError);
+	route.addListener("ready", onRouteReady);
+	route.addListener("response", onRouteResponse);
+	route.resolve(session.type.options['did']);
+
+	function onRouteReady() {
+		session.storage.selectCascade(session.selector, session.type.options['did'], afterSelectCascade);
+	}
+
+	function afterSelectCascade(error, result) {
+		var types, i, t;
+		if (error)
+			return session.abort(error);
+		if (result.length == 0) {
+			// NOTE Only return an error if the request asked for specific eids
+			if (session.selector.last.value)
+				return session.abort(new HttpError(404, "entities not found"));
+			else
+				// TODO The 204 case should be handled by session end
+				return session.abort(new HttpError(204, "empty response"));
+		}
+		types = new Object();
+		for (i=0; i<result.length; i++) {
+			if (result[i]['did'] == session.type.options['did']) {
+				if (!types[result[i]['type']])
+					types[result[i]['type']] = result[i]['eid'];
+				else
+					types[result[i]['type']] += ","+result[i]['eid'];
+			}
+			else {
+				response.push(result[i]);
+			}
+		}
+		eids = new Array();
+		for (t in types) {
+			eids.push(types[t]);
+		}
+		route.method = "DELETE";
+		route.path = "/"+Object.keys(types).join(",")+"/"+eids.join(";");
+		route.write(session.requestText, session.request.headers['content-type']);
+		route.send();
+	}
+
+	function onRouteResponse() {
+		session.storage.unregisterEntities(eids, session.type.options['did'], afterUnregisterEntities);
+	}
+
+	function afterUnregisterEntities(error, result) {
+		if (error)
+			return session.abort(error);
 		session.write(route.responseText, route.responseType);
 		session.end();
 	}

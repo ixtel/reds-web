@@ -324,12 +324,53 @@ Client.prototype.updateEntities = function(path, data, callback) {
 
 		function onError(evt) {
 			evt.stopImmediatePropagation();
+			errors.push(evt.detail);
 			if (--count == 0)
 				callback();
 		}
 	}
 
 	function afterUpdateEntitiesForDomain() {
+		if (errors.length)
+			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		callback(results);
+	}
+}
+
+Client.prototype.deleteEntities = function(path, callback) {
+	var eids, count, results, errors, did, request;
+	this.resolveDomain(path, afterResolveDomain.bind(this));
+
+	function afterResolveDomain(dids) {
+		results = new Array();
+		errors = new Array();
+		for (count=0; count < dids.length; count++)
+			deleteEntitiesForDomain.call(this, dids[count], afterReadEntity.bind(this));
+	}
+
+	function deleteEntitiesForDomain(did, callback) {
+		var request;
+		request = this.$createRequest("DELETE", path, onLoad.bind(this), onError.bind(this));
+		request.writeDomain(undefined, Vault[this.vid].domain[did]);
+		request.send();
+
+		function onLoad() {
+			// TODO Delete entities from other domains
+			if (request.responseJson)
+				results = results.concat(request.responseJson);
+			if (--count == 0)
+				callback();
+		}
+
+		function onError(evt) {
+			evt.stopImmediatePropagation();
+			errors.push(evt.detail);
+			if (--count == 0)
+				callback();
+		}
+	}
+
+	function afterReadEntity() {
 		if (errors.length)
 			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		callback(results);

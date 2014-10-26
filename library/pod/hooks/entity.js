@@ -57,3 +57,15 @@ exports.PUT = function(session) {
 		session.end();
 	}
 }
+
+exports.DELETE = function(session) {
+	session.storage.deleteEntities(session.selector.last.key, session.selector.last.value.split(","), afterDeleteEntities);
+
+	function afterDeleteEntities(error, result) {
+		if (error !== null)
+			return session.abort(error);
+		// TODO Send domain data
+		session.writeJSON(result, "application/x.reds.domain");
+		session.end();
+	}
+}
