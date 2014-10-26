@@ -124,7 +124,6 @@ exports.prototype.deleteAccount = function(id, callback) {
 
 // INFO Domain operations
 
-// TODO Merge with create
 exports.prototype.registerDomain = function(values, callback) {
 	this.$client.query("INSERT INTO domains (pid) "+
 		"VALUES ($1) "+
@@ -192,29 +191,38 @@ exports.prototype.createTicket = function(values, callback) {
 
 // INFO Entity operations
 
-exports.prototype.registerEntity = function(selector, did, callback) {
-	this.$client.query("INSERT INTO entities (tid, did) "+
-		"VALUES ((SELECT tid FROM types WHERE name=$1), $2) "+
-		"RETURNING eid", [
-		selector.last.key,
-		did
-	], afterQuery);
+exports.prototype.reserveEntity = function(callback) {
+	this.$client.query("SELECT nextval('entities_eid_seq')", afterQuery);
 
 	function afterQuery(error, result) {
-		callback(error||null, result?result.rows[0]:null);
+		callback(error||null, result?result.rows[0]['nextval']:null);
 	}
 }
 
-// TODO Handle multiple types and eids
-exports.prototype.linkEntities = function(selector, callback) {
-	this.$client.query("INSERT INTO relations (parent, child) "+
-		"VALUES ($1, $2) "+
-		"RETURNING parent, child", [
-		selector[selector.length-2].value,
-		selector.last.value
-	], afterQuery);
+exports.prototype.registerEntity = function(selector, did, callback) {
+	this.$client.query("INSERT INTO entities (eid, tid, did) "+
+			"SELECT	$1, (SELECT tid FROM types WHERE name=$2), $3 "+
+			"WHERE NOT EXISTS (SELECT eid FROM entities WHERE eid = $1)", [
+			selector.last.value,
+			selector.last.key,
+			did
+	], afterEntitiesQuery.bind(this));
 
-	function afterQuery(error, result) {
+	function afterEntitiesQuery(error, result) {
+		if (selector.length > 1) {
+			this.$client.query("INSERT INTO relations (parent, child) "+
+				"VALUES ($1, $2) "+
+				"RETURNING parent, child", [
+				selector[selector.length-2].value,
+				selector.last.value
+			], afterRelationsQuery);
+		}
+		else {
+			afterRelationsQuery(null, null);
+		}
+	}
+
+	function afterRelationsQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }

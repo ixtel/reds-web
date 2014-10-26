@@ -4,9 +4,9 @@ var HttpError = require("../../shared/HttpError");
 var Route = require("../Route");
 
 exports.POST = function(session) {
-	var route, entity;
+	var route;
 	if (session.selector.last.value) {
-		session.storage.linkEntities(session.selector, afterLinkEntities);
+		session.storage.registerEntity(session.selector, session.type.options['did'], afterRegisterEntity);
 	}
 	else {
 		route = new Route(session.crypto, session.storage);
@@ -17,15 +17,14 @@ exports.POST = function(session) {
 	}
 
 	function onRouteReady() {
-		session.storage.registerEntity(session.selector, session.type.options['did'], afterRegisterEntity);
+		session.storage.reserveEntity(afterReserveEntity);
 	}
 
-	function afterRegisterEntity(error, result) {
+	function afterReserveEntity(error, eid) {
 		if (error)
-			return onError(error);
-		entity = result;
+			return session.abort(error);
 		route.method = "POST";
-		route.path = "/"+session.selector.last.key+"/"+entity['eid'];
+		route.path = "/"+session.selector.last.key+"/"+eid;
 		route.write(session.requestText, session.request.headers['content-type']);
 		route.send();
 	}
@@ -33,37 +32,26 @@ exports.POST = function(session) {
 	function onRouteResponse() {
 		var rselector;
 		session.write(route.responseText, route.responseType);
-		if (session.selector.length == 1)
-			return session.end();
 		// NOTE This JSON dance is neccasary to create a real clone.
 		rselector = JSON.parse(JSON.stringify(session.selector));
 		rselector.last = rselector[rselector.length-1];
 		rselector.last.value = route.responseJson['eid'];
-		session.storage.linkEntities(rselector, afterLinkEntities);
+		session.storage.registerEntity(rselector, session.type.options['did'], afterRegisterEntity);
 	}
 
 	function onRouteError(error) {
-		onError(new HttpError(502, error.message));
+		session.abort(new HttpError(502, error.message));
 	}
 
-	function afterLinkEntities(error, result) {
+	function afterRegisterEntity(error, result) {
 		if (error)
-			return onError(error);
+			return session.abort(error);
 		// NOTE As long as we don't support mime multipart responses,
 		//      the linking result can only be sent when the routing
 		//      response hasn't been written already.
 		if (!route)
 			session.writeJSON(result);
 		session.end();
-	}
-
-	function onError(error) {
-		if (entity)
-			session.storage.unregisterEntity([entity['eid']], session.type.options['did'], function() {
-				session.abort(error);
-			});
-		else
-			session.abort(error);
 	}
 }
 
@@ -188,7 +176,6 @@ exports.PUT = function(session) {
 	}
 }
 
-// TODO Add ability to just unlink entities
 // TODO Return entities in different domains
 exports.DELETE = function(session) {
 	var route, eids;
