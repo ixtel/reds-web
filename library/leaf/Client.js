@@ -217,9 +217,8 @@ Client.prototype.deleteDomains = function(dids, callback) {
 		request.send();
 
 		function onLoad() {
-			// TODO Read entities from other domains
-			if (request.responseJson)
-				results = results.concat(request.responseJson);
+			results = results.concat(request.responseJson);
+			delete Vault[this.vid].domain[request.responseJson['did']];
 			if (--count == 0)
 				callback();
 		}
@@ -407,19 +406,23 @@ Client.prototype.deleteEntities = function(path, callback) {
 	}
 
 	function afterDeleteEntitiesForDomain() {
-		var dids, i;
+		var dids, domains, i;
 		if (errors.length)
 			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
-		console.log(results);
 		dids = new Array();
 		for (i=0; i<results.length; i++)
 			if (results[i]['ecount'] == 0)
 				dids.push(results[i]['did']);
-		console.log(dids);
 		if (dids.length)
-			this.deleteDomains(dids, callback);
+			this.deleteDomains(dids, afterDeleteDomains.bind(this));
 		else
-			callback();
+			callback();	
+	}
+
+	function afterDeleteDomains(result) {
+		this.updateVault(function() {
+			callback(result);
+		});
 	}
 }
 
