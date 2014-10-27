@@ -27,6 +27,8 @@ exports.prototype.init = function(pod) {
 	function afterReadPod(error, result) {
 		if (error)
 			return this.emit("error", error)
+		if (!result)
+			return this.emit("error", new Error("unknown pod"))
 		this.pod = result;
 		this.emit("ready");
 	}
@@ -38,6 +40,8 @@ exports.prototype.resolve = function(did) {
 	function afterReadDomain(error, result) {
 		if (error)
 			return this.emit("error", error)
+		if (!result)
+			return this.emit("error", new Error("unknown domain"))
 		this.init(result['pid']);
 	}
 }
