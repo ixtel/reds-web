@@ -233,7 +233,7 @@ Client.prototype.deleteDomains = function(dids, callback) {
 
 	function afterDeleteDomain() {
 		if (errors.length)
-			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		callback(results);
 	}
 }
@@ -327,7 +327,7 @@ Client.prototype.readEntities = function(path, callback) {
 
 	function afterReadEntitiesForDomain() {
 		if (errors.length)
-			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		callback(results);
 	}
 }
@@ -367,7 +367,7 @@ Client.prototype.updateEntities = function(path, data, callback) {
 
 	function afterUpdateEntitiesForDomain() {
 		if (errors.length)
-			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		callback(results);
 	}
 }
@@ -408,7 +408,7 @@ Client.prototype.deleteEntities = function(path, callback) {
 	function afterDeleteEntitiesForDomain() {
 		var dids, domains, i;
 		if (errors.length)
-			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		dids = new Array();
 		for (i=0; i<results.length; i++)
 			if (results[i]['ecount'] == 0)
