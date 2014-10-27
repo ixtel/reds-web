@@ -50,7 +50,7 @@ exports.PUT = function(session) {
 			return session.abort(error);
 		// NOTE We don't want to modify requestJSON so we create our own JSON object here
 		var values = JSON.parse(session.requestText);
-		values['id'] = session.selector[0].value;
+		values['aid'] = session.selector[0].value;
 		session.storage.updateAccount(values, afterUpdateAccount);
 	}
 	

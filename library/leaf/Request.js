@@ -69,7 +69,7 @@ Request.prototype.writeDomain = function(data, credentials, type) {
 			return;
 		}
 	}
-	this.write(domain, type||"application/x.reds.domain;did="+credentials['did']);
+	this.write(domain, type||"application/x.reds.domain;did="+credentials['id']);
 }
 
 Request.prototype.writeJson = function(data, type) {

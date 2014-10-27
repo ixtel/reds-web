@@ -178,7 +178,7 @@ exports.PUT = function(session) {
 
 // TODO Return entities in different domains
 exports.DELETE = function(session) {
-	var route, eids;
+	var route;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -190,7 +190,7 @@ exports.DELETE = function(session) {
 	}
 
 	function afterSelectCascade(error, result) {
-		var types, i, t;
+		var types, eids, i, t;
 		if (error)
 			return session.abort(error);
 		if (result.length == 0) {
@@ -224,7 +224,7 @@ exports.DELETE = function(session) {
 	}
 
 	function onRouteResponse() {
-		session.storage.unregisterEntities(eids, session.type.options['did'], afterUnregisterEntities);
+		session.storage.unregisterEntities(session.selector, session.type.options['did'], afterUnregisterEntities);
 	}
 
 	function afterUnregisterEntities(error, result) {

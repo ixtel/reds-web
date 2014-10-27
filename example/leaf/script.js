@@ -146,7 +146,7 @@ function signup(name, password, confirmation) {
 
 	function afterSignup(response) {
 		document.getElementById("SignUp").reset();
-		showAccount(response['id']);
+		showAccount(response['aid']);
 	}
 }
 
@@ -155,7 +155,7 @@ function signin(name, password) {
 
 	function afterSignin(response) {
 		document.getElementById("SignIn").reset();
-		showAccount(response['id']);
+		showAccount(response['aid']);
 	}
 }
 

@@ -30,9 +30,9 @@ exports.prototype.disconnect = function(callback) {
 exports.prototype.createPod = function(values, callback) {
 	this.$client.query("INSERT INTO pods (url) "+
 		"VALUES $1 "+
-		"RETURNING id,url", [
-		values['url']
-	], afterQuery);
+		"RETURNING pid,url",
+		[values['url']],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -40,11 +40,11 @@ exports.prototype.createPod = function(values, callback) {
 }
 
 exports.prototype.readPod = function(pod, callback) {
-	this.$client.query("SELECT id,url "+
+	this.$client.query("SELECT pid,url "+
 		"FROM pods "+
-		"WHERE "+(typeof pod == "number" ? "id" : "url")+"=$1", [
-		pod
-	], afterQuery);
+		"WHERE "+(typeof pod == "number" ? "pid" : "url")+"=$1",
+		[pod],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		if (result.rows[0] === undefined)
@@ -56,11 +56,11 @@ exports.prototype.readPod = function(pod, callback) {
 // INFO Alias operations
 
 exports.prototype.readAlias = function(alias, callback) {
-	this.$client.query("SELECT id,encode(asalt,'base64') AS asalt,encode(vault,'base64') AS vault,encode(vec,'base64') AS vec "+
+	this.$client.query("SELECT aid,encode(asalt,'base64') AS asalt,encode(vault,'base64') AS vault,encode(vec,'base64') AS vec "+
 		"FROM accounts "+
-		"WHERE alias=decode($1,'base64')", [
-		alias
-	], afterQuery);
+		"WHERE alias=decode($1,'base64')",
+		[alias],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -72,23 +72,21 @@ exports.prototype.readAlias = function(alias, callback) {
 exports.prototype.createAccount = function(values, callback) {
 	this.$client.query("INSERT INTO accounts (alias,auth,asalt) "+
 		"VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64')) "+
-		"RETURNING id", [
-		values['alias'],
-		values['auth'],
-		values['asalt']
-	], afterQuery);
+		"RETURNING aid",
+		[values['alias'], values['auth'], values['asalt']],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
 
-exports.prototype.readAccount = function(id, callback) {
-	this.$client.query("SELECT id,encode(auth,'base64') AS auth "+
+exports.prototype.readAccount = function(aid, callback) {
+	this.$client.query("SELECT aid,encode(auth,'base64') AS auth "+
 		"FROM accounts "+
-		"WHERE id=$1", [
-		id
-	], afterQuery);
+		"WHERE aid=$1",
+		[aid],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -98,24 +96,22 @@ exports.prototype.readAccount = function(id, callback) {
 exports.prototype.updateAccount = function(values, callback) {
 	this.$client.query("UPDATE accounts "+
 		"SET vault=decode($1,'base64'), vec=decode($2,'base64') "+
-		"WHERE id=$3 "+
-		"RETURNING id", [ 
-		values['vault'],
-		values['vec'],
-		values['id']
-	], afterQuery);
+		"WHERE aid=$3 "+
+		"RETURNING aid",
+		[values['vault'], values['vec'], values['aid']],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
 
-exports.prototype.deleteAccount = function(id, callback) {
+exports.prototype.deleteAccount = function(aid, callback) {
 	this.$client.query("DELETE FROM accounts "+
-		"WHERE id=$1 "+
-		"RETURNING id", [
-		id
-	], afterQuery);
+		"WHERE aid=$1 "+
+		"RETURNING aid",
+		[aid],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -127,9 +123,9 @@ exports.prototype.deleteAccount = function(id, callback) {
 exports.prototype.registerDomain = function(values, callback) {
 	this.$client.query("INSERT INTO domains (pid) "+
 		"VALUES ($1) "+
-		"RETURNING did", [
-		values['pid']
-	], afterQuery);
+		"RETURNING did",
+		[values['pid']],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -139,10 +135,9 @@ exports.prototype.registerDomain = function(values, callback) {
 exports.prototype.createDomain = function(values, callback) {
 	this.$client.query("INSERT INTO domains (did, dkey) "+
 		"VALUES ($1,decode($2,'base64')) "+
-		"RETURNING did", [
-		values['did'],
-		values['dkey']
-	], afterQuery);
+		"RETURNING did",
+		[values['did'], values['dkey']],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -152,21 +147,21 @@ exports.prototype.createDomain = function(values, callback) {
 exports.prototype.readDomain = function(did, callback) {
 	this.$client.query("SELECT * "+
 		"FROM domains "+
-		"WHERE did=$1", [
-		did
-	], afterQuery);
+		"WHERE did=$1",
+		[did],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
 
-exports.prototype.deleteDomain = function(id, callback) {
+exports.prototype.deleteDomain = function(did, callback) {
 	this.$client.query("DELETE FROM domains "+
 		"WHERE did=$1 "+
-		"RETURNING did", [
-		id
-	], afterQuery);
+		"RETURNING did",
+		[did],
+	afterQuery);
 
 	function afterQuery(error) {
 		callback(error||null);
@@ -178,11 +173,9 @@ exports.prototype.deleteDomain = function(id, callback) {
 exports.prototype.createTicket = function(values, callback) {
 	this.$client.query("INSERT INTO tickets (did, tkey, tflags) "+
 		"VALUES ($1,decode($2,'base64'), $3) "+
-		"RETURNING tid, tflags", [
-		values['did'],
-		values['tkey'],
-		values['tflags']
-	], afterQuery);
+		"RETURNING tid, tflags",
+		[values['did'], values['tkey'], values['tflags']],
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -201,21 +194,18 @@ exports.prototype.reserveEntity = function(callback) {
 
 exports.prototype.registerEntity = function(selector, did, callback) {
 	this.$client.query("INSERT INTO entities (eid, tid, did) "+
-			"SELECT	$1, (SELECT tid FROM types WHERE name=$2), $3 "+
-			"WHERE NOT EXISTS (SELECT eid FROM entities WHERE eid = $1)", [
-			selector.last.value,
-			selector.last.key,
-			did
-	], afterEntitiesQuery.bind(this));
+		"SELECT	$1, (SELECT tid FROM types WHERE name=$2), $3 "+
+		"WHERE NOT EXISTS (SELECT eid FROM entities WHERE eid = $1)",
+		[selector.last.value, selector.last.key, did],
+	afterEntitiesQuery.bind(this));
 
 	function afterEntitiesQuery(error, result) {
 		if (selector.length > 1) {
 			this.$client.query("INSERT INTO relations (parent, child) "+
 				"VALUES ($1, $2) "+
-				"RETURNING parent, child", [
-				selector[selector.length-2].value,
-				selector.last.value
-			], afterRelationsQuery);
+				"RETURNING parent, child",
+				[selector[selector.length-2].value, selector.last.value],
+			afterRelationsQuery);
 		}
 		else {
 			afterRelationsQuery(null, null);
@@ -228,16 +218,26 @@ exports.prototype.registerEntity = function(selector, did, callback) {
 }
 
 // TODO Check for SQL injection!
-exports.prototype.unregisterEntities = function(eids, did, callback) {
-	this.$client.query("SELECT set_cascade_domain($1)", did, afterSelectQuery.bind(this));
+exports.prototype.unregisterEntities = function(selector, did, callback) {
+	this.$client.query("SELECT set_cascade_domain($1)", did, afterCascadeQuery.bind(this));
 
-	function afterSelectQuery() {
-		this.$client.query("DELETE FROM entities "+
-			"WHERE eid IN ("+eids.join(",")+")",
-		afterDeleteQuery);
+	function afterCascadeQuery() {
+		this.selectEntities(selector, did, afterSelectEntities.bind(this));
 	}
 
-	function afterDeleteQuery(error, result) {
+	function afterSelectEntities(error, rows) {
+		var eids,i;
+		if (error)
+			return callback(error);
+		if (rows.length == 0)
+			return callback(null, null);
+		eids = new Array();
+		for	(i=0; i<rows.length; i++)
+			eids.push(rows[i]['eid']);
+		this.$client.query("DELETE FROM entities WHERE eid IN ("+eids.join(",")+")", afterEntitiesQuery);
+	}
+
+	function afterEntitiesQuery(error, result) {
 		callback(error||null, result?result.rows:null);
 	}
 }
@@ -270,52 +270,37 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 }
 
 // TODO Check for SQL injection!
-// TODO Handle multiple types and eids
 exports.prototype.selectCascade = function(selector, did, callback) {
-	this.$client.query("SELECT set_cascade_domain($1)", did, afterSelectQuery.bind(this));
+	this.$client.query("SELECT set_cascade_domain($1)", did, afterCascadeQuery.bind(this));
 
-	function afterSelectQuery() {
-		var from, where;
-		from = " FROM ";
-		where = " WHERE ";
-		for (var i=selector.length-1,r=0; i>=0; i--,r++) {
-			if (r>0)
-				from += "JOIN entities e"+r+" ON r"+(r-1)+".parent=e"+r+".eid JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
-			else
-				from += "entities e"+r+" JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
-			if (!selector[i].value)
-				where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".did="+did+" ";
-			else
-				where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".eid IN ("+selector[i].value+") ";
-			if (i>0) {
-				from += "JOIN relations r"+r+" ON e"+r+".eid=r"+r+".child ";
-				where += "AND ";
-			}
-		}
-		// TODO Merge this select with simulate query
-		this.$client.query("SELECT e0.eid"+from+where, afterSelectEntities.bind(this));
+	function afterCascadeQuery() {
+		this.selectEntities(selector, did, afterSelectEntities.bind(this));
 	}
 
-	function afterSelectEntities(error, result) {
+	function afterSelectEntities(error, rows) {
 		var eids,i;
 		if (error)
 			return callback(error);
-		if (result.rows.length == 0)
+		if (rows.length == 0)
 			return callback(null, null);
 		eids = new Array();
-		for	(i=0; i<result.rows.length; i++)
-			eids.push(result.rows[i]['eid']);
+		for	(i=0; i<rows.length; i++)
+			eids.push(rows[i]['eid']);
 		console.log("SELECT simulate('DELETE FROM entities WHERE eid IN ("+eids.join(",")+")')");
-		this.$client.query("SELECT simulate('DELETE FROM entities WHERE eid IN ("+eids.join(",")+")')", afterSimulationQuery.bind(this));
+		this.$client.query("SELECT simulate('DELETE FROM entities WHERE eid IN ("+eids.join(",")+")')", afterSimulateQuery.bind(this));
 	}
 
-	function afterSimulationQuery(error, result) {
+	function afterSimulateQuery(error, result) {
 		if (error)
 			return callback(error);
-		this.$client.query("SELECT e.eid,e.did,t.name AS type FROM entities e JOIN types t ON t.tid=e.tid WHERE eid IN ("+result.rows[0]['simulate']+")", afterQuery);
+		console.log(result.rows);
+		this.$client.query("SELECT e.eid,e.did,t.name AS type "+
+			"FROM entities e JOIN types t ON t.tid=e.tid "+
+			"WHERE eid IN ("+result.rows[0]['simulate']+")",
+		afterEntitiesQuery);
 	}
 
-	function afterQuery(error, result) {
+	function afterEntitiesQuery(error, result) {
 		callback(error||null, result?result.rows:null);
 	}
 }
@@ -334,7 +319,8 @@ exports.prototype.createEntity = function(type, values, callback) {
 	this.$client.query("INSERT INTO "+type+" ("+fields.join(",")+") "+
 		"VALUES ("+vals.join(",")+") "+
 		"RETURNING *",
-	params, afterQuery);
+		params,
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -383,7 +369,12 @@ exports.prototype.updateEntities = function(type, values, callback) {
 	set = new Array();
 	for (field in fields)
 		set.push(field+"=case "+fields[field]+" end");
-	this.$client.query("UPDATE "+type+" SET "+set.join(",")+" WHERE eid IN ("+ids.join(",")+") RETURNING *", params, afterQuery);
+	this.$client.query("UPDATE "+type+" "+
+		"SET "+set.join(",")+" "+
+		"WHERE eid IN ("+ids.join(",")+") "+
+		"RETURNING *",
+		params,
+	afterQuery);
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows:null);

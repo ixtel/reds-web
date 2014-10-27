@@ -9,19 +9,19 @@ var Request = window.reds ? reds.leaf.Request : require("./Request");
 var Vault = new Object();
 
 Vault.registerClient = function() {
-	var id = Math.floor(Math.random()*0xffffffff);
-	while (Vault[id])
-		id = Math.floor(Math.random()*0xffffffff);
-	this.resetClient(id);
-	return id;
+	var vid = Math.floor(Math.random()*0xffffffff);
+	while (Vault[vid])
+		vid = Math.floor(Math.random()*0xffffffff);
+	this.resetClient(vid);
+	return vid;
 }
 
-Vault.unregisterClient = function(id) {
-	delete Vault[id];
+Vault.unregisterClient = function(vid) {
+	delete Vault[vid];
 }
 
-Vault.resetClient = function(id) {
-	Vault[id] = new Object();
+Vault.resetClient = function(vid) {
+	Vault[vid] = new Object();
 }
 
 // INFO Facility managers
@@ -82,12 +82,12 @@ Client.prototype.signin = function(name, password, callback) {
 		Vault[this.vid] = vault;
 		Vault[this.vid].account['asec'] = asec;
 		console.log(Vault[this.vid]);
-		callback({'id':Vault[this.vid].account['id']});
+		callback({'aid':Vault[this.vid].account['id']});
 	}
 }
 
 Client.prototype.signout = function(callback) {
-	Vault.resetClient(this.id);
+	Vault.resetClient(this.vid);
 	// NOTE Always call the callback asynchoniously
 	setTimeout(callback, 0);
 }
@@ -112,7 +112,7 @@ Client.prototype.createAccount = function(name, password, callback) {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
 		Vault[this.vid] = {
 			'account': {
-				'id': request.responseJson['id'],
+				'id': request.responseJson['aid'],
 				'alias': alias,
 				'auth': auth,
 				'asec' : asec
@@ -123,7 +123,7 @@ Client.prototype.createAccount = function(name, password, callback) {
 	}
 	
 	function afterUpdateVault() {
-		callback({'id':Vault[this.vid].account['id']});
+		callback({'aid':Vault[this.vid].account['id']});
 	}
 }
 
@@ -133,7 +133,7 @@ Client.prototype.deleteAccount = function(callback) {
 	request.send();
 
 	function onLoad() {
-		Vault.resetClient(this.id);
+		Vault.resetClient(this.vid);
 		callback();
 	}
 }
@@ -177,11 +177,11 @@ Client.prototype.createDomain = function(pod, password, callback) {
 		var pkey, domain;
 		pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
 		domain = {
-			'did': request.responseJson['did'],
+			'id': request.responseJson['did'],
 			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
 		};
-		Vault[this.vid].domain[domain['did']] = domain;
-		callback({'did':domain['did']});
+		Vault[this.vid].domain[domain['id']] = domain;
+		callback({'did':domain['id']});
 	}
 }
 
@@ -199,7 +199,7 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 		domain['tid'] = request.responseDomain['tid'],
 		domain['tflags'] = request.responseDomain['tflags'],
 		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseDomain['tkey_p'])
-		callback({'tid':domain['tid'],'did':domain['did']});
+		callback({'tid':domain['tid'],'did':domain['id']});
 	}
 }
 

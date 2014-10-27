@@ -13,7 +13,7 @@ exports.POST = function(session) {
 
 	function onRouteReady() {
 		session.storage.registerDomain({
-			'pid': route.pod['id']
+			'pid': route.pod['pid']
 		}, afterRegisterDomain);
 	}
 
