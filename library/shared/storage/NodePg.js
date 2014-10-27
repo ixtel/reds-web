@@ -12,6 +12,7 @@ exports.prototype.name = "nodepg-1"
 
 exports.prototype.connect = function(callback) {
 	pg.connect(this.options, afterConnect.bind(this));
+	pg.end();
 
 	function afterConnect(error, client, done) {
 		this.$client = client;
