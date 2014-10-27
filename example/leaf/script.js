@@ -290,7 +290,6 @@ function loadAddressList(contact, filter) {
 	leaf.readEntities("/contact/"+contact+"/address", afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
-		console.log(response);
 		var addressList, i;
 		addressList = document.getElementById("AddressList");
 		for (i=0; i<response.length; i++) {
@@ -344,7 +343,6 @@ function saveAddress(address, street, city) {
 }
 
 function deleteAddress(address) {
-	console.log("foo");
 	leaf.deleteEntities("/address/"+address, afterDeleteEntities);
 
 	function afterDeleteEntities(response) {

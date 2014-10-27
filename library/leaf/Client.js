@@ -203,6 +203,42 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	}
 }
 
+Client.prototype.deleteDomains = function(dids, callback) {
+	var results, errors, count;
+	results = new Array();
+	errors = new Array();
+	for (count=0; count < dids.length; count++)
+		deleteDomain.call(this, dids[count], afterDeleteDomain.bind(this));
+
+	function deleteDomain(did, callback) {
+		var request;
+		request = this.$createRequest("DELETE", "/!/domain/"+did, onLoad.bind(this), onError.bind(this));
+		request.writeDomain(undefined, Vault[this.vid].domain[did]);
+		request.send();
+
+		function onLoad() {
+			// TODO Read entities from other domains
+			if (request.responseJson)
+				results = results.concat(request.responseJson);
+			if (--count == 0)
+				callback();
+		}
+
+		function onError(evt) {
+			evt.stopImmediatePropagation();
+			errors.push(evt.detail);
+			if (--count == 0)
+				callback();
+		}
+	}
+
+	function afterDeleteDomain() {
+		if (errors.length)
+			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		callback(results);
+	}
+}
+
 Client.prototype.resolveDomain = function(path, callback) {
 	var match, request, dids;
 	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/)?$/);
@@ -345,7 +381,7 @@ Client.prototype.deleteEntities = function(path, callback) {
 		results = new Array();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
-			deleteEntitiesForDomain.call(this, dids[count], afterReadEntity.bind(this));
+			deleteEntitiesForDomain.call(this, dids[count], afterDeleteEntitiesForDomain.bind(this));
 	}
 
 	function deleteEntitiesForDomain(did, callback) {
@@ -370,10 +406,20 @@ Client.prototype.deleteEntities = function(path, callback) {
 		}
 	}
 
-	function afterReadEntity() {
+	function afterDeleteEntitiesForDomain() {
+		var dids, i;
 		if (errors.length)
 			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
-		callback(results);
+		console.log(results);
+		dids = new Array();
+		for (i=0; i<results.length; i++)
+			if (results[i]['ecount'] == 0)
+				dids.push(results[i]['did']);
+		console.log(dids);
+		if (dids.length)
+			this.deleteDomains(dids, callback);
+		else
+			callback();
 	}
 }
 

@@ -28,3 +28,14 @@ exports.POST = function(session) {
 		session.end();
 	}
 }
+
+exports.DELETE = function(session) {
+	session.storage.deleteDomain(session.type.options['did'], afterDeleteDomain);
+
+	function afterDeleteDomain(error, result) {
+		if (error !== null)
+			return session.abort(error);
+		session.writeJSON(result, "application/x.reds.domain");
+		session.end();
+	}
+}

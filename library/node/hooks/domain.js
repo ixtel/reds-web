@@ -44,3 +44,32 @@ exports.POST = function(session) {
 			session.abort(new HttpError(502, error.message));
 	}
 }
+
+exports.DELETE = function(session) {
+	var route;
+	route = new Route(session.crypto, session.storage);
+	route.addListener("error", onRouteError);
+	route.addListener("ready", onRouteReady);
+	route.addListener("response", onRouteResponse);
+	route.resolve(session.type.options['did']);
+
+	function onRouteReady() {
+		route.method = "DELETE";
+		route.path = "/!/domain/"+session.type.options['did'];
+		route.write(session.requestText, session.request.headers['content-type']);
+		route.send();
+	}
+
+	function onRouteResponse() {
+		session.storage.unregisterDomain(session.type.options['did'], afterUnregisterDomain);
+	}
+
+	function afterUnregisterDomain(error, result) {
+		session.write(route.responseText, route.responseType);
+		session.end();
+	}
+
+	function onRouteError(error) {
+		session.abort(new HttpError(502, error.message));
+	}
+}

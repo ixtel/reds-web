@@ -133,6 +133,18 @@ exports.prototype.registerDomain = function(values, callback) {
 	}
 }
 
+exports.prototype.unregisterDomain = function(did, callback) {
+	this.$client.query("DELETE FROM domains "+
+		"WHERE did=$1 "+
+		"RETURNING *",
+		[did],
+	afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
 exports.prototype.createDomain = function(values, callback) {
 	this.$client.query("INSERT INTO domains (did, dkey) "+
 		"VALUES ($1,decode($2,'base64')) "+
@@ -148,7 +160,7 @@ exports.prototype.createDomain = function(values, callback) {
 exports.prototype.readDomain = function(did, callback) {
 	this.$client.query("SELECT * "+
 		"FROM domains "+
-		"WHERE did=$1",
+		"WHERE did=$1 ",
 		[did],
 	afterQuery);
 
@@ -164,8 +176,8 @@ exports.prototype.deleteDomain = function(did, callback) {
 		[did],
 	afterQuery);
 
-	function afterQuery(error) {
-		callback(error||null);
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
 	}
 }
 

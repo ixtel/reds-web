@@ -230,7 +230,13 @@ exports.DELETE = function(session) {
 	function afterUnregisterEntities(error, result) {
 		if (error)
 			return session.abort(error);
-		session.write(route.responseText, route.responseType);
+		session.storage.readDomain(session.type.options['did'], afterReadDomain);
+	}
+
+	function afterReadDomain(error, result) {
+		if (error)
+			return session.abort(error);
+		session.writeJSON(result);
 		session.end();
 	}
 
