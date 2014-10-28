@@ -238,6 +238,7 @@ Client.prototype.deleteDomains = function(dids, callback) {
 	}
 }
 
+// TODO Move to entities
 Client.prototype.resolveDomain = function(path, callback) {
 	var match, request, dids;
 	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/)?$/);
@@ -260,6 +261,7 @@ Client.prototype.resolveDomain = function(path, callback) {
 
 // INFO Entity operations
 
+// TODO Split into createEntity and createEntityAndDomain
 Client.prototype.createEntity = function(path, data, domain, callback) {
 	var request, did;
 	if (domain && domain['url'])
@@ -293,7 +295,7 @@ Client.prototype.createEntity = function(path, data, domain, callback) {
 }
 
 Client.prototype.readEntities = function(path, callback) {
-	var eids, count, results, errors, did, request;
+	var results, errors, count;
 	this.resolveDomain(path, afterResolveDomain.bind(this));
 
 	function afterResolveDomain(dids) {
@@ -304,15 +306,18 @@ Client.prototype.readEntities = function(path, callback) {
 	}
 
 	function readEntitiesForDomain(did, callback) {
-		var request;
+		var request, type;
 		request = this.$createRequest("GET", path, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
-			// TODO Read entities from other domains
-			if (request.responseJson)
-				results = results.concat(request.responseJson);
+			for (type in request.responseDomain) {
+				if (results[type])
+					results[type] = results[type].concat(request.responseDomain[type]);
+				else
+					results[type] = request.responseDomain[type];
+			}
 			if (--count == 0)
 				callback();
 		}
@@ -325,15 +330,25 @@ Client.prototype.readEntities = function(path, callback) {
 		}
 	}
 
+	// TODO Read entities from other domains
 	function afterReadEntitiesForDomain() {
-		if (errors.length)
-			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
-		callback(results);
+		var type;
+		if (errors.length > 0)
+			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		else for (type in results)
+			callback(results[type], type);
 	}
 }
 
 Client.prototype.updateEntities = function(path, data, callback) {
-	var eids, count, results, errors, did, request;
+	var results, errors, count, type;
+	if (Array.isArray(data)) {
+		// NOTE We use results as a temporary buffer here - dirty but it works ;)
+		results = data;
+		type = path.match(/([^\/]+)\/[^\/]*$/)[1];
+		data = new Object();
+		data[type] = results;
+	}
 	this.resolveDomain(path, afterResolveDomain.bind(this));
 
 	function afterResolveDomain(dids) {
@@ -344,15 +359,18 @@ Client.prototype.updateEntities = function(path, data, callback) {
 	}
 
 	function updateEntitiesForDomain(did, callback) {
-		var request;
+		var request, type;
 		request = this.$createRequest("PUT", path, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(data, Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
-			// TODO Update entities from other domains
-			if (request.responseJson)
-				results = results.concat(request.responseJson);
+			for (type in request.responseDomain) {
+				if (results[type])
+					results[type] = results[type].concat(request.responseDomain[type]);
+				else
+					results[type] = request.responseDomain[type];
+			}
 			if (--count == 0)
 				callback();
 		}
@@ -365,15 +383,19 @@ Client.prototype.updateEntities = function(path, data, callback) {
 		}
 	}
 
+	// TODO Update entities from other domains
 	function afterUpdateEntitiesForDomain() {
-		if (errors.length)
-			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
-		callback(results);
+		var type;
+		if (errors.length > 0)
+			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		else for (type in results)
+			callback(results[type], type);
 	}
 }
 
+// TODO Split into deleteEntities and deleteEntitiesAndDomains
 Client.prototype.deleteEntities = function(path, callback) {
-	var eids, count, results, errors, did, request;
+	var results, errors, count;
 	this.resolveDomain(path, afterResolveDomain.bind(this));
 
 	function afterResolveDomain(dids) {
@@ -384,15 +406,13 @@ Client.prototype.deleteEntities = function(path, callback) {
 	}
 
 	function deleteEntitiesForDomain(did, callback) {
-		var request;
+		var request, type;
 		request = this.$createRequest("DELETE", path, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
-			// TODO Delete entities from other domains
-			if (request.responseJson)
-				results = results.concat(request.responseJson);
+			results = results.concat(request.responseDomain);
 			if (--count == 0)
 				callback();
 		}
@@ -405,9 +425,10 @@ Client.prototype.deleteEntities = function(path, callback) {
 		}
 	}
 
+	// TODO Delete entities from other domains
 	function afterDeleteEntitiesForDomain() {
 		var dids, domains, i;
-		if (errors.length)
+		if (errors.length > 0)
 			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		dids = new Array();
 		for (i=0; i<results.length; i++)

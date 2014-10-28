@@ -306,7 +306,6 @@ exports.prototype.selectCascade = function(selector, did, callback) {
 	function afterSimulateQuery(error, result) {
 		if (error)
 			return callback(error);
-		console.log(result.rows);
 		this.$client.query("SELECT e.eid,e.did,t.name AS type "+
 			"FROM entities e JOIN types t ON t.tid=e.tid "+
 			"WHERE eid IN ("+result.rows[0]['simulate']+")",
@@ -340,68 +339,91 @@ exports.prototype.createEntity = function(type, values, callback) {
 	}
 }
 
-// TODO Check for SQL injection!
-// TODO Handle multiple types and eids
-exports.prototype.readEntities = function(type, eids, callback) {
-	this.$client.query("SELECT * "+
-		"FROM "+type+" "+
-		"WHERE eid IN ("+eids.join(",")+")",
-	afterQuery);
+exports.prototype.readEntities = function(types, eids, callback) {
+	var values, errors, count;
+	values = new Object();
+	errors = new Array();
+	types.forEach(readEntitiesForType.bind(this));
 
-	function afterQuery(error, result) {
-		callback(error||null, result?result.rows:null);
-	}
-}
+	function readEntitiesForType(type, index) {
+		count = index;
+		this.$client.query("SELECT * FROM "+type+" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
 
-// TODO Check for SQL injection!
-// TODO Handle multiple types and eids
-exports.prototype.updateEntities = function(type, values, callback) {
-	var ids, fields, params, set, field, i;
-	ids = new Array();
-	fields = new Object();
-	params = new Array();
-	for (i=0; i<values.length; i++) {
-		params.push(values[i]['eid']);
-		ids.push("$"+params.length);
-		for (field in values[i]) {
-			if (field != 'eid') {
-				if (!fields[field])
-					fields[field] = "";
-				// NOTE psql seems to escape numbers as strings when they're
-				//      used inside a when-then clause
-				if (typeof values[i][field] == 'number') {
-					fields[field] += "when eid="+ids[ids.length-1]+" then "+values[i][field];
-				}
-				else {
-					params.push(values[i][field]);
-					fields[field] += "when eid="+ids[ids.length-1]+" then $"+params.length;
-				}
-			}
+		function afterQuery(error, result) {
+			if (error)
+				errors.push(error);
+			else
+				values[type] = result.rows;
+			if (--count < 0)
+				callback(errors.length?errors:null, errors.length?null:values);
 		}
 	}
-	set = new Array();
-	for (field in fields)
-		set.push(field+"=case "+fields[field]+" end");
-	this.$client.query("UPDATE "+type+" "+
-		"SET "+set.join(",")+" "+
-		"WHERE eid IN ("+ids.join(",")+") "+
-		"RETURNING *",
-		params,
-	afterQuery);
+}
 
-	function afterQuery(error, result) {
-		callback(error||null, result?result.rows:null);
+exports.prototype.updateEntities = function(types, values, callback) {
+	var rvalues, errors, count;
+	rvalues = new Object();
+	errors = new Array();
+	types.forEach(updateEntitiesForType.bind(this));
+
+	function updateEntitiesForType(type, index) {
+		var field, set, fields, params, vals, val, i;
+		count = index;
+		set = new Array();
+		fields = new Array();
+		vals = new Array();
+		params = new Array();
+		for (field in values[type][0]) {
+			set.push(field+"=v."+field);
+			fields.push(field);
+		}
+		for (i = 0; i < values[type].length; i++) {
+			val = ""
+			for (field in values[type][i]) {
+				// NOTE NodePG seems to escape numbers as strings when we
+				//      use the parameterized form here.
+				// TODO Check for for SQL injection!
+				if (typeof values[type][i][field] == "string")
+					val += ",'"+values[type][i][field]+"'";
+				else
+					val += ","+values[type][i][field];
+			}
+			vals.push("("+val.substr(1)+")");
+		}
+		this.$client.query("UPDATE "+type+" t SET "+set.join(",")+" "+
+			"FROM (VALUES "+vals.join(",")+") AS v("+fields.join(",")+") "+
+			"WHERE t.eid = v.eid "+
+			"RETURNING *",
+		afterQuery);
+
+		function afterQuery(error, result) {
+			if (error)
+				errors.push(error);
+			else
+				rvalues[type] = result.rows;
+			if (--count < 0)
+				callback(errors.length?errors:null, errors.length?null:rvalues);
+		}
 	}
 }
 
-// TODO Check for SQL injection!
-// TODO Handle multiple types and eids
-exports.prototype.deleteEntities = function(type, eids, callback) {
-	this.$client.query("DELETE FROM "+type+" "+
-		"WHERE eid IN ("+eids.join(",")+")",
-	afterQuery);
+exports.prototype.deleteEntities = function(types, eids, callback) {
+	var values, errors, count;
+	values = new Object();
+	errors = new Array();
+	types.forEach(deleteEntitiesForType.bind(this));
 
-	function afterQuery(error, result) {
-		callback(error||null, result?result.rows:null);
+	function deleteEntitiesForType(type, index) {
+		count = index;
+		this.$client.query("DELETE FROM "+type+" WHERE eid IN ("+eids[index].join(",")+") RETURNING *", afterQuery);
+
+		function afterQuery(error, result) {
+			if (error)
+				errors.push(error);
+			else
+				values[type] = result.rows;
+			if (--count < 0)
+				callback(errors.length?errors:null, errors.length?null:values);
+		}
 	}
 }
