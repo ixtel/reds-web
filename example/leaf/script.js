@@ -189,17 +189,14 @@ function hideAccount(account) {
 }
 
 function addContact(name, url, password) {
-	leaf.createEntity("/contact", {
+	leaf.createDomainWithEntity(url, password, "/contact", {
 		'name': name
-	}, {
-		'url': url,
-		'password': password
-	}, afterCreateEntity);
+	}, afterCreateDomainAndEntity);
 
-	function afterCreateEntity(response) {
+	function afterCreateDomainAndEntity(response) {
 		var option = document.createElement("option");
-		option.setAttribute("value", response['eid']);
-		option.appendChild(document.createTextNode(response['name']));
+		option.setAttribute("value", response.entity['eid']);
+		option.appendChild(document.createTextNode(response.entity['name']));
 		document.getElementById("ContactList").elements['list'].appendChild(option);
 		document.getElementById("AddContact").reset();
 	}
@@ -274,7 +271,7 @@ function addAddress(contact, street, city) {
 	leaf.createEntity("/contact/"+contact+"/address/", {
 		'street': street,
 		'city': city
-	}, null, afterCreateEntity);
+	}, afterCreateEntity);
 
 	function afterCreateEntity(response) {
 		var option = document.createElement("option");

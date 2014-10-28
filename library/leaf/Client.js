@@ -238,8 +238,11 @@ Client.prototype.deleteDomains = function(dids, callback) {
 	}
 }
 
-// TODO Move to entities
-Client.prototype.resolveDomain = function(path, callback) {
+// INFO Entity operations
+
+// NOTE Finds the did of the last eid in path.
+// TODO Use * instead of empty values
+Client.prototype.resolvePath = function(path, callback) {
 	var match, request, dids;
 	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/)?$/);
 	if (match[1]) {
@@ -257,35 +260,18 @@ Client.prototype.resolveDomain = function(path, callback) {
 		dids = request.responseType.options['did'].split(",");
 		callback(dids);
 	}
-} 
+}
 
-// INFO Entity operations
-
-// TODO Split into createEntity and createEntityAndDomain
-Client.prototype.createEntity = function(path, data, domain, callback) {
-	var request, did;
-	if (domain && domain['url'])
-		this.createDomain(domain['url'], domain['password'], afterCreateDomain.bind(this));
+Client.prototype.createEntity = function(path, data, callback) {
+	var request;
+	if (data['did'])
+		afterResolvePath.call(this, [data['did']]);
 	else
-		this.resolveDomain(path, afterResolveDomain.bind(this));
+		this.resolvePath(path, afterResolvePath.bind(this));
 
-	function afterCreateDomain(result) {
-		this.createOwnerTicket(result['did'], afterCreateOwnerTicket.bind(this));
-	}
-
-	function afterCreateOwnerTicket(result) {
-		did = result['did'];
-		this.updateVault(afterUpdateVault.bind(this));
-	}
-
-	function afterResolveDomain(dids) {
-		did = dids[0];
-		afterUpdateVault.call(this);
-	}
-
-	function afterUpdateVault() {
+	function afterResolvePath(dids) {
 		request = this.$createRequest("POST", path, onLoad.bind(this));
-		request.writeDomain(data, Vault[this.vid].domain[did]);
+		request.writeDomain(data, Vault[this.vid].domain[dids[0]]);
 		request.send();
 	}
 
@@ -296,9 +282,9 @@ Client.prototype.createEntity = function(path, data, domain, callback) {
 
 Client.prototype.readEntities = function(path, callback) {
 	var results, errors, count;
-	this.resolveDomain(path, afterResolveDomain.bind(this));
+	this.resolvePath(path, afterResolvePath.bind(this));
 
-	function afterResolveDomain(dids) {
+	function afterResolvePath(dids) {
 		results = new Array();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
@@ -349,9 +335,9 @@ Client.prototype.updateEntities = function(path, data, callback) {
 		data = new Object();
 		data[type] = results;
 	}
-	this.resolveDomain(path, afterResolveDomain.bind(this));
+	this.resolvePath(path, afterResolvePath.bind(this));
 
-	function afterResolveDomain(dids) {
+	function afterResolvePath(dids) {
 		results = new Array();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
@@ -396,9 +382,9 @@ Client.prototype.updateEntities = function(path, data, callback) {
 // TODO Split into deleteEntities and deleteEntitiesAndDomains
 Client.prototype.deleteEntities = function(path, callback) {
 	var results, errors, count;
-	this.resolveDomain(path, afterResolveDomain.bind(this));
+	this.resolvePath(path, afterResolvePath.bind(this));
 
-	function afterResolveDomain(dids) {
+	function afterResolvePath(dids) {
 		results = new Array();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
@@ -444,6 +430,36 @@ Client.prototype.deleteEntities = function(path, callback) {
 		this.updateVault(function() {
 			callback(result);
 		});
+	}
+}
+
+// INFO Conveniance functions
+
+Client.prototype.createDomainWithEntity = function(url, password, path, data, callback) {
+	var results;
+	results = {
+		'domain': null,
+		'entity': null
+	}
+	this.createDomain(url, password, afterCreateDomain.bind(this));
+
+	function afterCreateDomain(result) {
+		results.domain = result;
+		this.createOwnerTicket(result['did'], afterCreateOwnerTicket.bind(this));
+	}
+
+	function afterCreateOwnerTicket(result) {
+		this.updateVault(afterUpdateVault.bind(this));
+	}
+
+	function afterUpdateVault() {
+		data['did'] = results.domain['did'];
+		this.createEntity(path, data, afterCreateEntity);
+	}
+
+	function afterCreateEntity(result) {
+		results.entity = result;
+		callback(results);
 	}
 }
 
