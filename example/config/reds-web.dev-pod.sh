@@ -10,13 +10,13 @@
 
 # Author: Torben Haase <torben@flowyapps.com>
 
-NAME="flowynotes.dev-node"
-ROOT="/var/www/vhosts/flowynotes.dev/node"
+NAME="reds-example-pod"
+ROOT="/var/www/vhosts/reds-web.dev/example/pod"
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="REDS node start/stop script for '$NAME'"
-DAEMON=$ROOT/redsnoded.sh
+DAEMON=$ROOT/redspodd.sh
 DAEMON_ARGS="$NAME"
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
