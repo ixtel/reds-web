@@ -17,7 +17,7 @@ exports.POST = function(session) {
 	}
 
 	function onRouteReady() {
-		session.storage.reserveEntity(afterReserveEntity);
+		session.storage.reserveEntity(session.selector, session.type.options['did'], afterReserveEntity);
 	}
 
 	function afterReserveEntity(error, eid) {
