@@ -252,7 +252,7 @@ function hideContact(contact) {
 
 function saveContact(contact, name) {
 	leaf.updateEntities("/contact/"+contact, [
-		{'eid':contact, 'name': name}
+		{'eid':parseInt(contact), 'name': name}
 	], afterUpdateEntities.bind(this));
 
 	function afterUpdateEntities(response) {
@@ -331,7 +331,7 @@ function hideAddress(address) {
 
 function saveAddress(address, street, city) {
 	leaf.updateEntities("/address/"+address, [
-		{'eid':address, 'street': street, 'city': city}
+		{'eid':parseInt(address), 'street': street, 'city': city}
 	], null, afterUpdateEntities);
 
 	function afterUpdateEntities(response) {
