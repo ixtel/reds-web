@@ -240,16 +240,23 @@ Client.prototype.deleteDomains = function(dids, callback) {
 
 // INFO Entity operations
 
-// NOTE Finds the did of the last eid in path.
-// TODO Resolve dids for wildcards
+// TODO Implement some kind of caching to reduce HEAD requests
 Client.prototype.resolvePath = function(path, callback) {
 	var request;
-	// TODO Implement some kind of caching to reduce HEAD requests
 	request = this.$createRequest("HEAD", path, onLoad.bind(this));
 	request.send();
 
 	function onLoad() {
-		callback(request.responseType.options['did'].split(","));
+		var result, dids, did, i;
+		result = new Array();
+		dids = request.responseType.options['did'].split(",");
+		for (i=0; i<dids.length; i++) {
+			did = parseInt(dids[i]);
+			if (Vault[this.vid].domain[did])
+				result.push(did);
+		}
+		console.log(result);
+		callback(result);
 	}
 }
 
@@ -258,10 +265,10 @@ Client.prototype.createEntity = function(path, data, callback) {
 	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+$/);
 	if (!match)
 		return this.dispatchEvent("error", new Error("invalid path"));
-	if (match[1])
-		this.resolvePath(match[1], afterResolvePath.bind(this));
-	else if (data['did'])
+	if (data['did'])
 		afterResolvePath.call(this, [data['did']]);
+	else if (match[1])
+		this.resolvePath(match[1], afterResolvePath.bind(this));
 	else
 		this.dispatchEvent("error", new Error("unknown did"));
 
@@ -281,10 +288,7 @@ Client.prototype.readEntities = function(path, callback) {
 	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
 	if (!match)
 		return this.dispatchEvent("error", new Error("invalid path"));
-	if (match[1])
-		this.resolvePath(match[1], afterResolvePath.bind(this));
-	else
-		afterResolvePath.call(this, Object.keys(Vault[this.vid].domain));
+	this.resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
 		results = new Object();
@@ -318,7 +322,6 @@ Client.prototype.readEntities = function(path, callback) {
 		}
 	}
 
-	// TODO Read entities from other domains
 	function afterReadEntitiesForDomain() {
 		var type;
 		if (errors.length > 0)
@@ -371,7 +374,6 @@ Client.prototype.updateEntities = function(path, data, callback) {
 		}
 	}
 
-	// TODO Update entities from other domains
 	function afterUpdateEntitiesForDomain() {
 		var type;
 		if (errors.length > 0)
@@ -386,10 +388,7 @@ Client.prototype.deleteEntities = function(path, callback) {
 	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
 	if (!match)
 		return this.dispatchEvent("error", new Error("invalid path"));
-	if (match[1])
-		this.resolvePath(match[1], afterResolvePath.bind(this));
-	else
-		afterResolvePath.call(this, Object.keys(Vault[this.vid].domain));
+	this.resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
 		results = new Object();
@@ -423,7 +422,6 @@ Client.prototype.deleteEntities = function(path, callback) {
 		}
 	}
 
-	// TODO Delete entities from other domains
 	function afterDeleteEntitiesForDomain() {
 		var type;
 		if (errors.length > 0)
