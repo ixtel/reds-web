@@ -139,7 +139,6 @@ Client.prototype.deleteAccount = function(callback) {
 }
 
 // INFO Vault operations
-// NOTE These will usually be called only from within the client.
 
 Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
@@ -162,7 +161,6 @@ Client.prototype.updateVault = function(callback) {
 }
 
 // INFO Domain operations
-// NOTE These will usually be called only from within the client.
 
 Client.prototype.createDomain = function(pod, password, callback) {
 	var dkeyL = this.crypto.generateKeypair();
@@ -243,33 +241,29 @@ Client.prototype.deleteDomains = function(dids, callback) {
 // INFO Entity operations
 
 // NOTE Finds the did of the last eid in path.
-// TODO Differentiate between normal and wildcard paths
+// TODO Resolve dids for wildcards
 Client.prototype.resolvePath = function(path, callback) {
-	var match, request, dids;
-	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+(\/\*)?)?$/);
-	if (match[1]) {
-		// TODO Implement some kind of caching to reduce HEAD requests
-		request = this.$createRequest("HEAD", match[1], onLoad.bind(this));
-		request.send();
-	}
-	else {
-		dids = Object.keys(Vault[this.vid].domain); 
-		callback(dids);
-	}
+	var request;
+	// TODO Implement some kind of caching to reduce HEAD requests
+	request = this.$createRequest("HEAD", path, onLoad.bind(this));
+	request.send();
 
 	function onLoad() {
-		var dids;
-		dids = request.responseType.options['did'].split(",");
-		callback(dids);
+		callback(request.responseType.options['did'].split(","));
 	}
 }
 
 Client.prototype.createEntity = function(path, data, callback) {
-	var request;
-	if (data['did'])
+	var match, request;
+	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
+	if (match[1])
+		this.resolvePath(match[1], afterResolvePath.bind(this));
+	else if (data['did'])
 		afterResolvePath.call(this, [data['did']]);
 	else
-		this.resolvePath(path, afterResolvePath.bind(this));
+		this.dispatchEvent("error", new Error("unknown did"));
 
 	function afterResolvePath(dids) {
 		request = this.$createRequest("POST", path, onLoad.bind(this));
@@ -283,8 +277,14 @@ Client.prototype.createEntity = function(path, data, callback) {
 }
 
 Client.prototype.readEntities = function(path, callback) {
-	var results, errors, count;
-	this.resolvePath(path, afterResolvePath.bind(this));
+	var match, results, errors, count;
+	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
+	if (match[1])
+		this.resolvePath(match[1], afterResolvePath.bind(this));
+	else
+		afterResolvePath.call(this, Object.keys(Vault[this.vid].domain));
 
 	function afterResolvePath(dids) {
 		results = new Object();
@@ -329,17 +329,17 @@ Client.prototype.readEntities = function(path, callback) {
 }
 
 Client.prototype.updateEntities = function(path, data, callback) {
-	var results, errors, count, type;
-	if (Array.isArray(data)) {
-		// NOTE We use results as a temporary buffer here - dirty but it works ;)
-		results = data;
-		type = path.match(/([^\/]+)\/[^\/]*$/)[1];
-		data = new Object();
-		data[type] = results;
-	}
-	this.resolvePath(path, afterResolvePath.bind(this));
+	var match, results, errors, count;
+	match = path.match(/^(?:\/(\w+)\/[\d,]+)+$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
+	this.resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
+		// NOTE We use results as a temporary buffer here - dirty but it works ;)
+		results = data;
+		data = new Object();
+		data[match[1]] = results;
 		results = new Object();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
@@ -382,8 +382,14 @@ Client.prototype.updateEntities = function(path, data, callback) {
 }
 
 Client.prototype.deleteEntities = function(path, callback) {
-	var results, errors, count;
-	this.resolvePath(path, afterResolvePath.bind(this));
+	var match, results, errors, count;
+	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
+	if (match[1])
+		this.resolvePath(match[1], afterResolvePath.bind(this));
+	else
+		afterResolvePath.call(this, Object.keys(Vault[this.vid].domain));
 
 	function afterResolvePath(dids) {
 		results = new Object();
