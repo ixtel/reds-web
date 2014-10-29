@@ -205,6 +205,8 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 
 Client.prototype.deleteDomains = function(dids, callback) {
 	var results, errors, count;
+	if (dids.length == 0)
+		return callback(null);
 	results = new Array();
 	errors = new Array();
 	for (count=0; count < dids.length; count++)
@@ -285,7 +287,7 @@ Client.prototype.readEntities = function(path, callback) {
 	this.resolvePath(path, afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
-		results = new Array();
+		results = new Object();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
 			readEntitiesForDomain.call(this, dids[count], afterReadEntitiesForDomain.bind(this));
@@ -338,7 +340,7 @@ Client.prototype.updateEntities = function(path, data, callback) {
 	this.resolvePath(path, afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
-		results = new Array();
+		results = new Object();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
 			updateEntitiesForDomain.call(this, dids[count], afterUpdateEntitiesForDomain.bind(this));
@@ -379,13 +381,12 @@ Client.prototype.updateEntities = function(path, data, callback) {
 	}
 }
 
-// TODO Split into deleteEntities and deleteEntitiesAndDomains
 Client.prototype.deleteEntities = function(path, callback) {
 	var results, errors, count;
 	this.resolvePath(path, afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
-		results = new Array();
+		results = new Object();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
 			deleteEntitiesForDomain.call(this, dids[count], afterDeleteEntitiesForDomain.bind(this));
@@ -398,7 +399,12 @@ Client.prototype.deleteEntities = function(path, callback) {
 		request.send();
 
 		function onLoad() {
-			results = results.concat(request.responseDomain);
+			for (type in request.responseDomain) {
+				if (results[type])
+					results[type] = results[type].concat(request.responseDomain[type]);
+				else
+					results[type] = request.responseDomain[type];
+			}
 			if (--count == 0)
 				callback();
 		}
@@ -413,29 +419,45 @@ Client.prototype.deleteEntities = function(path, callback) {
 
 	// TODO Delete entities from other domains
 	function afterDeleteEntitiesForDomain() {
-		var dids, domains, i;
+		var type;
 		if (errors.length > 0)
-			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
-		dids = new Array();
-		for (i=0; i<results.length; i++)
-			if (results[i]['ecount'] == 0)
-				dids.push(results[i]['did']);
-		if (dids.length)
-			this.deleteDomains(dids, afterDeleteDomains.bind(this));
-		else
-			callback();	
-	}
-
-	function afterDeleteDomains(result) {
-		this.updateVault(function() {
-			callback(result);
-		});
+			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		else for (type in results)
+			callback(results[type], type);
 	}
 }
 
 // INFO Conveniance functions
 
-Client.prototype.createDomainWithEntity = function(url, password, path, data, callback) {
+Client.prototype.deleteEntitiesAndDomains = function(path, callback) {
+	this.deleteEntities(path, afterDeleteEntities.bind(this));
+
+	function afterDeleteEntities(result, type, last) {
+		var dids, results, i;
+		results = new Object();
+		results.entities = result;
+		dids = new Array();
+		for (i=0; i<result.length; i++) {
+			if (result[i]['root'])
+				dids.push(result[i]['did']);
+		}
+		this.deleteDomains(dids, afterDeleteDomains.bind(this));
+
+		function afterDeleteDomains(result) {
+			results.domains = result;
+			if (result)
+				this.updateVault(afterUpdateVault);
+			else
+				callback(results, type, last);
+		}
+
+		function afterUpdateVault() {
+			callback(results, type, last);
+		}
+	}
+}
+
+Client.prototype.createEntityAndDomain = function(path, data, url, password, callback) {
 	var results;
 	results = {
 		'domain': null,

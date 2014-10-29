@@ -43,10 +43,8 @@ exports.GET = function(session) {
 	session.storage.readEntities(types, eids, afterReadEntities);
 
 	function afterReadEntities(errors, result) {
-		if (errors !== null) {
-			console.log(errors);
+		if (errors !== null)
 			return session.abort(errors[0]);
-		}
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
 		// TODO Send domain data
@@ -55,7 +53,6 @@ exports.GET = function(session) {
 	}
 }
 
-// TODO Check for valid request data
 exports.PUT = function(session) {
 	var types, eids, values, i, j;
 	if (session.selector.length != 1)
@@ -111,10 +108,10 @@ exports.DELETE = function(session) {
 	session.storage.deleteEntities(types, eids, afterDeleteEntities);
 
 	function afterDeleteEntities(errors, result) {
-		if (errors !== null) {
-			console.log(errors);
+		if (errors !== null)
 			return session.abort(errors[0]);
-		}
+		if (result.length == 0)
+			return session.abort(new HttpError(404, "entities not found"));
 		// TODO Send domain data
 		session.writeJSON(result, "application/x.reds.domain");
 		session.end();

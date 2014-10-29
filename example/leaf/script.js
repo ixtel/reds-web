@@ -189,11 +189,11 @@ function hideAccount(account) {
 }
 
 function addContact(name, url, password) {
-	leaf.createDomainWithEntity(url, password, "/contact", {
+	leaf.createEntityAndDomain("/contact", {
 		'name': name
-	}, afterCreateDomainAndEntity);
+	}, url, password, afterCreateEntityAndDomain);
 
-	function afterCreateDomainAndEntity(response) {
+	function afterCreateEntityAndDomain(response) {
 		var option = document.createElement("option");
 		option.setAttribute("value", response.entity['eid']);
 		option.appendChild(document.createTextNode(response.entity['name']));
@@ -260,9 +260,10 @@ function saveContact(contact, name) {
 }
 
 function deleteContact(contact) {
-	leaf.deleteEntities("/contact/"+contact, afterDeleteEntities);
+	leaf.deleteEntitiesAndDomains("/contact/"+contact, afterDeleteEntitiesAndDomains);
 
-	function afterDeleteEntities(response) {
+	function afterDeleteEntitiesAndDomains(response) {
+		console.log(response);
 		hideContact();
 	}
 }

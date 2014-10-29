@@ -3,6 +3,31 @@
 var HttpError = require("../../shared/HttpError");
 var Route = require("../Route");
 
+function parseSelection(selection) {
+	var result, type, tstr, estr, i;
+	result = {
+		'types': new Object(),
+		'path': null
+	};
+	for (i=0; i<selection.length; i++) {
+		if (!result.types[selection[i]['type']]) {
+			result.types[selection[i]['type']] = new Array(selection[i]);
+			result.types[selection[i]['type']].estr = selection[i]['eid'];
+		}
+		else {
+			result.types[selection[i]['type']].push(selection[i]['eid']);
+			result.types[selection[i]['type']].estr += ","+selection[i]['eid'];
+		}
+	}
+	for (type in result.types) {
+		tstr = (tstr ? tstr+"," : "/")+type;
+		estr = (estr ? estr+";" : "/")+result.types[type].estr;
+		delete result.types[type].estr;
+	}
+	result.path = tstr+estr;
+	return result;
+}
+
 exports.POST = function(session) {
 	var route;
 	if (session.selector.last.value) {
@@ -31,7 +56,6 @@ exports.POST = function(session) {
 
 	function onRouteResponse() {
 		var rselector;
-		session.write(route.responseText, route.responseType);
 		// NOTE This JSON dance is neccasary to create a real clone.
 		rselector = JSON.parse(JSON.stringify(session.selector));
 		rselector.last = rselector[rselector.length-1];
@@ -46,11 +70,11 @@ exports.POST = function(session) {
 	function afterRegisterEntity(error, result) {
 		if (error)
 			return session.abort(error);
+		session.write(route.responseText, route.responseType);
 		// NOTE As long as we don't support mime multipart responses,
-		//      the linking result can only be sent when the routing
+		//      the linking result can only be written when the route
 		//      response hasn't been written already.
-		if (!route)
-			session.writeJSON(result);
+		if (!route) session.writeJSON(result);
 		session.end();
 	}
 }
@@ -178,7 +202,7 @@ exports.PUT = function(session) {
 
 // TODO Return entities in different domains
 exports.DELETE = function(session) {
-	var route;
+	var route, selection;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -201,24 +225,9 @@ exports.DELETE = function(session) {
 				// TODO The 204 case should be handled by session end
 				return session.abort(new HttpError(204, "empty response"));
 		}
-		types = new Object();
-		for (i=0; i<result.length; i++) {
-			if (result[i]['did'] == session.type.options['did']) {
-				if (!types[result[i]['type']])
-					types[result[i]['type']] = result[i]['eid'];
-				else
-					types[result[i]['type']] += ","+result[i]['eid'];
-			}
-			else {
-				response.push(result[i]);
-			}
-		}
-		eids = new Array();
-		for (t in types) {
-			eids.push(types[t]);
-		}
+		selection = parseSelection(result);
 		route.method = "DELETE";
-		route.path = "/"+Object.keys(types).join(",")+"/"+eids.join(";");
+		route.path = selection.path;
 		route.write(session.requestText, session.request.headers['content-type']);
 		route.send();
 	}
@@ -227,20 +236,16 @@ exports.DELETE = function(session) {
 		session.storage.unregisterEntities(session.selector, session.type.options['did'], afterUnregisterEntities);
 	}
 
+	function onRouteError(error) {
+		session.abort(new HttpError(502, error.message));
+	}
+
 	function afterUnregisterEntities(error, result) {
 		if (error)
 			return session.abort(error);
-		session.storage.readDomain(session.type.options['did'], afterReadDomain);
-	}
-
-	function afterReadDomain(error, result) {
-		if (error)
-			return session.abort(error);
-		session.writeJSON(result);
+		// TODO Support multiple MIME types
+		//session.write(route.responseText, route.responseType);
+		session.writeJSON(selection.types);
 		session.end();
-	}
-
-	function onRouteError(error) {
-		session.abort(new HttpError(502, error.message));
 	}
 }
