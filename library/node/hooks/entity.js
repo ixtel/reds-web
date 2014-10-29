@@ -70,11 +70,11 @@ exports.POST = function(session) {
 	function afterRegisterEntity(error, result) {
 		if (error)
 			return session.abort(error);
-		session.write(route.responseText, route.responseType);
 		// NOTE As long as we don't support mime multipart responses,
-		//      the linking result can only be written when the route
-		//      response hasn't been written already.
+		//      the rsult of registerEntity can only be written when
+		//      the route response hasn't been written already.
 		if (!route) session.writeJSON(result);
+		session.write(route.responseText, route.responseType);
 		session.end();
 	}
 }
@@ -102,9 +102,8 @@ exports.HEAD = function(session) {
 	}
 }
 
-// TODO Return entities in different domains
 exports.GET = function(session) {
-	var route;
+	var route, selection;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -127,24 +126,16 @@ exports.GET = function(session) {
 				// TODO The 204 case should be handled by session end
 				return session.abort(new HttpError(204, "empty response"));
 		}
-		types = new Object();
-		for (i=0; i<result.length; i++) {
-			if (!types[result[i]['type']])
-				types[result[i]['type']] = result[i]['eid'];
-			else
-				types[result[i]['type']] += ","+result[i]['eid'];
-		}
-		eids = new Array();
-		for (type in types) {
-			eids.push(types[type]);
-		}
+		selection = parseSelection(result);
 		route.method = "GET";
-		route.path = "/"+Object.keys(types).join(",")+"/"+eids.join(";");
+		route.path = selection.path;
 		route.write(session.requestText, session.request.headers['content-type']);
 		route.send();
 	}
 
 	function onRouteResponse() {
+		// TODO Support multiple MIME types
+		//session.write(route.responseText, route.responseType);
 		session.write(route.responseText, route.responseType);
 		session.end();
 	}
@@ -154,9 +145,8 @@ exports.GET = function(session) {
 	}
 }
 
-// TODO Return entities in different domains
 exports.PUT = function(session) {
-	var route;
+	var route, selection;
 	route = new Route(session.crypto, session.storage);
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
@@ -179,24 +169,16 @@ exports.PUT = function(session) {
 				// TODO The 204 case should be handled by session end
 				return session.abort(new HttpError(204, "empty response"));
 		}
-		types = new Object();
-		for (i=0; i<result.length; i++) {
-			if (!types[result[i]['type']])
-				types[result[i]['type']] = result[i]['eid'];
-			else
-				types[result[i]['type']] += ","+result[i]['eid'];
-		}
-		eids = new Array();
-		for (type in types) {
-			eids.push(types[type]);
-		}
+		selection = parseSelection(result);
 		route.method = "PUT";
-		route.path = "/"+Object.keys(types).join(",")+"/"+eids.join(";");
+		route.path = selection.path;
 		route.write(session.requestText, session.request.headers['content-type']);
 		route.send();
 	}
 
 	function onRouteResponse() {
+		// TODO Support multiple MIME types
+		//session.write(route.responseText, route.responseType);
 		session.write(route.responseText, route.responseType);
 		session.end();
 	}
@@ -206,7 +188,6 @@ exports.PUT = function(session) {
 	}
 }
 
-// TODO Return entities in different domains
 exports.DELETE = function(session) {
 	var route, selection;
 	route = new Route(session.crypto, session.storage);
