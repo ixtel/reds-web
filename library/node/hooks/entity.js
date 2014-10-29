@@ -115,7 +115,7 @@ exports.GET = function(session) {
 			return session.abort(error);
 		if (result.length == 0) {
 			// NOTE Only return an error if the request asked for specific eids
-			if (session.selector.last.value)
+			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
 			else
 				// TODO The 204 case should be handled by session end
@@ -167,7 +167,7 @@ exports.PUT = function(session) {
 			return session.abort(error);
 		if (result.length == 0) {
 			// NOTE Only return an error if the request asked for specific eids
-			if (session.selector.last.value)
+			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
 			else
 				// TODO The 204 case should be handled by session end
@@ -219,7 +219,7 @@ exports.DELETE = function(session) {
 			return session.abort(error);
 		if (result.length == 0) {
 			// NOTE Only return an error if the request asked for specific eids
-			if (session.selector.last.value)
+			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
 			else
 				// TODO The 204 case should be handled by session end

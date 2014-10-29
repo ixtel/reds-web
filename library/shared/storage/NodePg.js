@@ -208,7 +208,7 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 			from += "JOIN entities e"+r+" ON r"+(r-1)+".parent=e"+r+".eid JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
 		else
 			from += "entities e"+r+" JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
-		if (!selector[i].value)
+		if (selector[i].value == "*")
 			where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".did="+did+" ";
 		else
 			where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".eid IN ("+selector[i].value+") ";
@@ -217,9 +217,11 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 			where += "AND ";
 		}
 	}
+	console.log("SELECT e0.eid,e0.did,e0.root,t0.name AS type"+from+where);
 	this.$client.query("SELECT e0.eid,e0.did,e0.root,t0.name AS type"+from+where, afterQuery);
 
 	function afterQuery(error, result) {
+		console.log(result.rows);
 		callback(error||null, result?result.rows:null);
 	}
 }

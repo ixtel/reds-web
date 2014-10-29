@@ -204,7 +204,7 @@ function addContact(name, url, password) {
 
 function loadContactList(filter) {
 	clearContactList();
-	leaf.readEntities("/contact", afterReadEntities.bind(this));
+	leaf.readEntities("/contact/*", afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
 		var contactList, i;
@@ -269,7 +269,7 @@ function deleteContact(contact) {
 }
 
 function addAddress(contact, street, city) {
-	leaf.createEntity("/contact/"+contact+"/address/", {
+	leaf.createEntity("/contact/"+contact+"/address", {
 		'street': street,
 		'city': city
 	}, afterCreateEntity);
@@ -285,7 +285,7 @@ function addAddress(contact, street, city) {
 
 function loadAddressList(contact, filter) {
 	clearAddressList();
-	leaf.readEntities("/contact/"+contact+"/address", afterReadEntities.bind(this));
+	leaf.readEntities("/contact/"+contact+"/address/*", afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
 		var addressList, i;

@@ -243,10 +243,10 @@ Client.prototype.deleteDomains = function(dids, callback) {
 // INFO Entity operations
 
 // NOTE Finds the did of the last eid in path.
-// TODO Use * instead of empty values
+// TODO Differentiate between normal and wildcard paths
 Client.prototype.resolvePath = function(path, callback) {
 	var match, request, dids;
-	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+\/)?$/);
+	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+(\/\*)?)?$/);
 	if (match[1]) {
 		// TODO Implement some kind of caching to reduce HEAD requests
 		request = this.$createRequest("HEAD", match[1], onLoad.bind(this));
