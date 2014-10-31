@@ -13,7 +13,7 @@ StorageFacilities.addFacility(require("./storage/NodePg.js"));
 
 module.exports = exports = function(config, request, response) {
 	events.EventEmitter.call(this);
-	this.$requestJSON = undefined;
+	this.$requestJson = undefined;
 	this.$selector = undefined;
 	this.$type = undefined;
 	this.config = config;
@@ -107,17 +107,17 @@ exports.prototype.write = function(data, type) {
 	console.log("RESPONSE "+data); // DEBUG
 }
 
-exports.prototype.writeJSON = function(data, type) {
+exports.prototype.writeJson = function(data, type) {
 	if (data!==undefined)
 		var json = JSON.stringify(data);
 	this.write(json, type||"application/json;charset=UTF-8");
 }
 
-Object.defineProperty(exports.prototype, "requestJSON", {
+Object.defineProperty(exports.prototype, "requestJson", {
 	get: function() {
-		if (this.$requestJSON === undefined)
-			this.$requestJSON = this.requestText ? JSON.parse(this.requestText) : null;
-		return this.$requestJSON;
+		if (this.$requestJson === undefined)
+			this.$requestJson = this.requestText ? JSON.parse(this.requestText) : null;
+		return this.$requestJson;
 	}
 });
 

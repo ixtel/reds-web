@@ -5,9 +5,9 @@ var HttpError = require("../../shared/HttpError");
 exports.POST = function(session) {
 	var tkeyP, tkey, values;
 	tkeyP = session.crypto.generateKeypair();
-	tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJSON['tkey_l']);
-	// NOTE We don't want to modify requestJSON so we create our own JSON object here
-	values = JSON.parse(session.requestText);
+	tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJson['tkey_l']);
+	// NOTE We don't want to modify requestDomain so we clone it
+	values = JSON.parse(JSON.stringify(session.requestDomain));
 	values['did'] = session.selector[0].value;
 	values['tkey'] = tkey;
 	// TODO Set tflags correctly
@@ -26,7 +26,7 @@ exports.POST = function(session) {
 			}
 		}
 		result['tkey_p'] = tkeyP.publicKey;
-		session.writeJSON(result);
+		session.writeDomain(result);
 		session.end();
 	}
 }

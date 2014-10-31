@@ -73,7 +73,7 @@ exports.POST = function(session) {
 		// NOTE As long as we don't support mime multipart responses,
 		//      the rsult of registerEntity can only be written when
 		//      the route response hasn't been written already.
-		if (!route) session.writeJSON(result);
+		if (!route) session.writeJson(result);
 		session.write(route.responseText, route.responseType);
 		session.end();
 	}
@@ -228,7 +228,7 @@ exports.DELETE = function(session) {
 			return session.abort(error);
 		// TODO Support multiple MIME types
 		//session.write(route.responseText, route.responseType);
-		session.writeJSON(selection.types);
+		session.writeJson(selection.types);
 		session.end();
 	}
 }

@@ -5,8 +5,8 @@ var HttpError = require("../../shared/HttpError");
 // TODO Check for valid request data
 exports.POST = function(session) {
 	var values;
-	// NOTE We don't want to modify requestJSON so we create our own JSON object here
-	values = JSON.parse(session.requestText);
+	// NOTE We don't want to modify requestDomain so we clone it
+	values = JSON.parse(JSON.stringify(session.requestDomain));
 	values['eid'] = session.selector[0].value;
 	values['did'] = session.type.options['did'];
 	session.storage.createEntity(session.selector.last.key, values, afterCreateEntity);
@@ -22,7 +22,7 @@ exports.POST = function(session) {
 			}
 		}
 		// TODO Send domain data
-		session.writeJSON(result, "application/x.reds.domain");
+		session.writeDomain(result);
 		session.end();
 	}
 }
@@ -48,8 +48,7 @@ exports.GET = function(session) {
 			return session.abort(errors[0]);
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
-		// TODO Send domain data
-		session.writeJSON(result, "application/x.reds.domain");
+		session.writeDomain(result);
 		session.end();
 	}
 }
@@ -64,7 +63,7 @@ exports.PUT = function(session) {
 		return session.abort(new HttpError(400, "invalid url ids"));
 	types = session.selector.last.key.split(",");
 	eids = session.selector.last.value.split(";");
-	values = session.requestJSON;
+	values = session.requestDomain;
 	if (types.length != eids.length)
 		return session.abort(new HttpError(400, "url types and ids mismatch"));
 	if (types.length != Object.keys(values).length)
@@ -86,8 +85,7 @@ exports.PUT = function(session) {
 			return session.abort(error);
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
-		// TODO Send domain data
-		session.writeJSON(result, "application/x.reds.domain");
+		session.writeDomain(result);
 		session.end();
 	}
 }
@@ -113,8 +111,7 @@ exports.DELETE = function(session) {
 			return session.abort(errors[0]);
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
-		// TODO Send domain data
-		session.writeJSON(result, "application/x.reds.domain");
+		session.writeDomain(result);
 		session.end();
 	}
 }
