@@ -29,6 +29,7 @@ exports.POST = function(session) {
 
 	function afterCreateAccount(error, result) {
 		if (error !== null) {
+			// TODO Error type should be returned by storage facility
 			switch (error.code) {
 				case "23505":
 					return session.abort(new HttpError(409, "alias already exists"));

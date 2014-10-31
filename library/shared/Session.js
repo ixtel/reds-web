@@ -65,7 +65,8 @@ exports.prototype.delegate = function() {
 	this.HookHandlers[hook][this.request.method](this);
 }
 
-exports.prototype.end = function() {
+exports.prototype.end = function(status) {
+	this.response.statusCode = status||200;
 	this.response.end();
 	if (this.storage)
 		this.storage.disconnect();
@@ -78,8 +79,7 @@ exports.prototype.abort = function(error) {
 			console.warn("ABORT "+error.toString());
 			if  (error.code == 401)
 				this.response.setHeader("WWW-Authenticate", "REDS realm=\"node\"");
-			this.response.statusCode = error.code;
-			this.end();
+			this.end(error.code);
 		}
 		else {
 			throw error;
@@ -88,8 +88,7 @@ exports.prototype.abort = function(error) {
 	catch(e) {
 		try {
 			console.error("ERROR "+e);
-			this.response.statusCode = 500;
-			this.end();
+			this.end(500);
 		}
 		catch (ee) {
 			console.error("DIZZY "+ee);

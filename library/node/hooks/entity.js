@@ -91,8 +91,7 @@ exports.HEAD = function(session) {
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
 			else
-				// TODO The 204 case should be handled by session end
-				return session.abort(new HttpError(204, "empty response"));
+				return session.end(204);
 		}
 		dids = new Array();
 		for (i=0; i<result.length; i++)
@@ -123,8 +122,7 @@ exports.GET = function(session) {
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
 			else
-				// TODO The 204 case should be handled by session end
-				return session.abort(new HttpError(204, "empty response"));
+				return session.end(204);
 		}
 		selection = parseSelection(result);
 		route.method = "GET";
@@ -166,8 +164,7 @@ exports.PUT = function(session) {
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
 			else
-				// TODO The 204 case should be handled by session end
-				return session.abort(new HttpError(204, "empty response"));
+				return session.end(204);
 		}
 		selection = parseSelection(result);
 		route.method = "PUT";
@@ -209,8 +206,7 @@ exports.DELETE = function(session) {
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
 			else
-				// TODO The 204 case should be handled by session end
-				return session.abort(new HttpError(204, "empty response"));
+				return session.end(204);
 		}
 		selection = parseSelection(result);
 		route.method = "DELETE";

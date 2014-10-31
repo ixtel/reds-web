@@ -15,6 +15,7 @@ exports.POST = function(session) {
 
 	function afterCreateDomain(error, result) {
 		if (error !== null) {
+			// TODO Error type should be returned by storage facility
 			switch (error.code) {
 				case "23505":
 					return session.abort(new HttpError(409, "did already exists"));
