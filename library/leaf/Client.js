@@ -80,7 +80,7 @@ Client.prototype.signin = function(name, password, callback) {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
 		var vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
 		Vault[this.vid] = vault;
-		Vault[this.vid].account['asec'] = asec;
+		Vault[this.vid].account['sec'] = asec;
 		console.log(Vault[this.vid]);
 		callback({'aid':Vault[this.vid].account['id']});
 	}
@@ -113,9 +113,8 @@ Client.prototype.createAccount = function(name, password, callback) {
 		Vault[this.vid] = {
 			'account': {
 				'id': request.responseJson['aid'],
-				'alias': alias,
-				'auth': auth,
-				'asec' : asec
+				'key': auth,
+				'sec' : asec
 			},
 			'domain': {}
 		};
@@ -129,7 +128,7 @@ Client.prototype.createAccount = function(name, password, callback) {
 
 Client.prototype.deleteAccount = function(callback) {
 	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
-	request.sign(Vault[this.vid].account);
+	request.sign(Vault[this.vid].account, "aid");
 	request.send();
 
 	function onLoad() {
@@ -144,14 +143,14 @@ Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
-	delete vault.account['asec'];
-	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
+	delete vault.account['sec'];
+	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['sec'], vec);
 	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
 	request.writeJson({
 		'vault': vault,
 		'vec': vec
 	});
-	request.sign(Vault[this.vid].account);
+	request.sign(Vault[this.vid].account, "aid");
 	request.send();
 	
 	function onLoad() {
@@ -176,7 +175,8 @@ Client.prototype.createDomain = function(pod, password, callback) {
 		pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
 		domain = {
 			'id': request.responseJson['did'],
-			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
+			'key': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
+			'ticket': null
 		};
 		Vault[this.vid].domain[domain['id']] = domain;
 		callback({'did':domain['id']});
@@ -187,17 +187,20 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	var tkeyL, request, domain;
 	tkeyL = this.crypto.generateKeypair();
 	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
-	request.writeDomain({
+	request.writeJson({
 		'tkey_l': tkeyL.publicKey
-	}, Vault[this.vid].domain[did]);
+	});
+	request.sign(Vault[this.vid].domain[did], "did");
 	request.send();
 
 	function onLoad(result) {
-		domain = Vault[this.vid].domain[did];
-		domain['tid'] = request.responseDomain['tid'],
-		domain['tflags'] = request.responseDomain['tflags'],
-		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseDomain['tkey_p'])
-		callback({'tid':domain['tid'],'did':domain['id']});
+		// TODO Check dkey signature
+		Vault[this.vid].domain[did].ticket = {
+			'id': request.responseJson['tid'],
+			'key': this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
+			'flags': request.responseJson['tflags']
+		};
+		callback({'did':did,'tid':Vault[this.vid].domain[did].ticket['id']});
 	}
 }
 
@@ -247,13 +250,16 @@ Client.prototype.resolvePath = function(path, callback) {
 	request.send();
 
 	function onLoad() {
+		// TODO Register leaf
 		var result, dids, did, i;
 		result = new Array();
-		dids = request.responseType.options['did'].split(",");
-		for (i=0; i<dids.length; i++) {
-			did = parseInt(dids[i]);
-			if (Vault[this.vid].domain[did])
-				result.push(did);
+		if (request.responseType.options) {
+			dids = request.responseType.options['did'].split(",");
+			for (i=0; i<dids.length; i++) {
+				did = parseInt(dids[i]);
+				if (Vault[this.vid].domain[did])
+					result.push(did);
+			}
 		}
 		console.log(result);
 		callback(result);

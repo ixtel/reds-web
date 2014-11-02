@@ -47,12 +47,6 @@ exports.prototype.resolve = function(did) {
 }
 
 exports.prototype.writeJson = function(data, type) {
-	if (data!==undefined)
-		var json = JSON.stringify(data);
-	this.write(json, type||"application/json;charset=encoding");
-}
-
-exports.prototype.writeJson = function(data, type) {
 	var json, error;
 	if (data !== undefined) {
 		try {

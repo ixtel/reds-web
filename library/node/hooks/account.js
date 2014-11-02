@@ -49,6 +49,7 @@ exports.PUT = function(session) {
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
+		// TODO Compare selector and authorization
 		// NOTE We don't want to modify requestJson so we create our own JSON object here
 		var values = JSON.parse(session.requestText);
 		values['aid'] = session.selector[0].value;
@@ -71,6 +72,7 @@ exports.DELETE = function(session) {
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
+		// TODO Compare selector and authorization
 		session.storage.deleteAccount(session.selector[0].value, afterDeleteAccount);
 	}
 	

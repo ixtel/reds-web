@@ -94,12 +94,12 @@ Request.prototype.write = function(data, type) {
 	this.$data = data||"";
 }
 
-Request.prototype.sign = function(credentials) {
+Request.prototype.sign = function(credentials, realm) {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
 	msg = this.crypto.concatenateStrings(this.crypto.name, credentials['id'], this.method, this.path, this.$type, this.$data, time);
-	sig = this.crypto.generateHmac(msg, credentials['auth']);
-	this.$xhr.setRequestHeader("Authorization", this.crypto.name+":"+credentials['id']+":"+sig+":"+time);
+	sig = this.crypto.generateHmac(msg, credentials['key']);
+	this.$xhr.setRequestHeader("Authorization", realm+":"+credentials['id']+":"+sig+":"+time+":"+this.crypto.name);
 }
 
 Request.prototype.send = function() {

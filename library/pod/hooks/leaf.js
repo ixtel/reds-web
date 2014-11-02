@@ -3,7 +3,9 @@
 var HttpError = require("../../shared/HttpError");
 
 exports.POST = function(session) {
-	var tkeyP, tkey, values;
+	// TODO Implement leaf registration
+	session.end();
+	/*var tkeyP, tkey, values;
 	tkeyP = session.crypto.generateKeypair();
 	tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJson['tkey_l']);
 	// NOTE We don't want to modify requestDomain so we clone it
@@ -28,5 +30,5 @@ exports.POST = function(session) {
 		result['tkey_p'] = tkeyP.publicKey;
 		session.writeJson(result);
 		session.end();
-	}
+	}*/
 }

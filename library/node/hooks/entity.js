@@ -97,7 +97,7 @@ exports.HEAD = function(session) {
 		for (i=0; i<result.length; i++)
 			dids.push(result[i]['did']);
 		session.write(undefined, "application/x.reds.domain;did="+dids.join(","));
-		session.end();
+		session.end(result.length?200:204);
 	}
 }
 
