@@ -158,7 +158,7 @@ exports.prototype.createDomain = function(values, callback) {
 }
 
 exports.prototype.readDomain = function(did, callback) {
-	this.$client.query("SELECT * "+
+	this.$client.query("SELECT did,encode(dkey,'base64') AS dkey "+
 		"FROM domains "+
 		"WHERE did=$1 ",
 		[did],

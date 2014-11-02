@@ -7,13 +7,14 @@ var HttpError = require("../shared/HttpError");
 module.exports = exports = function(crypto, storage) {
 	events.EventEmitter.call(this);
 	this.$data = "";
-	this.$type = "application/octet-stream";
 	this.$responseJson = undefined;
 	this.crypto = crypto;
 	this.storage = storage;
 	this.pod = null;
 	this.method = null;
 	this.path = null;
+	this.requestHeaders = {'content-type':"application/octet-stream"};
+	this.responseHeaders = null;
 	this.responseText = null;
 	this.responseType = null;
 }
@@ -64,23 +65,25 @@ exports.prototype.writeJson = function(data, type) {
 exports.prototype.write = function(data, type) {
 	if (this.$data.length)
 		throw new Error("Multiple Route.write calls are not supported yet (TODO)");
-	this.$type = type||"application/octet-stream";
+	this.requestHeaders['content-type'] = type||"application/octet-stream";
 	this.$data = data||"";
 }
 
-exports.prototype.send = function(data, type) {
-	var m = this.pod.url.match(/([^\/:]+)(?:\:(\d+))?(.*)/);
-	var req = http.request({
-		'hostname': m[1],
-		'port': parseInt(m[2])||80,
+exports.prototype.send = function(data, authorization) {
+	var match, request, header;
+	match = this.pod.url.match(/([^\/:]+)(?:\:(\d+))?(.*)/);
+	request = http.request({
+		'hostname': match[1],
+		'port': parseInt(match[2])||80,
 		'method': this.method,
-		'path': m[3]+this.path
+		'path': match[3]+this.path
 	});
-	req.addListener("error", onError.bind(this));
-	req.addListener('response', onResponse.bind(this));
-	req.setHeader("content-length", this.$data ? Buffer.byteLength(this.$data) : 0);
-	req.setHeader("content-type", this.$type);
-	req.end(this.$data);
+	request.addListener("error", onError.bind(this));
+	request.addListener('response', onResponse.bind(this));
+	request.setHeader("content-length", this.$data ? Buffer.byteLength(this.$data) : 0);
+	for (header in this.requestHeaders)
+		request.setHeader(header, this.requestHeaders[header]);
+	request.end(this.$data);
 
 	function onResponse(response) {
 		var responseText = "";
@@ -99,7 +102,7 @@ exports.prototype.send = function(data, type) {
 
 		response.addListener("end", function() {
 			this.responseText = responseText;
-			this.responseType = response.headers['content-type'];
+			this.responseHeaders = response.headers;
 			this.emit("response", this);
 		}.bind(this));
 	}

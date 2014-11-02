@@ -69,7 +69,7 @@ Request.prototype.writeDomain = function(data, credentials, type) {
 			return;
 		}
 	}
-	this.write(domain, type||"application/x.reds.domain;did="+credentials['id']);
+	this.write(domain, type||"application/x.reds.domain;did="+credentials['did']);
 }
 
 Request.prototype.writeJson = function(data, type) {
@@ -94,12 +94,20 @@ Request.prototype.write = function(data, type) {
 	this.$data = data||"";
 }
 
-Request.prototype.sign = function(credentials, realm) {
+Request.prototype.signAccount = function(credentials) {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
-	msg = this.crypto.concatenateStrings(realm, credentials['id'], this.$method, this.$type, this.$data, time, this.crypto.name);
-	sig = this.crypto.generateHmac(msg, credentials['key']);
-	this.$xhr.setRequestHeader("Authorization", realm+":"+credentials['id']+":"+sig+":"+time+":"+this.crypto.name);
+	msg = this.crypto.concatenateStrings("account", credentials['aid'], this.$method, this.$type, this.$data, time, this.crypto.name);
+	sig = this.crypto.generateHmac(msg, credentials['akey']);
+	this.$xhr.setRequestHeader("Authorization", "account:"+credentials['aid']+":"+sig+":"+time+":"+this.crypto.name);
+}
+
+Request.prototype.signDomain = function(credentials) {
+	var time, msg, sig;
+	time = this.crypto.generateTimestamp();
+	msg = this.crypto.concatenateStrings("domain", credentials['did'], this.$method, this.$type, this.$data, time, this.crypto.name);
+	sig = this.crypto.generateHmac(msg, credentials['dkey']);
+	this.$xhr.setRequestHeader("Authorization", "domain:"+credentials['did']+":"+sig+":"+time+":"+this.crypto.name);
 }
 
 Request.prototype.send = function() {

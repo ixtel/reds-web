@@ -70,9 +70,7 @@ exports.POST = function(session) {
 	function afterRegisterEntity(error, result) {
 		if (error)
 			return session.abort(error);
-		// NOTE As long as we don't support mime multipart responses,
-		//      the rsult of registerEntity can only be written when
-		//      the route response hasn't been written already.
+		// TODO Support multiple MIME types
 		if (!route) session.writeJson(result);
 		session.write(route.responseText, route.responseType);
 		session.end();
@@ -133,8 +131,8 @@ exports.GET = function(session) {
 
 	function onRouteResponse() {
 		// TODO Support multiple MIME types
-		//session.write(route.responseText, route.responseType);
-		session.write(route.responseText, route.responseType);
+		//session.writeJson(selection.types);
+		session.write(route.responseText, route.responseHeaders['content-type']);
 		session.end();
 	}
 
@@ -175,8 +173,8 @@ exports.PUT = function(session) {
 
 	function onRouteResponse() {
 		// TODO Support multiple MIME types
-		//session.write(route.responseText, route.responseType);
-		session.write(route.responseText, route.responseType);
+		//session.writeJson(selection.types);
+		session.write(route.responseText, route.responseHeaders['content-type']);
 		session.end();
 	}
 

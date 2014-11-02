@@ -15,11 +15,12 @@ exports.POST = function(session) {
 		route.method = "POST";
 		route.path = "/!/domain/"+session.selector[0].value+"/ticket";
 		route.write(session.requestText, session.request.headers['content-type']);
+		route.requestHeaders['authorization'] = session.request.headers['authorization'];
 		route.send();
 	}
 
 	function onRouteResponse() {
-		session.write(route.responseText, route.responseType);
+		session.write(route.responseText, route.responseHeaders['content-type']);
 		session.end();
 	}
 

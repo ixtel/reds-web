@@ -44,7 +44,7 @@ exports.POST = function(session) {
 }
 
 exports.PUT = function(session) {
-	session.authorize(afterAuthorization);
+	session.authorizeAccount(afterAuthorization);
 
 	function afterAuthorization(error) { 
 		if (error)
@@ -66,7 +66,7 @@ exports.PUT = function(session) {
 }
 
 exports.DELETE = function(session) {
-	session.authorize(afterAuthorization);
+	session.authorizeAccount(afterAuthorization);
 
 	function afterAuthorization(error) { 
 		if (error)

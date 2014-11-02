@@ -16,7 +16,7 @@ exports.prototype.HookHandlers = {
 	'*': require("./hooks/entity.js")
 }
 
-exports.prototype.authorize = function(callback) {
+exports.prototype.authorizeAccount = function(callback) {
 	if (!this.authorization)
 		return callback(new HttpError(401, "Missing authorization"));
 	// NOTE Note this check won't be needed once the session can handle multiple facilities

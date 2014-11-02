@@ -80,9 +80,9 @@ Client.prototype.signin = function(name, password, callback) {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
 		var vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
 		Vault[this.vid] = vault;
-		Vault[this.vid].account['sec'] = asec;
+		Vault[this.vid].account['asec'] = asec;
 		console.log(Vault[this.vid]);
-		callback({'aid':Vault[this.vid].account['id']});
+		callback({'aid':Vault[this.vid].account['aid']});
 	}
 }
 
@@ -112,9 +112,9 @@ Client.prototype.createAccount = function(name, password, callback) {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
 		Vault[this.vid] = {
 			'account': {
-				'id': request.responseJson['aid'],
-				'key': auth,
-				'sec' : asec
+				'aid': request.responseJson['aid'],
+				'akey': auth,
+				'asec' : asec
 			},
 			'domain': {}
 		};
@@ -122,13 +122,13 @@ Client.prototype.createAccount = function(name, password, callback) {
 	}
 	
 	function afterUpdateVault() {
-		callback({'aid':Vault[this.vid].account['id']});
+		callback({'aid':Vault[this.vid].account['aid']});
 	}
 }
 
 Client.prototype.deleteAccount = function(callback) {
-	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
-	request.sign(Vault[this.vid].account, "account");
+	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
+	request.signAccount(Vault[this.vid].account);
 	request.send();
 
 	function onLoad() {
@@ -143,14 +143,14 @@ Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
-	delete vault.account['sec'];
-	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['sec'], vec);
-	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
+	delete vault.account['asec'];
+	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
+	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
 	request.writeJson({
 		'vault': vault,
 		'vec': vec
 	});
-	request.sign(Vault[this.vid].account, "account");
+	request.signAccount(Vault[this.vid].account);
 	request.send();
 	
 	function onLoad() {
@@ -174,12 +174,11 @@ Client.prototype.createDomain = function(pod, password, callback) {
 		var pkey, domain;
 		pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
 		domain = {
-			'id': request.responseJson['did'],
-			'key': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
-			'ticket': null
+			'did': request.responseJson['did'],
+			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
 		};
-		Vault[this.vid].domain[domain['id']] = domain;
-		callback({'did':domain['id']});
+		Vault[this.vid].domain[domain['did']] = domain;
+		callback({'did':domain['did']});
 	}
 }
 
@@ -190,17 +189,16 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	request.writeJson({
 		'tkey_l': tkeyL.publicKey
 	});
-	request.sign(Vault[this.vid].domain[did], "domain");
+	request.signDomain(Vault[this.vid].domain[did]);
 	request.send();
 
 	function onLoad(result) {
+		var domain = Vault[this.vid].domain[did];
 		// TODO Check dkey signature
-		Vault[this.vid].domain[did].ticket = {
-			'id': request.responseJson['tid'],
-			'key': this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
-			'flags': request.responseJson['tflags']
-		};
-		callback({'did':did,'tid':Vault[this.vid].domain[did].ticket['id']});
+		domain['tid'] = request.responseJson['tid'],
+		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
+		domain['tflags'] = request.responseJson['tflags']
+		callback({'did':did,'tid':domain['tid']});
 	}
 }
 
