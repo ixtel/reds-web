@@ -49,7 +49,8 @@ exports.PUT = function(session) {
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
-		// TODO Compare selector and authorization
+		if (session.authorization['id'] != session.selector[0].value)
+			return session.abort(new HttpError(400, "selector and authorization mismatch"));
 		// NOTE We don't want to modify requestJson so we create our own JSON object here
 		var values = JSON.parse(session.requestText);
 		values['aid'] = session.selector[0].value;
@@ -59,8 +60,6 @@ exports.PUT = function(session) {
 	function afterUpdateAccount(error, result) {
 		if (error)
 			return session.abort(error);
-		if (!result)
-			return session.abort(new HttpError(404, "account not found"));
 		session.writeJson(result);
 		session.end();
 	}
@@ -72,15 +71,14 @@ exports.DELETE = function(session) {
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
-		// TODO Compare selector and authorization
+		if (session.authorization['id'] != session.selector[0].value)
+			return session.abort(new HttpError(400, "selector and authorization mismatch"));
 		session.storage.deleteAccount(session.selector[0].value, afterDeleteAccount);
 	}
 	
 	function afterDeleteAccount(error, result) {
 		if (error)
 			return session.abort(error);
-		if (!result)
-			return session.abort(new HttpError(404, "account not found"));
 		session.end();
 	}
 }

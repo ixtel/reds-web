@@ -21,13 +21,17 @@ exports.prototype.authorize = function(callback) {
 		return callback(new HttpError(401, "Missing authorization"));
 	// NOTE Note this check won't be needed once the session can handle multiple facilities
 	if (this.authorization['crypto'] != this.crypto.name)
-		return callback(new HttpError(500, "Unsupported crypto facility"));
+		return callback(new HttpError(400, "Unsupported crypto facility"));
+	if (this.authorization['realm'] != "account")
+		return callback(new HttpError(400, "Invalid realm"));
 	this.storage.readAccount(this.authorization['id'], afterReadAccount.bind(this));
 
 	function afterReadAccount(error, result) {
 		if (error)
 			return callback(error);
-		var msg = this.crypto.concatenateStrings(this.authorization['crypto'], this.authorization['id'], this.request.method, this.request.url, this.request.headers['content-type'], this.requestText||"", this.authorization['vector']);
+		if (!result)
+			return callback(new HttpError(403, "Unknown account"));
+		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.request.method, this.request.headers['content-type'], this.requestText||"", this.authorization['time'], this.authorization['crypto']);
 		var sig = this.crypto.generateHmac(msg, result['auth']);
 		if (sig == this.authorization['signature'])
 			return callback();
@@ -35,23 +39,3 @@ exports.prototype.authorize = function(callback) {
 			return callback(new HttpError(403, "Invalid authorization"));
 	}
 }
-
-Object.defineProperty(exports.prototype, "authorization", {
-	get: function() {
-		if (this.$authorization === undefined) {
-			this.$authorization = this.request.headers['authorization'] || null;
-			if (this.$authorization) {
-				this.$authorization = this.$authorization.match(/aid:(\d+):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
-				if (this.$authorization) {
-					this.$authorization = {
-						'id': this.$authorization[1],
-						'signature': this.$authorization[2],
-						'vector': this.$authorization[3],
-						'crypto': this.$authorization[4]
-					};
-				}
-			}
-		}
-		return this.$authorization;
-	}
-});

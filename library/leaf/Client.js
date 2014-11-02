@@ -128,7 +128,7 @@ Client.prototype.createAccount = function(name, password, callback) {
 
 Client.prototype.deleteAccount = function(callback) {
 	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
-	request.sign(Vault[this.vid].account, "aid");
+	request.sign(Vault[this.vid].account, "account");
 	request.send();
 
 	function onLoad() {
@@ -150,7 +150,7 @@ Client.prototype.updateVault = function(callback) {
 		'vault': vault,
 		'vec': vec
 	});
-	request.sign(Vault[this.vid].account, "aid");
+	request.sign(Vault[this.vid].account, "account");
 	request.send();
 	
 	function onLoad() {
@@ -190,7 +190,7 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	request.writeJson({
 		'tkey_l': tkeyL.publicKey
 	});
-	request.sign(Vault[this.vid].domain[did], "did");
+	request.sign(Vault[this.vid].domain[did], "domain");
 	request.send();
 
 	function onLoad(result) {

@@ -6,8 +6,9 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 // INFO Leaf client module
 
 var Request = function(crypto) {
-	this.$data = "";
+	this.$method = "";
 	this.$type = "application/octet-stream";
+	this.$data = "";
 	this.$responseDomain = undefined;
 	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
@@ -52,8 +53,7 @@ Request.prototype.dispatchEvent = function(evt) {
 }
 
 Request.prototype.open = function(method, node, path) {
-	this.method = method;
-	this.path = path;
+	this.$method = method;
 	return this.$xhr.open(method, node+path, true);
 }
 
@@ -97,7 +97,7 @@ Request.prototype.write = function(data, type) {
 Request.prototype.sign = function(credentials, realm) {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
-	msg = this.crypto.concatenateStrings(this.crypto.name, credentials['id'], this.method, this.path, this.$type, this.$data, time);
+	msg = this.crypto.concatenateStrings(realm, credentials['id'], this.$method, this.$type, this.$data, time, this.crypto.name);
 	sig = this.crypto.generateHmac(msg, credentials['key']);
 	this.$xhr.setRequestHeader("Authorization", realm+":"+credentials['id']+":"+sig+":"+time+":"+this.crypto.name);
 }

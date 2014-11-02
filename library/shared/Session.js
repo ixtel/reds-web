@@ -156,3 +156,24 @@ Object.defineProperty(exports.prototype, "type", {
 		return this.$type;
 	}
 });
+
+Object.defineProperty(exports.prototype, "authorization", {
+	get: function() {
+		if (this.$authorization === undefined) {
+			this.$authorization = this.request.headers['authorization'] || null;
+			if (this.$authorization) {
+				this.$authorization = this.$authorization.match(/(account|domain|ticket):(\d+):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+				if (this.$authorization) {
+					this.$authorization = {
+						'realm': this.$authorization[1],
+						'id': parseInt(this.$authorization[2]),
+						'signature': this.$authorization[3],
+						'time': this.$authorization[4],
+						'crypto': this.$authorization[5]
+					};
+				}
+			}
+		}
+		return this.$authorization;
+	}
+});
