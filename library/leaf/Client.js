@@ -248,19 +248,25 @@ Client.prototype.resolvePath = function(path, callback) {
 	request.send();
 
 	function onLoad() {
-		// TODO Register leaf
-		var result, dids, did, i;
-		result = new Array();
-		if (request.responseType.options) {
-			dids = request.responseType.options['did'].split(",");
-			for (i=0; i<dids.length; i++) {
-				did = parseInt(dids[i]);
-				if (Vault[this.vid].domain[did])
-					result.push(did);
-			}
+		var dids, i;
+		dids = new Array();
+		if (!request.responseType.options)
+			return callback(null, 0, 0);
+		request.responseType.options['did'].replace(/(?:^|,)(\d+)(?=,|$)/, function(m, p) {
+			var did;
+			did = parseInt(p);
+			if (Vault[this.vid].domain[did])
+				dids.push(parseInt(p));
+			return false;
+		}.bind(this))
+		if (dids.length) {
+			for (i=0; i<dids.length; i++)
+				// TODO Register leaf
+				callback(dids[i], i, dids.length);
 		}
-		console.log(result);
-		callback(result);
+		else {
+			callback(null, 0, 0);
+		}
 	}
 }
 
@@ -270,15 +276,17 @@ Client.prototype.createEntity = function(path, data, callback) {
 	if (!match)
 		return this.dispatchEvent("error", new Error("invalid path"));
 	if (data['did'])
-		afterResolvePath.call(this, [data['did']]);
+		afterResolvePath.call(this, data['did']);
 	else if (match[1])
 		this.resolvePath(match[1], afterResolvePath.bind(this));
 	else
 		this.dispatchEvent("error", new Error("unknown did"));
 
-	function afterResolvePath(dids) {
+	function afterResolvePath(did) {
+		if (!did)
+			return;
 		request = this.$createRequest("POST", path, onLoad.bind(this));
-		request.writeDomain(data, Vault[this.vid].domain[dids[0]]);
+		request.writeDomain(data, Vault[this.vid].domain[did]);
 		request.send();
 	}
 
@@ -292,41 +300,41 @@ Client.prototype.readEntities = function(path, callback) {
 	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
 	if (!match)
 		return this.dispatchEvent("error", new Error("invalid path"));
+	results = new Object();
+	errors = new Array();
+	count = 0;
 	this.resolvePath(match[0], afterResolvePath.bind(this));
 
-	function afterResolvePath(dids) {
-		results = new Object();
-		errors = new Array();
-		for (count=0; count < dids.length; count++)
-			readEntitiesForDomain.call(this, dids[count], afterReadEntitiesForDomain.bind(this));
-	}
-
-	function readEntitiesForDomain(did, callback) {
+	function afterResolvePath(did, index, length) {
 		var request, type;
+		if (!did)
+			return;
 		request = this.$createRequest("GET", path, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
+			count++;
 			for (type in request.responseDomain) {
 				if (results[type])
 					results[type] = results[type].concat(request.responseDomain[type]);
 				else
 					results[type] = request.responseDomain[type];
 			}
-			if (--count == 0)
-				callback();
+			if (length-count == 0)
+				finalize.call(this);
 		}
 
 		function onError(evt) {
+			count++;
 			evt.stopImmediatePropagation();
 			errors.push(evt.detail);
-			if (--count == 0)
-				callback();
+			if (length-count == 0)
+				finalize.call(this);
 		}
 	}
 
-	function afterReadEntitiesForDomain() {
+	function finalize() {
 		var type;
 		if (errors.length > 0)
 			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
@@ -340,45 +348,47 @@ Client.prototype.updateEntities = function(path, data, callback) {
 	match = path.match(/^(?:\/(\w+)\/[\d,]+)+$/);
 	if (!match)
 		return this.dispatchEvent("error", new Error("invalid path"));
+	// NOTE We use results as a temporary buffer here - dirty but it works ;)
+	results = data;
+	data = new Object();
+	data[match[1]] = results;
+	results = new Object();
+	errors = new Array();
+	count = 0;
 	this.resolvePath(match[0], afterResolvePath.bind(this));
 
-	function afterResolvePath(dids) {
-		// NOTE We use results as a temporary buffer here - dirty but it works ;)
-		results = data;
-		data = new Object();
-		data[match[1]] = results;
-		results = new Object();
-		errors = new Array();
-		for (count=0; count < dids.length; count++)
-			updateEntitiesForDomain.call(this, dids[count], afterUpdateEntitiesForDomain.bind(this));
-	}
-
-	function updateEntitiesForDomain(did, callback) {
+	function afterResolvePath(did, index, length) {
 		var request, type;
+		if (!did)
+			return;
 		request = this.$createRequest("PUT", path, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(data, Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
+			console.log(request.responseDomain);
+			count++;
 			for (type in request.responseDomain) {
 				if (results[type])
 					results[type] = results[type].concat(request.responseDomain[type]);
 				else
 					results[type] = request.responseDomain[type];
 			}
-			if (--count == 0)
-				callback();
+			if (length-count == 0)
+				finalize.call(this);
 		}
 
 		function onError(evt) {
+			count++;
 			evt.stopImmediatePropagation();
 			errors.push(evt.detail);
-			if (--count == 0)
-				callback();
+			if (length-count == 0)
+				finalize.call(this);
 		}
 	}
 
-	function afterUpdateEntitiesForDomain() {
+	function finalize() {
+		console.log(results);
 		var type;
 		if (errors.length > 0)
 			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
@@ -392,42 +402,42 @@ Client.prototype.deleteEntities = function(path, callback) {
 	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
 	if (!match)
 		return this.dispatchEvent("error", new Error("invalid path"));
+	results = new Object();
+	errors = new Array();
+	count = 0;
 	this.resolvePath(match[0], afterResolvePath.bind(this));
 
-	function afterResolvePath(dids) {
-		results = new Object();
-		errors = new Array();
-		for (count=0; count < dids.length; count++)
-			deleteEntitiesForDomain.call(this, dids[count], afterDeleteEntitiesForDomain.bind(this));
-	}
-
-	function deleteEntitiesForDomain(did, callback) {
+	function afterResolvePath(did, index, length) {
 		var request, type;
+		if (!did)
+			return;
 		request = this.$createRequest("DELETE", path, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
+			count++;
 			for (type in request.responseDomain) {
 				if (results[type])
 					results[type] = results[type].concat(request.responseDomain[type]);
 				else
 					results[type] = request.responseDomain[type];
 			}
-			if (--count == 0)
-				callback();
+			if (length-count == 0)
+				finalize.call(this);
 		}
 
 		function onError(evt) {
+			count++;
 			evt.stopImmediatePropagation();
 			errors.push(evt.detail);
-			if (--count == 0)
-				callback();
+			if (length-count == 0)
+				finalize.call(this);
 		}
 	}
 
-	function afterDeleteEntitiesForDomain() {
-		var type;
+	function finalize() {
+		var type
 		if (errors.length > 0)
 			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
 		else for (type in results)
