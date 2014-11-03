@@ -13,7 +13,7 @@ StorageFacilities.addFacility(require("./storage/NodePg.js"));
 
 module.exports = exports = function(config, request, response) {
 	events.EventEmitter.call(this);
-	this.$requestJSON = undefined;
+	this.$requestJson = undefined;
 	this.$selector = undefined;
 	this.$type = undefined;
 	this.config = config;
@@ -65,7 +65,8 @@ exports.prototype.delegate = function() {
 	this.HookHandlers[hook][this.request.method](this);
 }
 
-exports.prototype.end = function() {
+exports.prototype.end = function(status) {
+	this.response.statusCode = status||200;
 	this.response.end();
 	if (this.storage)
 		this.storage.disconnect();
@@ -78,8 +79,7 @@ exports.prototype.abort = function(error) {
 			console.warn("ABORT "+error.toString());
 			if  (error.code == 401)
 				this.response.setHeader("WWW-Authenticate", "REDS realm=\"node\"");
-			this.response.statusCode = error.code;
-			this.end();
+			this.end(error.code);
 		}
 		else {
 			throw error;
@@ -88,8 +88,7 @@ exports.prototype.abort = function(error) {
 	catch(e) {
 		try {
 			console.error("ERROR "+e);
-			this.response.statusCode = 500;
-			this.end();
+			this.end(500);
 		}
 		catch (ee) {
 			console.error("DIZZY "+ee);
@@ -108,17 +107,17 @@ exports.prototype.write = function(data, type) {
 	console.log("RESPONSE "+data); // DEBUG
 }
 
-exports.prototype.writeJSON = function(data, type) {
+exports.prototype.writeJson = function(data, type) {
 	if (data!==undefined)
 		var json = JSON.stringify(data);
 	this.write(json, type||"application/json;charset=UTF-8");
 }
 
-Object.defineProperty(exports.prototype, "requestJSON", {
+Object.defineProperty(exports.prototype, "requestJson", {
 	get: function() {
-		if (this.$requestJSON === undefined)
-			this.$requestJSON = this.requestText ? JSON.parse(this.requestText) : null;
-		return this.$requestJSON;
+		if (this.$requestJson === undefined)
+			this.$requestJson = this.requestText ? JSON.parse(this.requestText) : null;
+		return this.$requestJson;
 	}
 });
 
@@ -155,5 +154,26 @@ Object.defineProperty(exports.prototype, "type", {
 			}
 		}
 		return this.$type;
+	}
+});
+
+Object.defineProperty(exports.prototype, "authorization", {
+	get: function() {
+		if (this.$authorization === undefined) {
+			this.$authorization = this.request.headers['authorization'] || null;
+			if (this.$authorization) {
+				this.$authorization = this.$authorization.match(/(account|domain|ticket):(\d+):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+				if (this.$authorization) {
+					this.$authorization = {
+						'realm': this.$authorization[1],
+						'id': parseInt(this.$authorization[2]),
+						'signature': this.$authorization[3],
+						'time': this.$authorization[4],
+						'crypto': this.$authorization[5]
+					};
+				}
+			}
+		}
+		return this.$authorization;
 	}
 });

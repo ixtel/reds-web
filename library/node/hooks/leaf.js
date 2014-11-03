@@ -13,9 +13,8 @@ exports.POST = function(session) {
 
 	function onRouteReady() {
 		route.method = "POST";
-		route.path = "/!/domain/"+session.selector[0].value+"/ticket";
+		route.path = "/!/domain/"+session.selector[0].value+"/leaf";
 		route.write(session.requestText, session.request.headers['content-type']);
-		route.requestHeaders['authorization'] = session.request.headers['authorization'];
 		route.send();
 	}
 

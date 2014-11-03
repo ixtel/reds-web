@@ -13,15 +13,15 @@ exports.GET = function(session) {
 			return session.abort(error);
 		if (!result)
 			return session.abort(new HttpError(404, "alias not found"));
-		session.writeJSON(result);
+		session.writeJson(result);
 		session.end();
 	}
 }
 
 exports.POST = function(session) {
 	var authN = session.crypto.generateKeypair();
-	var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJSON['auth_l']);
-	// NOTE We don't want to modify requestJSON so we create our own JSON object here
+	var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJson['auth_l']);
+	// NOTE We don't want to modify requestJson so we create our own JSON object here
 	var values = JSON.parse(session.requestText);
 	values['auth'] = auth;
 	delete values['auth_l'];
@@ -29,6 +29,7 @@ exports.POST = function(session) {
 
 	function afterCreateAccount(error, result) {
 		if (error !== null) {
+			// TODO Error type should be returned by storage facility
 			switch (error.code) {
 				case "23505":
 					return session.abort(new HttpError(409, "alias already exists"));
@@ -37,18 +38,20 @@ exports.POST = function(session) {
 			}
 		}
 		result['auth_n'] = authN.publicKey;
-		session.writeJSON(result);
+		session.writeJson(result);
 		session.end();
 	}
 }
 
 exports.PUT = function(session) {
-	session.authorize(afterAuthorization);
+	session.authorizeAccount(afterAuthorization);
 
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
-		// NOTE We don't want to modify requestJSON so we create our own JSON object here
+		if (session.authorization['id'] != session.selector[0].value)
+			return session.abort(new HttpError(400, "selector and authorization mismatch"));
+		// NOTE We don't want to modify requestJson so we create our own JSON object here
 		var values = JSON.parse(session.requestText);
 		values['aid'] = session.selector[0].value;
 		session.storage.updateAccount(values, afterUpdateAccount);
@@ -57,27 +60,25 @@ exports.PUT = function(session) {
 	function afterUpdateAccount(error, result) {
 		if (error)
 			return session.abort(error);
-		if (!result)
-			return session.abort(new HttpError(404, "account not found"));
-		session.writeJSON(result);
+		session.writeJson(result);
 		session.end();
 	}
 }
 
 exports.DELETE = function(session) {
-	session.authorize(afterAuthorization);
+	session.authorizeAccount(afterAuthorization);
 
 	function afterAuthorization(error) { 
 		if (error)
 			return session.abort(error);
+		if (session.authorization['id'] != session.selector[0].value)
+			return session.abort(new HttpError(400, "selector and authorization mismatch"));
 		session.storage.deleteAccount(session.selector[0].value, afterDeleteAccount);
 	}
 	
 	function afterDeleteAccount(error, result) {
 		if (error)
 			return session.abort(error);
-		if (!result)
-			return session.abort(new HttpError(404, "account not found"));
 		session.end();
 	}
 }

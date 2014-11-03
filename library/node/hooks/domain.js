@@ -9,7 +9,7 @@ exports.POST = function(session) {
 	route.addListener("error", onRouteError);
 	route.addListener("ready", onRouteReady);
 	route.addListener("response", onRouteResponse);
-	route.init(session.requestJSON['pod']);
+	route.init(session.requestJson['pod']);
 
 	function onRouteReady() {
 		session.storage.registerDomain({
@@ -22,7 +22,7 @@ exports.POST = function(session) {
 			return session.abort(error);
 		domain = {
 			'did': result['did'],
-			'dkey_l': session.requestJSON['dkey_l']
+			'dkey_l': session.requestJson['dkey_l']
 		};
 		route.method = "POST";
 		route.path = "/!/domain/"+domain['did'];

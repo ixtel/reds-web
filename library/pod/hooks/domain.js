@@ -6,8 +6,8 @@ exports.POST = function(session) {
 	var pkey, dkeyP, dkey, values;
 	pkey = session.crypto.generateSecureHash(session.config['password'], session.config['salt']);
 	dkeyP = session.crypto.generateKeypair();
-	dkey = session.crypto.combineKeypair(dkeyP.privateKey, session.requestJSON['dkey_l'], pkey);
-	// NOTE We don't want to modify requestJSON so we create our own JSON object here
+	dkey = session.crypto.combineKeypair(dkeyP.privateKey, session.requestJson['dkey_l'], pkey);
+	// NOTE We don't want to modify requestJson so we create our own JSON object here
 	values = JSON.parse(session.requestText);
 	values['dkey'] = dkey;
 	delete values['dkey_l'];
@@ -15,6 +15,7 @@ exports.POST = function(session) {
 
 	function afterCreateDomain(error, result) {
 		if (error !== null) {
+			// TODO Error type should be returned by storage facility
 			switch (error.code) {
 				case "23505":
 					return session.abort(new HttpError(409, "did already exists"));
@@ -24,7 +25,7 @@ exports.POST = function(session) {
 		}
 		result['dkey_p'] = dkeyP.publicKey;
 		result['psalt'] = session.config['salt'];
-		session.writeJSON(result);
+		session.writeJson(result);
 		session.end();
 	}
 }
@@ -35,7 +36,7 @@ exports.DELETE = function(session) {
 	function afterDeleteDomain(error, result) {
 		if (error !== null)
 			return session.abort(error);
-		session.writeJSON(result, "application/x.reds.domain");
+		session.writeJson(result, "application/x.reds.domain");
 		session.end();
 	}
 }

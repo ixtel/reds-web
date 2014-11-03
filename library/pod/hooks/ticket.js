@@ -2,21 +2,29 @@
 
 var HttpError = require("../../shared/HttpError");
 
+
+// TODO Create non-owner tickets
 exports.POST = function(session) {
-	var tkeyP, tkey, values;
-	tkeyP = session.crypto.generateKeypair();
-	tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJSON['tkey_l']);
-	// NOTE We don't want to modify requestJSON so we create our own JSON object here
-	values = JSON.parse(session.requestText);
-	values['did'] = session.selector[0].value;
-	values['tkey'] = tkey;
-	// TODO Set tflags correctly
-	values['tflags'] = 0xFF;
-	delete values['tkey_l'];
-	session.storage.createTicket(values, afterCreateTicket);
+	var tkeyP;
+	session.authorizeDomain(afterAuthorization);
+
+	function afterAuthorization(error) { 
+		var tkey, values;
+		console.log("FOO");
+		tkeyP = session.crypto.generateKeypair();
+		tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJson['tkey_l']);
+		// NOTE We don't want to modify requestDomain so we clone it
+		values = JSON.parse(JSON.stringify(session.requestJson));
+		values['did'] = session.selector[0].value;
+		values['tkey'] = tkey;
+		values['tflags'] = 0xFF;
+		delete values['tkey_l'];
+		session.storage.createTicket(values, afterCreateTicket);
+	}
 
 	function afterCreateTicket(error, result) {
 		if (error !== null) {
+			// TODO Error type should be returned by storage facility
 			switch (error.code) {
 				case "23505":
 					return session.abort(new HttpError(409, "tid already exists"));
@@ -25,7 +33,7 @@ exports.POST = function(session) {
 			}
 		}
 		result['tkey_p'] = tkeyP.publicKey;
-		session.writeJSON(result);
+		session.writeJson(result);
 		session.end();
 	}
 }

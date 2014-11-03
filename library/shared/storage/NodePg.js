@@ -158,7 +158,7 @@ exports.prototype.createDomain = function(values, callback) {
 }
 
 exports.prototype.readDomain = function(did, callback) {
-	this.$client.query("SELECT * "+
+	this.$client.query("SELECT did,encode(dkey,'base64') AS dkey "+
 		"FROM domains "+
 		"WHERE did=$1 ",
 		[did],
@@ -198,7 +198,7 @@ exports.prototype.createTicket = function(values, callback) {
 // INFO Entity operations
 
 // TODO Check for SQL injection!
-// TODO Handle multiple types and eids
+// TODO Handle multiple types
 exports.prototype.selectEntities = function(selector, did, callback) {
 	var from, where;
 	from = " FROM ";
@@ -209,7 +209,7 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 		else
 			from += "entities e"+r+" JOIN types t"+r+" ON e"+r+".tid=t"+r+".tid ";
 		if (selector[i].value == "*")
-			where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".did="+did+" ";
+			where += "t"+r+".name='"+selector[i].key+(did?"' AND e"+r+".did="+did+" ":"' ");
 		else
 			where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".eid IN ("+selector[i].value+") ";
 		if (i>0) {
@@ -217,11 +217,9 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 			where += "AND ";
 		}
 	}
-	console.log("SELECT e0.eid,e0.did,e0.root,t0.name AS type"+from+where);
 	this.$client.query("SELECT e0.eid,e0.did,e0.root,t0.name AS type"+from+where, afterQuery);
 
 	function afterQuery(error, result) {
-		console.log(result.rows);
 		callback(error||null, result?result.rows:null);
 	}
 }

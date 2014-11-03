@@ -82,7 +82,7 @@ Client.prototype.signin = function(name, password, callback) {
 		Vault[this.vid] = vault;
 		Vault[this.vid].account['asec'] = asec;
 		console.log(Vault[this.vid]);
-		callback({'aid':Vault[this.vid].account['id']});
+		callback({'aid':Vault[this.vid].account['aid']});
 	}
 }
 
@@ -112,9 +112,8 @@ Client.prototype.createAccount = function(name, password, callback) {
 		var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
 		Vault[this.vid] = {
 			'account': {
-				'id': request.responseJson['aid'],
-				'alias': alias,
-				'auth': auth,
+				'aid': request.responseJson['aid'],
+				'akey': auth,
 				'asec' : asec
 			},
 			'domain': {}
@@ -123,13 +122,13 @@ Client.prototype.createAccount = function(name, password, callback) {
 	}
 	
 	function afterUpdateVault() {
-		callback({'aid':Vault[this.vid].account['id']});
+		callback({'aid':Vault[this.vid].account['aid']});
 	}
 }
 
 Client.prototype.deleteAccount = function(callback) {
-	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
-	request.sign(Vault[this.vid].account);
+	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
+	request.signAccount(Vault[this.vid].account);
 	request.send();
 
 	function onLoad() {
@@ -139,7 +138,6 @@ Client.prototype.deleteAccount = function(callback) {
 }
 
 // INFO Vault operations
-// NOTE These will usually be called only from within the client.
 
 Client.prototype.updateVault = function(callback) {
 	var vec = this.crypto.generateTimestamp();
@@ -147,12 +145,12 @@ Client.prototype.updateVault = function(callback) {
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
 	delete vault.account['asec'];
 	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
-	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['id'], onLoad.bind(this));
+	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
 	request.writeJson({
 		'vault': vault,
 		'vec': vec
 	});
-	request.sign(Vault[this.vid].account);
+	request.signAccount(Vault[this.vid].account);
 	request.send();
 	
 	function onLoad() {
@@ -162,7 +160,6 @@ Client.prototype.updateVault = function(callback) {
 }
 
 // INFO Domain operations
-// NOTE These will usually be called only from within the client.
 
 Client.prototype.createDomain = function(pod, password, callback) {
 	var dkeyL = this.crypto.generateKeypair();
@@ -177,11 +174,11 @@ Client.prototype.createDomain = function(pod, password, callback) {
 		var pkey, domain;
 		pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
 		domain = {
-			'id': request.responseJson['did'],
+			'did': request.responseJson['did'],
 			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
 		};
-		Vault[this.vid].domain[domain['id']] = domain;
-		callback({'did':domain['id']});
+		Vault[this.vid].domain[domain['did']] = domain;
+		callback({'did':domain['did']});
 	}
 }
 
@@ -189,17 +186,19 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	var tkeyL, request, domain;
 	tkeyL = this.crypto.generateKeypair();
 	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
-	request.writeDomain({
+	request.writeJson({
 		'tkey_l': tkeyL.publicKey
-	}, Vault[this.vid].domain[did]);
+	});
+	request.signDomain(Vault[this.vid].domain[did]);
 	request.send();
 
 	function onLoad(result) {
-		domain = Vault[this.vid].domain[did];
-		domain['tid'] = request.responseDomain['tid'],
-		domain['tflags'] = request.responseDomain['tflags'],
-		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseDomain['tkey_p'])
-		callback({'tid':domain['tid'],'did':domain['id']});
+		var domain = Vault[this.vid].domain[did];
+		// TODO Check dkey signature
+		domain['tid'] = request.responseJson['tid'],
+		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
+		domain['tflags'] = request.responseJson['tflags']
+		callback({'did':did,'tid':domain['tid']});
 	}
 }
 
@@ -242,34 +241,40 @@ Client.prototype.deleteDomains = function(dids, callback) {
 
 // INFO Entity operations
 
-// NOTE Finds the did of the last eid in path.
-// TODO Differentiate between normal and wildcard paths
+// TODO Implement some kind of caching to reduce HEAD requests
 Client.prototype.resolvePath = function(path, callback) {
-	var match, request, dids;
-	match = path.match(/(^(?:\/([^\/]+)\/(\d+))+)?(?:\/[^\/]+(\/\*)?)?$/);
-	if (match[1]) {
-		// TODO Implement some kind of caching to reduce HEAD requests
-		request = this.$createRequest("HEAD", match[1], onLoad.bind(this));
-		request.send();
-	}
-	else {
-		dids = Object.keys(Vault[this.vid].domain); 
-		callback(dids);
-	}
+	var request;
+	request = this.$createRequest("HEAD", path, onLoad.bind(this));
+	request.send();
 
 	function onLoad() {
-		var dids;
-		dids = request.responseType.options['did'].split(",");
-		callback(dids);
+		// TODO Register leaf
+		var result, dids, did, i;
+		result = new Array();
+		if (request.responseType.options) {
+			dids = request.responseType.options['did'].split(",");
+			for (i=0; i<dids.length; i++) {
+				did = parseInt(dids[i]);
+				if (Vault[this.vid].domain[did])
+					result.push(did);
+			}
+		}
+		console.log(result);
+		callback(result);
 	}
 }
 
 Client.prototype.createEntity = function(path, data, callback) {
-	var request;
+	var match, request;
+	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
 	if (data['did'])
 		afterResolvePath.call(this, [data['did']]);
+	else if (match[1])
+		this.resolvePath(match[1], afterResolvePath.bind(this));
 	else
-		this.resolvePath(path, afterResolvePath.bind(this));
+		this.dispatchEvent("error", new Error("unknown did"));
 
 	function afterResolvePath(dids) {
 		request = this.$createRequest("POST", path, onLoad.bind(this));
@@ -283,8 +288,11 @@ Client.prototype.createEntity = function(path, data, callback) {
 }
 
 Client.prototype.readEntities = function(path, callback) {
-	var results, errors, count;
-	this.resolvePath(path, afterResolvePath.bind(this));
+	var match, results, errors, count;
+	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
+	this.resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
 		results = new Object();
@@ -318,7 +326,6 @@ Client.prototype.readEntities = function(path, callback) {
 		}
 	}
 
-	// TODO Read entities from other domains
 	function afterReadEntitiesForDomain() {
 		var type;
 		if (errors.length > 0)
@@ -329,17 +336,17 @@ Client.prototype.readEntities = function(path, callback) {
 }
 
 Client.prototype.updateEntities = function(path, data, callback) {
-	var results, errors, count, type;
-	if (Array.isArray(data)) {
-		// NOTE We use results as a temporary buffer here - dirty but it works ;)
-		results = data;
-		type = path.match(/([^\/]+)\/[^\/]*$/)[1];
-		data = new Object();
-		data[type] = results;
-	}
-	this.resolvePath(path, afterResolvePath.bind(this));
+	var match, results, errors, count;
+	match = path.match(/^(?:\/(\w+)\/[\d,]+)+$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
+	this.resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
+		// NOTE We use results as a temporary buffer here - dirty but it works ;)
+		results = data;
+		data = new Object();
+		data[match[1]] = results;
 		results = new Object();
 		errors = new Array();
 		for (count=0; count < dids.length; count++)
@@ -371,7 +378,6 @@ Client.prototype.updateEntities = function(path, data, callback) {
 		}
 	}
 
-	// TODO Update entities from other domains
 	function afterUpdateEntitiesForDomain() {
 		var type;
 		if (errors.length > 0)
@@ -382,8 +388,11 @@ Client.prototype.updateEntities = function(path, data, callback) {
 }
 
 Client.prototype.deleteEntities = function(path, callback) {
-	var results, errors, count;
-	this.resolvePath(path, afterResolvePath.bind(this));
+	var match, results, errors, count;
+	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
+	if (!match)
+		return this.dispatchEvent("error", new Error("invalid path"));
+	this.resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(dids) {
 		results = new Object();
@@ -417,7 +426,6 @@ Client.prototype.deleteEntities = function(path, callback) {
 		}
 	}
 
-	// TODO Delete entities from other domains
 	function afterDeleteEntitiesForDomain() {
 		var type;
 		if (errors.length > 0)

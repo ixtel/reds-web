@@ -6,8 +6,9 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 // INFO Leaf client module
 
 var Request = function(crypto) {
-	this.$data = "";
+	this.$method = "";
 	this.$type = "application/octet-stream";
+	this.$data = "";
 	this.$responseDomain = undefined;
 	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
@@ -52,8 +53,7 @@ Request.prototype.dispatchEvent = function(evt) {
 }
 
 Request.prototype.open = function(method, node, path) {
-	this.method = method;
-	this.path = path;
+	this.$method = method;
 	return this.$xhr.open(method, node+path, true);
 }
 
@@ -69,7 +69,7 @@ Request.prototype.writeDomain = function(data, credentials, type) {
 			return;
 		}
 	}
-	this.write(domain, type||"application/x.reds.domain;did="+credentials['id']);
+	this.write(domain, type||"application/x.reds.domain;did="+credentials['did']);
 }
 
 Request.prototype.writeJson = function(data, type) {
@@ -94,12 +94,20 @@ Request.prototype.write = function(data, type) {
 	this.$data = data||"";
 }
 
-Request.prototype.sign = function(credentials) {
+Request.prototype.signAccount = function(credentials) {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
-	msg = this.crypto.concatenateStrings(this.crypto.name, credentials['id'], this.method, this.path, this.$type, this.$data, time);
-	sig = this.crypto.generateHmac(msg, credentials['auth']);
-	this.$xhr.setRequestHeader("Authorization", this.crypto.name+":"+credentials['id']+":"+sig+":"+time);
+	msg = this.crypto.concatenateStrings("account", credentials['aid'], this.$method, this.$type, this.$data, time, this.crypto.name);
+	sig = this.crypto.generateHmac(msg, credentials['akey']);
+	this.$xhr.setRequestHeader("Authorization", "account:"+credentials['aid']+":"+sig+":"+time+":"+this.crypto.name);
+}
+
+Request.prototype.signDomain = function(credentials) {
+	var time, msg, sig;
+	time = this.crypto.generateTimestamp();
+	msg = this.crypto.concatenateStrings("domain", credentials['did'], this.$method, this.$type, this.$data, time, this.crypto.name);
+	sig = this.crypto.generateHmac(msg, credentials['dkey']);
+	this.$xhr.setRequestHeader("Authorization", "domain:"+credentials['did']+":"+sig+":"+time+":"+this.crypto.name);
 }
 
 Request.prototype.send = function() {
