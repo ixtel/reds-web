@@ -155,6 +155,7 @@ function signin(name, password) {
 
 	function afterSignin(response) {
 		document.getElementById("SignIn").reset();
+		document.getElementById("SignUpSignIn").style['display'] = "hidden";
 		showAccount(response['aid']);
 	}
 }
@@ -163,6 +164,7 @@ function signout() {
 	leaf.signout(afterSignout)
 
 	function afterSignout(response) {
+		document.getElementById("SignUpSignIn").style['display'] = "block";
 		hideAccount();
 	}
 }
@@ -171,12 +173,14 @@ function deleteAccount() {
 	leaf.deleteAccount(afterDeleteAccount);
 
 	function afterDeleteAccount(response) {
+		document.getElementById("SignUpSignIn").style['display'] = "block";
 		hideAccount();
 	}
 }
 
 function showAccount(account) {
 	document.getElementById("Account").style['display'] = "block";
+	document.getElementById("Addressbook").style['display'] = "block";
 	document.getElementById("AccountId").value = account;
 	loadContactList();
 }
@@ -184,6 +188,7 @@ function showAccount(account) {
 function hideAccount(account) {
 	hideContact();
 	document.getElementById("Account").style['display'] = "";
+	document.getElementById("Addressbook").style['display'] = "block";
 	document.getElementById("EditAccount").elements['id'].value = "";
 	clearContactList();
 }

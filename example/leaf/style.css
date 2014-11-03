@@ -1,8 +1,105 @@
-textarea {
-	width: 70em;
-	height: 25em;
+body, h1, h2, h3, h4, h5, h6 {
+	margin: 0;
+	padding: 0;
+	font-family: "CallunaSansLight-Regular" "Helvetica Neue Light", "HelveticaNeue-Light", "Helvetica Neue", Calibri, Helvetica, Arial, sans;
 }
-
-#Account, #Contact, #Address {
+h2, h3, h4, h5, h6 {
+	margin-bottom: 1em;
+}
+h1, h2 {
+	color: #000;
+	font-family: "CallunaLight-Regular" "Helvetica Neue Light", "HelveticaNeue-Light", "Helvetica Neue", Calibri, Helvetica, Arial, serif;
+}
+body {
+	width: 100%;
+	min-width: 60em;
+	background: #fff9e6;
+}
+header {
+	background-color: #f58b77;
+	padding: 2em;
+	width: 100%;
+}
+body > div {
+	padding: 2em;
+}
+body > div > div,
+body > div > form,
+body > div > div > form{
+	margin-bottom: 2em;
+}
+body #SignUpSignIn {
+	float:left;
+	width: 16em;
+}
+body #Adressbook {
+	float:left;
+}
+body #Contact{
+	float:left;
+}
+body form {
+	display: table;
+}
+body form > div {
+	display: table-row;
+}
+body form > div label,
+body form > div input{
+	display: table-cell;
+	min-width: 7.5em;
+}
+body form > div input {
+	float:right;
+	border: 0.0625rem solid #444440;
+	border-radius: 0.25rem;
+	background: #fff9e6;
+}
+button {
+	width: 5em;
+	height: 2em;
+	color: #fff9e6;
+	background-color: #f16b53;
+	border:none;
+	border-radius: 5rem;
+	margin-right: 0.5em;
+	margin-top:1em;
+	-moz-box-shadow: 0.25em 0.25em 0.15em 0.15em #666;
+	-webkit-box-shadow: 0.25em 0.25em 0.15em 0.15em #666;
+	box-shadow: 0.25em 0.25em 0.15em 0.15em #666;
+}
+button:hover {
+	background-color: #f69b8a;
+}
+textarea {
+	width: 99%;
+	height: 25em;
+	resize: vertical;
+}
+select {
+	width: 100%;
+}
+body hr {
+	clear:both;
+	margin: 0;
+}
+div#Crypto {
+	clear:both;
+	min-width: 30em;
+	background: #fec8be;
+}
+div#Crypto form#TestCryptoFacility {
+	width:100%;
+}
+div#Crypto form#TestCryptoFacility div {
+	display:block !important;
+}
+div#Crypto form#TestCryptoFacility div textarea {
+	margin-top: 1em;
+}
+#Account, #Contact, #Address, #Adressbook {
 	display: none;
+}
+.hidden {
+	display: none !important;
 }
