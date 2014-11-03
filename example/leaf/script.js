@@ -180,6 +180,7 @@ function deleteAccount() {
 
 function showAccount(account) {
 	document.getElementById("Account").style['display'] = "block";
+	document.getElementById("SignUpSignIn").style['display'] = "hidden";
 	document.getElementById("Addressbook").style['display'] = "block";
 	document.getElementById("AccountId").value = account;
 	loadContactList();
