@@ -17,8 +17,11 @@ body {
 }
 header {
 	background-color: #f58b77;
-	padding: 2em;
+	padding: 0 2em;
 	width: 100%;
+}
+header h1 {
+	margin-left:2em;
 }
 body > div {
 	padding: 2em;
@@ -32,7 +35,7 @@ body #SignUpSignIn {
 	float:left;
 	width: 16em;
 }
-body #Adressbook {
+body #Addressbook {
 	float:left;
 }
 body #Contact{
@@ -97,7 +100,7 @@ div#Crypto form#TestCryptoFacility div {
 div#Crypto form#TestCryptoFacility div textarea {
 	margin-top: 1em;
 }
-#Account, #Contact, #Address, #Adressbook {
+#Account, #Contact, #Address, #Addressbook {
 	display: none;
 }
 .hidden {
