@@ -13,6 +13,7 @@ exports.prototype.HookHandlers = {
 	'/!/account': require("./hooks/account"),
 	'/!/domain': require("./hooks/domain"),
 	'/!/domain/ticket': require("./hooks/ticket.js"),
+	'/!/domain/handshake': require("./hooks/handshake.js"),
 	'*': require("./hooks/entity.js")
 }
 

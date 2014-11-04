@@ -182,26 +182,6 @@ Client.prototype.createDomain = function(pod, password, callback) {
 	}
 }
 
-Client.prototype.createOwnerTicket = function(did, callback) {
-	var tkeyL, request, domain;
-	tkeyL = this.crypto.generateKeypair();
-	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
-	request.writeJson({
-		'tkey_l': tkeyL.publicKey
-	});
-	request.signDomain(Vault[this.vid].domain[did]);
-	request.send();
-
-	function onLoad(result) {
-		var domain = Vault[this.vid].domain[did];
-		// TODO Check dkey signature
-		domain['tid'] = request.responseJson['tid'],
-		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
-		domain['tflags'] = request.responseJson['tflags']
-		callback({'did':did,'tid':domain['tid']});
-	}
-}
-
 Client.prototype.deleteDomains = function(dids, callback) {
 	var results, errors, count;
 	if (dids.length == 0)
@@ -239,6 +219,46 @@ Client.prototype.deleteDomains = function(dids, callback) {
 	}
 }
 
+Client.prototype.createOwnerTicket = function(did, callback) {
+	var tkeyL, request, domain;
+	tkeyL = this.crypto.generateKeypair();
+	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
+	request.writeJson({
+		'tkey_l': tkeyL.publicKey
+	});
+	request.signDomain(Vault[this.vid].domain[did]);
+	request.send();
+
+	function onLoad(result) {
+		// TODO Check dkey signature
+		var domain = Vault[this.vid].domain[did];
+		domain['tid'] = request.responseJson['tid'],
+		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
+		domain['tflags'] = request.responseJson['tflags']
+		callback({'did':did,'tid':domain['tid']});
+	}
+}
+
+Client.prototype.createHandshake = function(did, callback) {
+		console.log(did);
+	var request, vecL;
+	vecL = this.crypto.generateKeypair();
+	request = this.$createRequest("POST", "/!/domain/"+did+"/handshake", onLoad.bind(this));
+	request.writeJson({
+		'vec_l': vecL.publicKey
+	});
+	request.signDomain(Vault[this.vid].domain[did]);
+	request.send();
+
+	function onLoad() {
+		// TODO Check dkey signature
+		var domain = Vault[this.vid].domain[did];
+		domain['vec'] = this.crypto.combineKeypair(vecL.privateKey, request.responseJson['vec_p']),
+		domain['lid'] = this.crypto.generateHmac(domain['vec'], request.responseJson['lsalt']);
+		callback({'did':did,'lid':domain['lid']});
+	}
+}
+
 // INFO Entity operations
 
 // TODO Implement some kind of caching to reduce HEAD requests
@@ -247,6 +267,7 @@ Client.prototype.resolvePath = function(path, callback) {
 	request = this.$createRequest("HEAD", path, onLoad.bind(this));
 	request.send();
 
+	// TODO Get rid of dids array
 	function onLoad() {
 		var dids, i;
 		dids = new Array();
@@ -259,13 +280,19 @@ Client.prototype.resolvePath = function(path, callback) {
 				dids.push(parseInt(p));
 			return false;
 		}.bind(this))
-		if (dids.length) {
-			for (i=0; i<dids.length; i++)
-				// TODO Register leaf
-				callback(dids[i], i, dids.length);
-		}
-		else {
+		if (dids.length)
+			dids.forEach(shakeHands.bind(this));
+		else
 			callback(null, 0, 0);
+	}
+
+	function shakeHands(did, index, dids) {
+		if (Vault[this.vid].domain[did]['vec'])
+			 return callback(did, index, dids.length);
+		this.createHandshake(did, afterCreateHandshake.bind(this));
+
+		function afterCreateHandshake() {
+			callback(did, index, dids.length);
 		}
 	}
 }

@@ -3,6 +3,8 @@
 var Session = require("../shared/Session");
 var HttpError = require("../shared/HttpError");
 
+var Handshake = new Object();
+
 module.exports = exports = function(config, request, response) {
 	Session.call(this, config, request, response);
 }
@@ -12,6 +14,7 @@ exports.prototype = Object.create(Session.prototype);
 exports.prototype.HookHandlers = {
 	'/!/domain': require("./hooks/domain.js"),
 	'/!/domain/ticket': require("./hooks/ticket.js"),
+	'/!/domain/handshake': require("./hooks/handshake.js"),
 	'*': require("./hooks/entity.js")
 }
 
