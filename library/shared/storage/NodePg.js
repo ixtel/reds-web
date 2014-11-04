@@ -172,7 +172,7 @@ exports.prototype.createDomain = function(values, callback) {
 }
 
 exports.prototype.readDomain = function(did, callback) {
-	this.$client.query("SELECT did,encode(dkey,'base64') AS dkey "+
+	this.$client.query("SELECT did, encode(dkey,'base64') AS dkey "+
 		"FROM domains "+
 		"WHERE did=$1 ",
 		[did],
@@ -202,6 +202,18 @@ exports.prototype.createTicket = function(values, callback) {
 		"VALUES ($1,decode($2,'base64'), $3) "+
 		"RETURNING tid, tflags",
 		[values['did'], values['tkey'], values['tflags']],
+	afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.readTicket = function(tid, callback) {
+	this.$client.query("SELECT tid, encode(tkey,'base64') AS tkey, tflags "+
+		"FROM tickets "+
+		"WHERE tid=$1 ",
+		[tid],
 	afterQuery);
 
 	function afterQuery(error, result) {

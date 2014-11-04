@@ -51,6 +51,7 @@ exports.POST = function(session) {
 		route.method = "POST";
 		route.path = "/"+session.selector.last.key+"/"+eid;
 		route.write(session.requestText, session.request.headers['content-type']);
+		route.requestHeaders['authorization'] = session.request.headers['authorization'];
 		route.send();
 	}
 
@@ -64,7 +65,7 @@ exports.POST = function(session) {
 	}
 
 	function onRouteError(error) {
-		session.abort(new HttpError(502, error.message));
+		session.abort(error);
 	}
 
 	function afterRegisterEntity(error, result) {
@@ -84,7 +85,7 @@ exports.HEAD = function(session) {
 		var dids, i;
 		if (error)
 			return session.abort(error);
-		if (result.length == 0) {
+		if (!result) {
 			// NOTE Only return an error if the request asked for specific eids
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
@@ -115,7 +116,7 @@ exports.GET = function(session) {
 		var types, eids, i, type;
 		if (error)
 			return session.abort(error);
-		if (result.length == 0) {
+		if (!result) {
 			// NOTE Only return an error if the request asked for specific eids
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
@@ -126,6 +127,7 @@ exports.GET = function(session) {
 		route.method = "GET";
 		route.path = selection.path;
 		route.write(session.requestText, session.request.headers['content-type']);
+		route.requestHeaders['authorization'] = session.request.headers['authorization'];
 		route.send();
 	}
 
@@ -137,7 +139,7 @@ exports.GET = function(session) {
 	}
 
 	function onRouteError(error) {
-		session.abort(new HttpError(502, error.message));
+		session.abort(error);
 	}
 }
 
@@ -157,7 +159,7 @@ exports.PUT = function(session) {
 		var types, eids, i, type;
 		if (error)
 			return session.abort(error);
-		if (result.length == 0) {
+		if (!result) {
 			// NOTE Only return an error if the request asked for specific eids
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
@@ -168,6 +170,7 @@ exports.PUT = function(session) {
 		route.method = "PUT";
 		route.path = selection.path;
 		route.write(session.requestText, session.request.headers['content-type']);
+		route.requestHeaders['authorization'] = session.request.headers['authorization'];
 		route.send();
 	}
 
@@ -179,7 +182,7 @@ exports.PUT = function(session) {
 	}
 
 	function onRouteError(error) {
-		session.abort(new HttpError(502, error.message));
+		session.abort(error);
 	}
 }
 
@@ -199,7 +202,7 @@ exports.DELETE = function(session) {
 		var types, eids, i, t;
 		if (error)
 			return session.abort(error);
-		if (result.length == 0) {
+		if (!result) {
 			// NOTE Only return an error if the request asked for specific eids
 			if (session.selector.last.value != "*")
 				return session.abort(new HttpError(404, "entities not found"));
@@ -210,6 +213,7 @@ exports.DELETE = function(session) {
 		route.method = "DELETE";
 		route.path = selection.path;
 		route.write(session.requestText, session.request.headers['content-type']);
+		route.requestHeaders['authorization'] = session.request.headers['authorization'];
 		route.send();
 	}
 
@@ -218,7 +222,7 @@ exports.DELETE = function(session) {
 	}
 
 	function onRouteError(error) {
-		session.abort(new HttpError(502, error.message));
+		session.abort(error);
 	}
 
 	function afterUnregisterEntities(error, result) {

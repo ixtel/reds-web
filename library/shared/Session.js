@@ -77,8 +77,6 @@ exports.prototype.abort = function(error) {
 	try {
 		if (error instanceof HttpError) {
 			console.warn("ABORT "+error.toString());
-			if  (error.code == 401)
-				this.response.setHeader("WWW-Authenticate", "REDS realm=\"node\"");
 			this.end(error.code);
 		}
 		else {
@@ -162,13 +160,13 @@ Object.defineProperty(exports.prototype, "authorization", {
 		if (this.$authorization === undefined) {
 			this.$authorization = this.request.headers['authorization'] || null;
 			if (this.$authorization) {
-				this.$authorization = this.$authorization.match(/(account|domain|ticket):(\d+):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+				this.$authorization = this.$authorization.match(/(account|domain|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
 				if (this.$authorization) {
 					this.$authorization = {
 						'realm': this.$authorization[1],
-						'id': parseInt(this.$authorization[2]),
-						'signature': this.$authorization[3],
-						'time': this.$authorization[4],
+						'id': this.$authorization[2],
+						'vec': this.$authorization[3],
+						'sig': this.$authorization[4],
 						'crypto': this.$authorization[5]
 					};
 				}

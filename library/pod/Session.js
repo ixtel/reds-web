@@ -12,7 +12,7 @@ module.exports = exports = function(config, request, response) {
 exports.prototype = Object.create(Session.prototype);
 
 // TODO Make ttl and ttd configurable
-exports.prototype.leafs = new TemporaryStorage(600000, 60000);
+exports.prototype.leafs = new TemporaryStorage(30000, 5000);
 
 exports.prototype.HookHandlers = {
 	'/!/domain': require("./hooks/domain.js"),
@@ -36,9 +36,53 @@ exports.prototype.authorizeDomain = function(callback) {
 			return callback(error);
 		if (!result)
 			return callback(new HttpError(403, "Unknown domain"));
-		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.request.method, this.request.headers['content-type'], this.requestText||"", this.authorization['time'], this.authorization['crypto']);
+		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.authorization['vec'], this.authorization['crypto'], this.request.method, this.request.headers['content-type'], this.requestText||"");
 		var sig = this.crypto.generateHmac(msg, result['dkey']);
-		if (sig == this.authorization['signature'])
+		if (sig == this.authorization['sig'])
+			return callback();
+		else
+			return callback(new HttpError(403, "Invalid authorization"));
+	}
+}
+
+exports.prototype.authorizeTicket = function(callback) {
+	var leaf, domain, ticket;
+	if (!this.authorization)
+		return callback(new HttpError(401, "Missing authorization"));
+	// NOTE Note this check won't be needed once the session can handle multiple facilities
+	if (this.authorization['crypto'] != this.crypto.name)
+		return callback(new HttpError(400, "Unsupported crypto facility"));
+	if (this.authorization['realm'] != "ticket")
+		return callback(new HttpError(400, "Invalid realm"));
+	leaf = this.leafs.getItem(this.authorization['id']);
+	if (!leaf)
+		return callback(new HttpError(412, "Unknown leaf"));
+	if (leaf['tid'])
+		this.storage.readTicket(leaf['tid'], afterReadTicket.bind(this));
+	else
+		this.storage.readDomain(leaf['did'], afterReadDomain.bind(this));
+
+	function afterReadDomain(error, result) {
+		if (error)
+			return callback(error);
+		if (!result)
+			return callback(new HttpError(403, "Unknown domain"));
+		domain = result;
+		leaf['tid'] = this.crypto.decryptData(this.authorization['vec'], domain['dkey'], leaf['vec']);
+		this.storage.readTicket(leaf['tid'], afterReadTicket.bind(this));
+	}
+
+	function afterReadTicket(error, result) {
+		var key;
+		if (error)
+			return callback(error);
+		if (!result)
+			return callback(new HttpError(403, "Unknown domain"));
+		ticket = result;
+		key = this.crypto.generateHmac(ticket['tkey'], leaf['vec']);
+		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.authorization['vec'], this.authorization['crypto'], this.request.method, this.request.headers['content-type'], this.requestText||"");
+		var sig = this.crypto.generateHmac(msg, key);
+		if (sig == this.authorization['sig'])
 			return callback();
 		else
 			return callback(new HttpError(403, "Invalid authorization"));

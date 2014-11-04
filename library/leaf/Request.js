@@ -97,17 +97,26 @@ Request.prototype.write = function(data, type) {
 Request.prototype.signAccount = function(credentials) {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
-	msg = this.crypto.concatenateStrings("account", credentials['aid'], this.$method, this.$type, this.$data, time, this.crypto.name);
+	msg = this.crypto.concatenateStrings("account", credentials['aid'], time, this.crypto.name, this.$method, this.$type, this.$data);
 	sig = this.crypto.generateHmac(msg, credentials['akey']);
-	this.$xhr.setRequestHeader("Authorization", "account:"+credentials['aid']+":"+sig+":"+time+":"+this.crypto.name);
+	this.$xhr.setRequestHeader("Authorization", "account:"+credentials['aid']+":"+time+":"+sig+":"+this.crypto.name);
 }
 
 Request.prototype.signDomain = function(credentials) {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
-	msg = this.crypto.concatenateStrings("domain", credentials['did'], this.$method, this.$type, this.$data, time, this.crypto.name);
+	msg = this.crypto.concatenateStrings("domain", credentials['did'], time, this.crypto.name, this.$method, this.$type, this.$data);
 	sig = this.crypto.generateHmac(msg, credentials['dkey']);
-	this.$xhr.setRequestHeader("Authorization", "domain:"+credentials['did']+":"+sig+":"+time+":"+this.crypto.name);
+	this.$xhr.setRequestHeader("Authorization", "domain:"+credentials['did']+":"+time+":"+sig+":"+this.crypto.name);
+}
+
+Request.prototype.signTicket = function(credentials) {
+	var key, tid, msg, sig;
+	key = this.crypto.generateHmac(credentials['tkey'], credentials['vec']);
+	tid = this.crypto.encryptData(credentials['tid'], credentials['dkey'], credentials['vec']);
+	msg = this.crypto.concatenateStrings("ticket", credentials['lid'], tid, this.crypto.name, this.$method, this.$type, this.$data);
+	sig = this.crypto.generateHmac(msg, key);
+	this.$xhr.setRequestHeader("Authorization", "ticket:"+credentials['lid']+":"+tid+":"+sig+":"+this.crypto.name);
 }
 
 Request.prototype.send = function() {

@@ -7,11 +7,12 @@ module.exports = exports = function(ttl, ttd) {
 	this.timeouts = new Object();
 }
 
-exports.$delete = function(items, key) {
+exports.prototype.$deleteItem = function(items, key) {
 	delete items[key];
 }
 
 exports.prototype.setItem =  function(key, values) {
+	console.log("setItem "+key);
 	this.touchItem(key);
 	this.items[key] = values;
 }
@@ -24,11 +25,13 @@ exports.prototype.getItem = function(key) {
 exports.prototype.touchItem = function(key) {
 	if (this.timeouts[key])
 		clearTimeout(this.timeouts[key]);
-	this.timeouts[key] = setTimeout(this.$delete, this.ttl, this.items, key);
+	if (this.items[key])
+		this.timeouts[key] = setTimeout(this.$deleteItem, this.ttl, this.items, key);
 }
 
 exports.prototype.removeItem = function(key) {
 	if (this.timeouts[key])
 		clearTimeout(this.timeouts[key]);
-	this.timeouts[key] = setTimeout(this.$delete, this.ttd, this.items, key);
+	if (this.items[key])
+		this.timeouts[key] = setTimeout(this.$deleteItem, this.ttd,  this.items, key);
 }

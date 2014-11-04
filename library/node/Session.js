@@ -32,9 +32,9 @@ exports.prototype.authorizeAccount = function(callback) {
 			return callback(error);
 		if (!result)
 			return callback(new HttpError(403, "Unknown account"));
-		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.request.method, this.request.headers['content-type'], this.requestText||"", this.authorization['time'], this.authorization['crypto']);
+		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.authorization['vec'], this.authorization['crypto'], this.request.method, this.request.headers['content-type'], this.requestText||"");
 		var sig = this.crypto.generateHmac(msg, result['auth']);
-		if (sig == this.authorization['signature'])
+		if (sig == this.authorization['sig'])
 			return callback();
 		else
 			return callback(new HttpError(403, "Invalid authorization"));
