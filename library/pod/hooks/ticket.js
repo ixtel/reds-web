@@ -10,6 +10,8 @@ exports.POST = function(session) {
 
 	function afterAuthorization(error) { 
 		var tkey, values;
+		if (error)
+			return session.abort(error);
 		console.log("FOO");
 		tkeyP = session.crypto.generateKeypair();
 		tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJson['tkey_l']);
