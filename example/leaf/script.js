@@ -155,7 +155,6 @@ function signin(name, password) {
 
 	function afterSignin(response) {
 		document.getElementById("SignIn").reset();
-		document.getElementById("SignUpSignIn").style['display'] = "hidden";
 		showAccount(response['aid']);
 	}
 }
@@ -187,7 +186,8 @@ function showAccount(account) {
 function hideAccount(account) {
 	hideContact();
 	document.getElementById("Account").style['display'] = "";
-	document.getElementById("SignUpSignIn").style['display'] = "";
+	document.getElementById("Contacs").style['display'] = "";
+	document.getElementById("SignUpSignIn").style['display'] = "block";
 	document.getElementById("EditAccount").elements['id'].value = "";
 	clearContactList();
 }
@@ -257,7 +257,7 @@ function saveContact(contact, name) {
 	], afterUpdateEntities.bind(this));
 
 	function afterUpdateEntities(response) {
-		document.getElementById("Contact").style['display'] = "block";
+		document.getElementById("Address").style['display'] = "block";
 		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
 		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
 	}
