@@ -144,6 +144,10 @@ Client.prototype.updateVault = function(callback) {
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
 	delete vault.account['asec'];
+	for (var i=0; i<vault.domain.length; i++) {
+		delete vault.domain[i]['lid'];
+		delete vault.domain[i]['vec'];
+	}
 	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
 	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
 	request.writeJson({
@@ -239,11 +243,11 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	}
 }
 
-Client.prototype.createHandshake = function(did, callback) {
+Client.prototype.registerLeaf = function(did, callback) {
 		console.log(did);
 	var request, vecL;
 	vecL = this.crypto.generateKeypair();
-	request = this.$createRequest("POST", "/!/domain/"+did+"/handshake", onLoad.bind(this));
+	request = this.$createRequest("POST", "/!/domain/"+did+"/leaf", onLoad.bind(this));
 	request.writeJson({
 		'vec_l': vecL.publicKey
 	});
@@ -289,9 +293,9 @@ Client.prototype.resolvePath = function(path, callback) {
 	function shakeHands(did, index, dids) {
 		if (Vault[this.vid].domain[did]['vec'])
 			 return callback(did, index, dids.length);
-		this.createHandshake(did, afterCreateHandshake.bind(this));
+		this.registerLeaf(did, afterRegisterLeaf.bind(this));
 
-		function afterCreateHandshake() {
+		function afterRegisterLeaf() {
 			callback(did, index, dids.length);
 		}
 	}

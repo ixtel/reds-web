@@ -2,8 +2,8 @@
 
 var Session = require("../shared/Session");
 var HttpError = require("../shared/HttpError");
+var TemporaryStorage = require("./TemporaryStorage");
 
-var Handshake = new Object();
 
 module.exports = exports = function(config, request, response) {
 	Session.call(this, config, request, response);
@@ -11,10 +11,13 @@ module.exports = exports = function(config, request, response) {
 
 exports.prototype = Object.create(Session.prototype);
 
+// TODO Make ttl and ttd configurable
+exports.prototype.leafs = new TemporaryStorage(600000, 60000);
+
 exports.prototype.HookHandlers = {
 	'/!/domain': require("./hooks/domain.js"),
 	'/!/domain/ticket': require("./hooks/ticket.js"),
-	'/!/domain/handshake': require("./hooks/handshake.js"),
+	'/!/domain/leaf': require("./hooks/leaf.js"),
 	'*': require("./hooks/entity.js")
 }
 

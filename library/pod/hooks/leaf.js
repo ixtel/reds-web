@@ -6,13 +6,19 @@ exports.POST = function(session) {
 	session.authorizeDomain(afterAuthorization);
 
 	function afterAuthorization(error) { 
-		var vecP, vec, lsalt;
+		var vecP, vec, lsalt, lid;
 		if (error)
 			return session.abort(error);
 		vecP = session.crypto.generateKeypair();
 		vec = session.crypto.combineKeypair(vecP.privateKey, session.requestJson['vec_l']);
-		lsalt = session.crypto.generateKey();
-		// TODO Store handshake
+		do {
+			lsalt = session.crypto.generateKey();
+			lid = session.crypto.generateHmac(vec, lsalt);
+		} while (session.leafs.items[lid]);
+		session.leafs.setItem(lid, {
+			'did': parseInt(session.selector[0].value),
+			'vec': vec
+		});
 		session.writeJson({
 			'vec_p': vecP.publicKey,
 			'lsalt': lsalt
