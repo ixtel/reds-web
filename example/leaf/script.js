@@ -178,8 +178,8 @@ function deleteAccount() {
 function showAccount(account) {
 	document.getElementById("Account").style['display'] = "block";
 	document.getElementById("Contacts").style['display'] = "block";
-	document.getElementById("SignUpDiv").style['display'] = "hidden";
-	document.getElementById("SignInDiv").style['display'] = "hidden";
+	document.getElementById("SignUpDiv").style['display'] = "none";
+	document.getElementById("SignInDiv").style['display'] = "none";
 	document.getElementById("AccountId").value = account;
 	loadContactList();
 }
