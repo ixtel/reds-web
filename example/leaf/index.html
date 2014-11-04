@@ -51,7 +51,7 @@
 			</form>
 		</div>
 	</div>
-	<div id="Contacts">
+	<div id="Addressbook">
 		<h2>Contacts</h2>
 		<h3>Add Contact</h3>
 		<form id="AddContact">
@@ -67,7 +67,10 @@
 			<button type="submit">show <img src="./resources/images/button_right.svg"/></button>
 			<button id="ReloadContactList" type="button">reload <img src="./resources/images/button_right.svg"/></button>
 		</form>
-		<h3>Edit Contacts</h3>
+	</div>
+	<div id="Contact">
+		<h2>Current Contact</h2>
+		<h3>Edit Contact</h3>
 		<form id="EditContact">
 			<div><label>ID</label><input id="ContactId" type="text" name="id" readonly></div>
 			<button id="DeleteContact" type="button">delete <img src="./resources/images/button_cross.svg"/></button>
@@ -77,14 +80,10 @@
 			<div style="visibility:hidden"><label></label><input></div><!-- Spacer -->
 			<button type="submit">save <img src="./resources/images/button_right.svg"/></button>
 		</form>
-	</div>
-	<div id="Address">
-		<h2>Current Contact</h2>
 		<h3>Add address</h3>
 		<form id="AddAddress">
 			<div><label>Street</label><input type="text" name="street"></div>
 			<div><label>City</label><input type="text" name="city"></div>
-			<div style="visibility:hidden"><label></label><input></div><!-- Spacer -->
 			<button type="submit">add <img src="./resources/images/button_plus.svg"/></button>
 		</form>
 		<h3>Address list</h3>
@@ -94,6 +93,9 @@
 			<button type="submit">show <img src="./resources/images/button_right.svg"/></button>
 			<button id="ReloadAddressList" type="button">reload <img src="./resources/images/button_right.svg"/></button>
 		</form>
+	</div>
+	<div id="Address">
+		<h2>Current Address</h2>
 		<h3>Edit address</h3>
 		<form id="EditAddress">
 			<div><label>ID</label><input id="AddressId" type="text" name="id" readonly></div>

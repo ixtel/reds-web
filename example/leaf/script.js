@@ -177,7 +177,7 @@ function deleteAccount() {
 
 function showAccount(account) {
 	document.getElementById("Account").style['display'] = "block";
-	document.getElementById("Contacts").style['display'] = "block";
+	document.getElementById("Addressbook").style['display'] = "block";
 	document.getElementById("SignUpDiv").style['display'] = "none";
 	document.getElementById("SignInDiv").style['display'] = "none";
 	document.getElementById("AccountId").value = account;
@@ -187,7 +187,7 @@ function showAccount(account) {
 function hideAccount(account) {
 	hideContact();
 	document.getElementById("Account").style['display'] = "";
-	document.getElementById("Contacts").style['display'] = "";
+	document.getElementById("Addressbook").style['display'] = "";
 	document.getElementById("SignUpDiv").style['display'] = "block";
 	document.getElementById("SignInDiv").style['display'] = "block";
 	document.getElementById("EditAccount").elements['id'].value = "";
@@ -238,7 +238,7 @@ function showContact(contact) {
 	leaf.readEntities("/contact/"+contact, afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
-		document.getElementById("Address").style['display'] = "block";
+		document.getElementById("Contact").style['display'] = "block";
 		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
 		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
 		loadAddressList(contact);
@@ -247,7 +247,7 @@ function showContact(contact) {
 
 function hideContact(contact) {
 	hideAddress();
-	document.getElementById("Address").style['display'] = "";
+	document.getElementById("Contact").style['display'] = "";
 	document.getElementById("EditContact").elements['id'].value = "";
 	document.getElementById("EditContact").elements['name'].value = "";
 	clearAddressList();
@@ -259,7 +259,7 @@ function saveContact(contact, name) {
 	], afterUpdateEntities.bind(this));
 
 	function afterUpdateEntities(response) {
-		document.getElementById("Address").style['display'] = "block";
+		document.getElementById("Contact").style['display'] = "block";
 		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
 		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
 	}

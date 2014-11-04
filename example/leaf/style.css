@@ -13,7 +13,7 @@ h1, h2 {
 }
 body {
 	width: 100%;
-	min-width: 60em;
+	min-width: 80em;
 	background: #fffdf5;
 	color: #444440;
 }
@@ -41,7 +41,10 @@ body #SignUpSignIn {
 body #Address {
 	float:left;
 }
-body #Contacts {
+body #Contact {
+	float:left;
+}
+body #Addressbook {
 	float:left;
 }
 body form {
@@ -106,7 +109,7 @@ div#Crypto form#TestCryptoFacility div {
 div#Crypto form#TestCryptoFacility div textarea {
 	margin-top: 1em;
 }
-#Account, #Address, #Contacts {
+#Account, #Address, #Contact, #Addressbook {
 	display: none;
 }
 .hidden {
