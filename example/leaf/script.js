@@ -178,7 +178,7 @@ function deleteAccount() {
 function showAccount(account) {
 	document.getElementById("Account").style['display'] = "block";
 	document.getElementById("Contacts").style['display'] = "block";
-	document.getElementById("SignUpSignIn").style['display'] = "hidden";
+	document.getElementById("SignUpSignIn").style['display'] = "hidden!important";
 	document.getElementById("AccountId").value = account;
 	loadContactList();
 }
@@ -186,7 +186,7 @@ function showAccount(account) {
 function hideAccount(account) {
 	hideContact();
 	document.getElementById("Account").style['display'] = "";
-	document.getElementById("Contacs").style['display'] = "";
+	document.getElementById("Contacts").style['display'] = "";
 	document.getElementById("SignUpSignIn").style['display'] = "block";
 	document.getElementById("EditAccount").elements['id'].value = "";
 	clearContactList();
