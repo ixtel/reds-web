@@ -38,10 +38,10 @@ body #SignUpSignIn {
 	float:left;
 	width: 16em;
 }
-body #Addressbook {
+body #Address {
 	float:left;
 }
-body #Contact{
+body #Contacts {
 	float:left;
 }
 body form {
@@ -106,7 +106,7 @@ div#Crypto form#TestCryptoFacility div {
 div#Crypto form#TestCryptoFacility div textarea {
 	margin-top: 1em;
 }
-#Account, #Address, #Addressbook {
+#Account, #Address, #Contacts {
 	display: none;
 }
 .hidden {
