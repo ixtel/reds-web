@@ -3,32 +3,26 @@
 var HttpError = require("../../shared/HttpError");
 
 exports.POST = function(session) {
-	// TODO Implement leaf registration
-	session.end();
-	/*var tkeyP, tkey, values;
-	tkeyP = session.crypto.generateKeypair();
-	tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJson['tkey_l']);
-	// NOTE We don't want to modify requestDomain so we clone it
-	values = JSON.parse(JSON.stringify(session.requestJson));
-	values['did'] = session.selector[0].value;
-	values['tkey'] = tkey;
-	// TODO Set tflags correctly
-	values['tflags'] = 0xFF;
-	delete values['tkey_l'];
-	session.storage.createTicket(values, afterCreateTicket);
+	session.authorizeDomain(afterAuthorization);
 
-	function afterCreateTicket(error, result) {
-		if (error !== null) {
-			// TODO Error type should be returned by storage facility
-			switch (error.code) {
-				case "23505":
-					return session.abort(new HttpError(409, "tid already exists"));
-				default:
-					return session.abort(error);
-			}
-		}
-		result['tkey_p'] = tkeyP.publicKey;
-		session.writeJson(result);
+	function afterAuthorization(error) { 
+		var vecP, vec, lsalt, lid;
+		if (error)
+			return session.abort(error);
+		vecP = session.crypto.generateKeypair();
+		vec = session.crypto.combineKeypair(vecP.privateKey, session.requestJson['vec_l']);
+		do {
+			lsalt = session.crypto.generateKey();
+			lid = session.crypto.generateHmac(vec, lsalt);
+		} while (session.leafs.items[lid]);
+		session.leafs.setItem(lid, {
+			'did': parseInt(session.selector[0].value),
+			'vec': vec
+		});
+		session.writeJson({
+			'vec_p': vecP.publicKey,
+			'lsalt': lsalt
+		});
 		session.end();
-	}*/
+	}
 }

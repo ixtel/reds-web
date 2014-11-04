@@ -54,6 +54,20 @@ exports.prototype.readPod = function(pod, callback) {
 	}
 }
 
+exports.prototype.resolvePod = function(did, callback) {
+	this.$client.query("SELECT p.pid,p.url "+
+		"FROM pods p JOIN domains d ON p.pid=d.pid "+
+		"WHERE did=$1",
+		[did],
+	afterQuery);
+
+	function afterQuery(error, result) {
+		if (result.rows[0] === undefined)
+			error = new Error("pod not found");
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
 // INFO Alias operations
 
 exports.prototype.readAlias = function(alias, callback) {

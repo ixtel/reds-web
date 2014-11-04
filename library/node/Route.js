@@ -36,14 +36,15 @@ exports.prototype.init = function(pod) {
 }
 
 exports.prototype.resolve = function(did) {
-	this.storage.readDomain(did, afterReadDomain.bind(this));
+	this.storage.resolvePod(did, afterResolvePod.bind(this));
 
-	function afterReadDomain(error, result) {
+	function afterResolvePod(error, result) {
 		if (error)
 			return this.emit("error", error)
 		if (!result)
-			return this.emit("error", new Error("unknown domain"))
-		this.init(result['pid']);
+			return this.emit("error", new Error("unknown pod"))
+		this.pod = result;
+		this.emit("ready");
 	}
 }
 
