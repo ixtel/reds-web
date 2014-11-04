@@ -178,7 +178,7 @@ function deleteAccount() {
 
 function showAccount(account) {
 	document.getElementById("Account").style['display'] = "block";
-	document.getElementById("Addressbook").style['display'] = "block";
+	document.getElementById("Contacts").style['display'] = "block";
 	document.getElementById("SignUpSignIn").style['display'] = "hidden";
 	document.getElementById("AccountId").value = account;
 	loadContactList();
