@@ -1,3 +1,5 @@
+<?php if (substr_count($_SERVER['HTTP_ACCEPT_ENCODING'], ‘gzip’)) ob_start(“ob_gzhandler”); else ob_start(); ?>
+
 <!doctype HTML>
 <html>
 
@@ -19,7 +21,6 @@
 	<header>
 		<h1>REDS web  example </h1>
 	</header>
-	<hr>
 	<div id="SignUpSignIn">
 		<div>
 			<h2>Sign up</h2>
@@ -27,7 +28,7 @@
 				<div><label>Name</label> <input type="text" name="name"></div>
 				<div><label>Password</label> <input type="password" name="password"></div>
 				<div><label>Confirmation </label><input type="password" name="confirmation"></div>
-				<button type="submit">sign up</button>
+				<button type="submit">sign up <img src="./resources/images/button_right.svgz"/></button>
 			</form>
 		</div>
 		<div>
@@ -35,80 +36,77 @@
 			<form id="SignIn">
 				<div><label>Name</label><input type="text" name="name"></div>
 				<div><label>Password</label><input type="password" name="password"></div>
-				<button type="submit">sign in</button>
+				<button type="submit">sign in <img src="./resources/images/button_right.svgz"/></button>
 			</form>
 		</div>
 		<div id="Account">
 			<h2>Account</h2>
 			<form id="EditAccount">
 				<div><label>ID</label><input id="AccountId" type="text" name="id" readonly></div>
-				<button id="DeleteAccount" type="button">delete</button>
-				<button id="SignOut" type="button">sign out</button>
+				<button id="DeleteAccount" type="button">delete <img src="./resources/images/button_right.svgz"/></button>
+				<button id="SignOut" type="button">sign out <img src="./resources/images/button_right.svgz"/></button>
 			</form>
 			<form id="UpdateAccount">
 				<div><label>Password</label><input type="password" name="password"></div>
 				<div><label>Confirmation</label><input type="password" name="confirmation"></div>
-				<button type="submit">update</button>
+				<button type="submit">update <img src="./resources/images/button_right.svgz"/></button>
 			</form>
 		</div>
 	</div>
 	<div id="Addressbook">
 		<h2>Addressbooks</h2>
-
 		<h3>Add Addressbook</h3>
 		<form id="AddContact">
 			<div><label>Name</label><input type="text" name="name"></div>
 			<div><label>Pod</label><input type="text" name="pod" value="localhost:8181"></div>
 			<div><label>Password</label><input type="password" name="password" value="foobar"></div>
-			<button type="submit">add</button>
+			<button type="submit">add <img src="./resources/images/button_right.svgz"/></button>
 		</form>
 		<h3>List of Addressbooks</h3>
 		<form id="ContactList">
 			<div class="hidden"><label>Filter</label><input type="text" name="filter"></div>
 			<select name="list" size="10"></select>
-			<button type="submit">show</button>
-			<button id="ReloadContactList" type="button">reload</button>
+			<button type="submit">show <img src="./resources/images/button_right.svgz"/></button>
+			<button id="ReloadContactList" type="button">reload <img src="./resources/images/button_right.svgz"/></button>
 		</form>
 		<h3>Edit Addressbook</h3>
 		<form id="EditContact">
 			<div><label>ID</label><input id="ContactId" type="text" name="id" readonly></div>
-			<button id="DeleteContact" type="button">delete</button>
-			<button id="HideContact" type="button">hide</button>
+			<button id="DeleteContact" type="button">delete <img src="./resources/images/button_right.svgz"/></button>
+			<button id="HideContact" type="button">hide <img src="./resources/images/button_right.svgz"/></button>
 			<div style="visiblity:hidden;height:2em!important;margin:0!important;padding:0!important"></div>
 			<div><label>Name</label><input type="text" name="name"></div>
 			<div style="visibility:hidden"><label></label><input></div><!-- Spacer -->
-			<button type="submit">save</button>
+			<button type="submit">save <img src="./resources/images/button_right.svgz"/></button>
 		</form>
 	</div>
 	<div id="Contact">
 		<h2>Current Addressbook</h2>
-
 		<h3>Add address</h3>
 		<form id="AddAddress">
 			<div><label>Street</label><input type="text" name="street"></div>
 			<div><label>City</label><input type="text" name="city"></div>
 			<div style="visibility:hidden"><label></label><input></div><!-- Spacer -->
-			<button type="submit">add</button>
+			<button type="submit">add <img src="./resources/images/button_right.svgz"/></button>
 		</form>
 		<h3>Address list</h3>
 		<form id="AddressList">
 			<div class="hidden"><label>Filter</label><input type="text" name="filter"></div>
 			<select name="list" size="10"></select>
-			<button type="submit">show</button>
-			<button id="ReloadAddressList" type="button">reload</button>
+			<button type="submit">show <img src="./resources/images/button_right.svgz"/></button>
+			<button id="ReloadAddressList" type="button">reload <img src="./resources/images/button_right.svgz"/></button>
 		</form>
 		<h3>Edit address</h3>
 		<form id="EditAddress">
 			<div><label>ID</label><input id="AddressId" type="text" name="id" readonly></div>
-			<button id="DeleteAddress" type="button">delete</button>
-			<button id="HideAddress" type="button">hide</button>
+			<button id="DeleteAddress" type="button">delete <img src="./resources/images/button_right.svgz"/></button>
+			<button id="HideAddress" type="button">hide <img src="./resources/images/button_right.svgz"/></button>
 			<div style="visiblity:hidden;height:2em!important;margin:0!important;padding:0!important"></div>
 			<div><label>Street</label><input type="text" name="street"></div>
 			<div><label>City</label><input type="text" name="city"></div>
-			<button type="submit">save</button>
+			<button type="submit">save< <img src="./resources/images/button_right.svgz"/>/button>
 		</form>
 	</div>
-	<hr>
 	<div id="Crypto">
 		<h2>CryptoFacility Test</h2>
 		<p>
@@ -116,7 +114,7 @@
 		</p>
 		<form id="TestCryptoFacility">
 			<div><label>Output:</label><textarea name="output"></textarea></div>
-			<button type="submit">run</button>
+			<button type="submit">run <img src="./resources/images/button_right.svgz"/></button>
 		</form>
 	</div>
 </body>

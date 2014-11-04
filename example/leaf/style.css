@@ -2,26 +2,29 @@ body, h1, h2, h3, h4, h5, h6 {
 	margin: 0;
 	padding: 0;
 	font-family: "CallunaSansLight-Regular" "Helvetica Neue Light", "HelveticaNeue-Light", "Helvetica Neue", Calibri, Helvetica, Arial, sans;
+	color: #444440;
 }
 h2, h3, h4, h5, h6 {
 	margin-bottom: 1em;
 }
 h1, h2 {
-	color: #000;
+	color: #444440;
 	font-family: "CallunaLight-Regular" "Helvetica Neue Light", "HelveticaNeue-Light", "Helvetica Neue", Calibri, Helvetica, Arial, serif;
 }
 body {
 	width: 100%;
 	min-width: 60em;
-	background: #fff9e6;
+	background: #fffdf5;
+	color: #444440;
 }
 header {
 	background-color: #f58b77;
 	padding: 2em 0;
 	width: 100%;
+	border-bottom: 0.0625rem solid rgba(0,0,0,0.25);
 }
 header h1 {
-	margin-left:2em;
+	margin-left:1em;
 }
 body > div {
 	padding: 2em;
@@ -56,23 +59,15 @@ body form > div input {
 	float:right;
 	border: 0.0625rem solid #444440;
 	border-radius: 0.25rem;
-	background: #fff9e6;
+	background: transparent;
 }
 button {
-	width: 5em;
+	width: 8em;
 	height: 2em;
-	color: #fff9e6;
-	background-color: #f16b53;
-	border:none;
-	border-radius: 5rem;
 	margin-right: 0.5em;
 	margin-top:1em;
-	-moz-box-shadow: 0.25em 0.25em 0.15em 0.15em #666;
-	-webkit-box-shadow: 0.25em 0.25em 0.15em 0.15em #666;
-	box-shadow: 0.25em 0.25em 0.15em 0.15em #666;
-}
-button:hover {
-	background-color: #f69b8a;
+	border: none;
+	background: transparent;
 }
 textarea {
 	width: 99%;
@@ -89,7 +84,8 @@ body hr {
 div#Crypto {
 	clear:both;
 	min-width: 30em;
-	background: #fec8be;
+	background: #fff9e6;
+	border-top: 0.0625rem solid rgba(0,0,0,0.25);
 }
 div#Crypto form#TestCryptoFacility {
 	width:100%;
