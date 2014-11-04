@@ -234,7 +234,12 @@ function clearContactList() {
 
 // INFO Contact actions
 
-function showContact(contact) {
+function showAddressbook(contact) {
+	if (!contact) {
+		alert("No contact selected. Choose contact from list!")
+		return;
+	}
+
 	leaf.readEntities("/contact/"+contact, afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
@@ -262,6 +267,8 @@ function saveContact(contact, name) {
 		document.getElementById("Contact").style['display'] = "block";
 		document.getElementById("EditContact").elements['id'].value = response[0]['eid'];
 		document.getElementById("EditContact").elements['name'].value = response[0]['name'];
+		clearContactList();
+		loadContactList();
 	}
 }
 
@@ -291,6 +298,10 @@ function addAddress(contact, street, city) {
 
 function loadAddressList(contact, filter) {
 	clearAddressList();
+	if (!contact) {
+		alert("No contact selected. Choose contact from list.");
+		return;
+	}
 	leaf.readEntities("/contact/"+contact+"/address/*", afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
@@ -316,6 +327,11 @@ function clearAddressList(contact) {
 // INFO Address actions
 
 function showAddress(address) {
+	if (!address) {
+		alert("No address selected. Choose address from list.");
+		return;
+	}
+
 	leaf.readEntities("/address/"+address, afterReadEntities.bind(this));
 
 	function afterReadEntities(response) {
@@ -334,6 +350,11 @@ function hideAddress(address) {
 }
 
 function saveAddress(address, street, city) {
+	if (!address) {
+		alert("No address selected. Choose address from list.");
+		return;
+	}
+
 	leaf.updateEntities("/address/"+address, [
 		{'eid':parseInt(address), 'street': street, 'city': city}
 	], null, afterUpdateEntities);
@@ -389,7 +410,7 @@ function init() {
 
 	document.getElementById("ContactList").addEventListener("submit", function(evt) {
 		evt.preventDefault();
-		showContact(this.elements['list'].value);
+		showAddressbook(this.elements['list'].value);
 	}, false);
 
 	document.getElementById("ReloadContactList").addEventListener("click", function(evt) {
