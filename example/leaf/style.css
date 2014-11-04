@@ -106,7 +106,7 @@ div#Crypto form#TestCryptoFacility div {
 div#Crypto form#TestCryptoFacility div textarea {
 	margin-top: 1em;
 }
-#Account, #Contact, #Address, #Addressbook {
+#Account, #Address, #Addressbook {
 	display: none;
 }
 .hidden {

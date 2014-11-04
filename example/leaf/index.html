@@ -51,23 +51,23 @@
 			</form>
 		</div>
 	</div>
-	<div id="Addressbook">
-		<h2>Addressbooks</h2>
-		<h3>Add Addressbook</h3>
+	<div id="Contacts">
+		<h2>Contacts</h2>
+		<h3>Add Contact</h3>
 		<form id="AddContact">
 			<div><label>Name</label><input type="text" name="name"></div>
 			<div><label>Pod</label><input type="text" name="pod" value="localhost:8181"></div>
 			<div><label>Password</label><input type="password" name="password" value="foobar"></div>
 			<button type="submit">add <img src="./resources/images/button_plus.svg"/></button>
 		</form>
-		<h3>List of Addressbooks</h3>
+		<h3>List of Contacts</h3>
 		<form id="ContactList">
 			<div class="hidden"><label>Filter</label><input type="text" name="filter"></div>
 			<select name="list" size="10"></select>
 			<button type="submit">show <img src="./resources/images/button_right.svg"/></button>
 			<button id="ReloadContactList" type="button">reload <img src="./resources/images/button_right.svg"/></button>
 		</form>
-		<h3>Edit Addressbook</h3>
+		<h3>Edit Contacts</h3>
 		<form id="EditContact">
 			<div><label>ID</label><input id="ContactId" type="text" name="id" readonly></div>
 			<button id="DeleteContact" type="button">delete <img src="./resources/images/button_cross.svg"/></button>
@@ -78,8 +78,8 @@
 			<button type="submit">save <img src="./resources/images/button_right.svg"/></button>
 		</form>
 	</div>
-	<div id="Contact">
-		<h2>Current Addressbook</h2>
+	<div id="Address">
+		<h2>Current Contact</h2>
 		<h3>Add address</h3>
 		<form id="AddAddress">
 			<div><label>Street</label><input type="text" name="street"></div>
