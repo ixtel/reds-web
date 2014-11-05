@@ -2,6 +2,8 @@
 <html>
 
 <head>
+	<link rel="stylesheet" href="./resources/fonts/CallunaLight-Regular.css"/>
+	<link rel="stylesheet" href="./resources/fonts/CallunaSansLight-Regular.css"/>
 	<link rel="stylesheet" href="style.css">
 	<script type="text/javascript" src="reds/shared/crypto/Sjcl.js"></script>
 	<script type="text/javascript" src="reds/shared/crypto/CryptoJs.js"></script>
@@ -14,92 +16,107 @@
 </head>
 
 <body>
-	<h1>REDS web  example </h1>
-	<h2>Sign up</h2>
-	<form id="SignUp">
-		<label>Name <input type="text" name="name"></label><br>
-		<label>Password <input type="password" name="password"></label><br>
-		<label>Confirmation <input type="password" name="confirmation"></label>
-		<button type="submit">sign up</button>
-	</form>
-	<h2>Sign in</h2>
-	<form id="SignIn">
-		<label>Name <input type="text" name="name"></label><br>
-		<label>Password <input type="password" name="password"></label>
-		<button type="submit">sign in</button>
-	</form>
-	<div id="Account">
-		<hr>
-		<h2>Account</h2>
-		<form id="EditAccount">
-			<label>ID <input id="AccountId" type="text" name="id" readonly></label>
-			<button id="DeleteAccount" type="button">delete</button>
-			<button id="SignOut" type="button">sign out</button>
-		</form>
-		<form id="UpdateAccount"><br>
-			<label>Password <input type="password" name="password"></label><br>
-			<label>Confirmation <input type="password" name="confirmation"></label>
-			<button type="submit">update</button>
-		</form>
-		<h3>Add contact</h3>
+	<header>
+		<h1>REDS web  example </h1>
+	</header>
+	<div id="SignUpSignIn">
+		<div id="SignUpDiv">
+			<h2>Sign up</h2>
+			<form id="SignUp">
+				<div><label>Name</label> <input type="text" name="name"></div>
+				<div><label>Password</label> <input type="password" name="password"></div>
+				<div><label>Confirmation </label><input type="password" name="confirmation"></div>
+				<button type="submit">sign up <img src="./resources/images/button_right.svg"/></button>
+			</form>
+		</div>
+		<div id="SignInDiv">
+			<h2>Sign in</h2>
+			<form id="SignIn">
+				<div><label>Name</label><input type="text" name="name"></div>
+				<div><label>Password</label><input type="password" name="password"></div>
+				<button type="submit">sign in <img src="./resources/images/button_entrance.svg"/></button>
+			</form>
+		</div>
+		<div id="Account">
+			<h2>Account</h2>
+			<form id="EditAccount">
+				<div><label>ID</label><input id="AccountId" type="text" name="id" readonly></div>
+				<button id="DeleteAccount" type="button">delete <img src="./resources/images/button_cross.svg"/></button>
+				<button id="SignOut" type="button">sign out <img src="./resources/images/button_exit.svg"/></button>
+			</form>
+			<form id="UpdateAccount">
+				<div><label>Password</label><input type="password" name="password"></div>
+				<div><label>Confirmation</label><input type="password" name="confirmation"></div>
+				<button type="submit">update <img src="./resources/images/button_right.svg"/></button>
+			</form>
+		</div>
+	</div>
+	<div id="Addressbook">
+		<h2>Contacts</h2>
+		<h3>Add Contact</h3>
 		<form id="AddContact">
-			<label>Name <input type="text" name="name"></label><br>
-			<label>Pod <input type="text" name="pod" value="localhost:8181"></label><br>
-			<label>Password <input type="password" name="password" value="foobar"></label>
-			<button type="submit">add</button>
+			<div><label>Name</label><input type="text" name="name"></div>
+			<div><label>Pod</label><input type="text" name="pod" value="localhost:8181"></div>
+			<div><label>Password</label><input type="password" name="password" value="foobar"></div>
+			<button type="submit">add <img src="./resources/images/button_plus.svg"/></button>
 		</form>
-		<h3>Contact list</h3>
+		<h3>List of Contacts</h3>
 		<form id="ContactList">
-			<label>Filter <input type="text" name="filter"></label><br>
+			<div class="hidden"><label>Filter</label><input type="text" name="filter"></div>
 			<select name="list" size="10"></select>
-			<button type="submit">show</button>
-			<button id="ReloadContactList" type="button">reload</button>
+			<button type="submit">show <img src="./resources/images/button_right.svg"/></button>
+			<button id="ReloadContactList" type="button">reload <img src="./resources/images/button_right.svg"/></button>
 		</form>
 	</div>
 	<div id="Contact">
-		<hr>
-		<h2>Contact</h2>
-		<h3>Edit contact</h3>
+		<h2>Current Contact</h2>
+		<h3>Edit Contact</h3>
 		<form id="EditContact">
-			<label>ID <input id="ContactId" type="text" name="id" readonly></label>
-			<button id="DeleteContact" type="button">delete</button>
-			<button id="HideContact" type="button">hide</button><br>
-			<label>Name <input type="text" name="name"></label>
-			<button type="submit">save</button>
+			<div><label>ID</label><input id="ContactId" type="text" name="id" readonly></div>
+			<button id="DeleteContact" type="button">delete <img src="./resources/images/button_cross.svg"/></button>
+			<button id="HideContact" type="button">hide <img src="./resources/images/button_right.svg"/></button>
+			<div style="visiblity:hidden;height:2em!important;margin:0!important;padding:0!important"></div>
+			<div><label>Name</label><input type="text" name="name"></div>
+			<div style="visibility:hidden"><label></label><input></div><!-- Spacer -->
+			<button type="submit">save <img src="./resources/images/button_right.svg"/></button>
 		</form>
 		<h3>Add address</h3>
 		<form id="AddAddress">
-			<label>Street <input type="text" name="street"></label><br>
-			<label>City <input type="text" name="city"></label>
-			<button type="submit">add</button>
+			<div><label>Street</label><input type="text" name="street"></div>
+			<div><label>City</label><input type="text" name="city"></div>
+			<button type="submit">add <img src="./resources/images/button_plus.svg"/></button>
 		</form>
 		<h3>Address list</h3>
 		<form id="AddressList">
-			<label>Filter <input type="text" name="filter"></label><br>
+			<div class="hidden"><label>Filter</label><input type="text" name="filter"></div>
 			<select name="list" size="10"></select>
-			<button type="submit">show</button>
-			<button id="ReloadAddressList" type="button">reload</button>
+			<button type="submit">show <img src="./resources/images/button_right.svg"/></button>
+			<button id="ReloadAddressList" type="button">reload <img src="./resources/images/button_right.svg"/></button>
 		</form>
 	</div>
 	<div id="Address">
-		<hr>
-		<h2>Address</h2>
+		<h2>Current Address</h2>
 		<h3>Edit address</h3>
 		<form id="EditAddress">
-			<label>ID <input id="AddressId" type="text" name="id" readonly></label>
-			<button id="DeleteAddress" type="button">delete</button>
-			<button id="HideAddress" type="button">hide</button><br>
-			<label>Street <input type="text" name="street"></label><br>
-			<label>City <input type="text" name="city"></label>
-			<button type="submit">save</button>
+			<div><label>ID</label><input id="AddressId" type="text" name="id" readonly></div>
+			<button id="DeleteAddress" type="button">delete <img src="./resources/images/button_cross.svg"/></button>
+			<button id="HideAddress" type="button">hide <img src="./resources/images/button_right.svg"/></button>
+			<div style="visiblity:hidden;height:2em!important;margin:0!important;padding:0!important"></div>
+			<div><label>Street</label><input type="text" name="street"></div>
+			<div><label>City</label><input type="text" name="city"></div>
+			<button type="submit">save <img src="./resources/images/button_right.svg"/></button>
 		</form>
 	</div>
-	<hr>
-	<h2>CryptoFacility Test</h2>
-	<form id="TestCryptoFacility">
-		<label>Output <textarea name="output"></textarea></label>
-		<button type="submit">run</button>
-	</form>
+	<div id="Crypto">
+		<h2>CryptoFacility Test</h2>
+		<p>
+			Click button 'run' below to run a number of cryptographic functions used for REDS. Their performance output will be display in the output-section below. This is also an example of the encryption process that is applied to all data.
+		</p>
+		<form id="TestCryptoFacility">
+			<div><label>Output:</label><textarea name="output"></textarea></div>
+			<button type="submit">run <img src="./resources/images/button_right.svg"/></button>
+		</form>
+	</div>
 </body>
 
 </html>

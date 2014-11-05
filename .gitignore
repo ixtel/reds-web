@@ -44,3 +44,6 @@ Session.vim
 
 # LibreOffice files
 .~lock.*
+
+# Webstorm Idea directory
+.idea

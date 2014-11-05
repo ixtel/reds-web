@@ -1,8 +1,117 @@
-textarea {
-	width: 70em;
-	height: 25em;
+body, h1, h2, h3, h4, h5, h6, button{
+	margin: 0;
+	padding: 0;
+	font-family: "CallunaSansLight-Regular" "Helvetica Neue Light", "HelveticaNeue-Light", "Helvetica Neue", Calibri, Helvetica, Arial, sans;
+	color: #444440;
 }
-
-#Account, #Contact, #Address {
+h2, h3, h4, h5, h6 {
+	margin-bottom: 1em;
+}
+h1, h2 {
+	color: #444440;
+	font-family: "CallunaLight-Regular" "Helvetica Neue Light", "HelveticaNeue-Light", "Helvetica Neue", Calibri, Helvetica, Arial, serif;
+}
+body {
+	width: 100%;
+	min-width: 80em;
+	background: #fffdf5;
+	color: #444440;
+}
+header {
+	background-color: #f58b77;
+	padding: 2em 0;
+	width: 100%;
+	border-bottom: 0.0625rem solid rgba(0,0,0,0.25);
+}
+header h1 {
+	margin-left:1em;
+}
+body > div {
+	padding: 2em;
+}
+body > div > div,
+body > div > form,
+body > div > div > form{
+	margin-bottom: 2em;
+}
+body #SignUpSignIn {
+	float:left;
+	width: 16em;
+}
+body #Address {
+	float:left;
+}
+body #Contact {
+	float:left;
+}
+body #Addressbook {
+	float:left;
+}
+body form {
+	display: table;
+}
+body form > div {
+	display: table-row;
+}
+body form > div label,
+body form > div input{
+	display: table-cell;
+	min-width: 7.5em;
+}
+body form > div input {
+	float:right;
+	border: 0.0625rem solid #444440;
+	border-radius: 0.25rem;
+	background: transparent;
+}
+button {
+	font-size: 80%;
+	height: 2em;
+	text-align: left;
+	margin-right: 0.5em;
+	margin-top:1em;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+}
+button:hover {
+	color: #f16b53;
+}
+button img {
+	height:1em;
+	margin-top: -0.125em;
+	vertical-align:middle;
+}
+textarea {
+	width: 99%;
+	height: 25em;
+	resize: vertical;
+}
+select {
+	width: 100%;
+}
+body hr {
+	clear:both;
+	margin: 0;
+}
+div#Crypto {
+	clear:both;
+	min-width: 30em;
+	background: #fff9e6;
+	border-top: 0.0625rem solid rgba(0,0,0,0.25);
+}
+div#Crypto form#TestCryptoFacility {
+	width:100%;
+}
+div#Crypto form#TestCryptoFacility div {
+	display:block !important;
+}
+div#Crypto form#TestCryptoFacility div textarea {
+	margin-top: 1em;
+}
+#Account, #Address, #Contact, #Addressbook {
 	display: none;
+}
+.hidden {
+	display: none !important;
 }
