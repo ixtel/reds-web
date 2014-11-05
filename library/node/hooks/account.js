@@ -61,6 +61,7 @@ exports.PUT = function(session) {
 		if (error)
 			return session.abort(error);
 		session.writeJson(result);
+		session.signAccount();
 		session.end();
 	}
 }
@@ -79,6 +80,7 @@ exports.DELETE = function(session) {
 	function afterDeleteAccount(error, result) {
 		if (error)
 			return session.abort(error);
+		session.signAccount();
 		session.end();
 	}
 }

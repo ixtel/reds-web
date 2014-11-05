@@ -22,7 +22,6 @@ exports.prototype.HookHandlers = {
 }
 
 exports.prototype.authorizeDomain = function(callback) {
-	console.log("authorizeDomain");
 	if (!this.authorization)
 		return callback(new HttpError(401, "Missing authorization"));
 	// NOTE Note this check won't be needed once the session can handle multiple facilities
@@ -42,7 +41,6 @@ exports.prototype.authorizeDomain = function(callback) {
 		if (sig != this.authorization['sig'])
 			return callback(new HttpError(403, "Invalid authorization"));
 		this.authorization['domain'] = result;
-		console.log(this.authorization);
 		callback();
 	}
 }

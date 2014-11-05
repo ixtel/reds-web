@@ -34,9 +34,17 @@ exports.prototype.authorizeAccount = function(callback) {
 			return callback(new HttpError(403, "Unknown account"));
 		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.authorization['vec'], this.authorization['crypto'], this.request.method, this.request.headers['content-type'], this.requestText||"");
 		var sig = this.crypto.generateHmac(msg, result['auth']);
-		if (sig == this.authorization['sig'])
-			return callback();
-		else
+		if (sig != this.authorization['sig'])
 			return callback(new HttpError(403, "Invalid authorization"));
+		this.authorization['account'] = result;
+		callback();
 	}
+}
+
+exports.prototype.signAccount = function() {
+	var time, msg, sig;
+	time = this.crypto.generateTimestamp();
+	msg = this.crypto.concatenateStrings("account", this.authorization.account['aid'], time, this.crypto.name, this.response.getHeader("Content-Type"), this.$responseText);
+	sig = this.crypto.generateHmac(msg, this.authorization.account['auth']);
+	this.response.setHeader("Authorization", "account:"+this.authorization.account['aid']+":"+time+":"+sig+":"+this.crypto.name);
 }

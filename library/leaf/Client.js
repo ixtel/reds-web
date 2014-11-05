@@ -131,6 +131,8 @@ Client.prototype.deleteAccount = function(callback) {
 	request.send();
 
 	function onLoad() {
+		if (!request.authorizeAccount(Vault[this.vid].account))
+			return;
 		Vault.resetClient(this.vid);
 		callback();
 	}
@@ -155,6 +157,8 @@ Client.prototype.updateVault = function(callback) {
 	request.send();
 	
 	function onLoad() {
+		if (!request.authorizeAccount(Vault[this.vid].account))
+			return;
 		callback();
 	}
 }

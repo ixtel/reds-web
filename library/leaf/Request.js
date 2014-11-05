@@ -130,6 +130,31 @@ Request.prototype.send = function() {
 	return this.$xhr.send(new Blob([this.$data]));
 }
 
+Request.prototype.authorizeAccount = function(credentials) {
+	var msg, sig;
+	if (!this.responseAuthorization)
+		return this.$emitError(new Error("Missing authorization"));
+	// NOTE Note this check won't be needed once the session can handle multiple facilities
+	if (this.responseAuthorization['crypto'] != this.crypto.name)
+		return this.$emitError(new Error("Unsupported crypto facility"));
+	if (this.responseAuthorization['realm'] != "account")
+		return this.$emitError(new Error("Invalid realm"));
+	if (!credentials['aid'])
+		return this.$emitError(new Error("Missing account"));
+	msg = this.crypto.concatenateStrings(
+		this.responseAuthorization['realm'],
+		this.responseAuthorization['id'],
+		this.responseAuthorization['vec'],
+		this.responseAuthorization['crypto'],
+		this.$xhr.getResponseHeader("Content-Type"),
+		this.$xhr.responseText||""
+	);
+	sig = this.crypto.generateHmac(msg, credentials['akey']);
+	if (sig != this.responseAuthorization['sig'])
+		return this.$emitError(new Error("Invalid authorization"));
+	return true;
+}
+
 Request.prototype.authorizeDomain = function(credentials) {
 	var msg, sig;
 	if (!this.responseAuthorization)
