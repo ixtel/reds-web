@@ -14,6 +14,7 @@ StorageFacilities.addFacility(require("./storage/NodePg.js"));
 module.exports = exports = function(config, request, response) {
 	events.EventEmitter.call(this);
 	this.$requestJson = undefined;
+	this.$responseText = undefined;
 	this.$selector = undefined;
 	this.$type = undefined;
 	this.config = config;
@@ -67,9 +68,11 @@ exports.prototype.delegate = function() {
 
 exports.prototype.end = function(status) {
 	this.response.statusCode = status||200;
+	this.response.write(this.$responseText||"", "utf8");
 	this.response.end();
 	if (this.storage)
 		this.storage.disconnect();
+	console.log("RESPONSE "+this.$responseText); // DEBUG
 	console.log("RESPONSE "+this.response.getHeader("Content-Type")); // DEBUG
 }
 
@@ -101,8 +104,7 @@ exports.prototype.write = function(data, type) {
 	if (type && !this.response.headersSent)
 		this.response.setHeader("Content-Type", type);
 	if (data)
-		this.response.write(data, "utf8");
-	console.log("RESPONSE "+data); // DEBUG
+		this.$responseText = data;
 }
 
 exports.prototype.writeJson = function(data, type) {

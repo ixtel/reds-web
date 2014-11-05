@@ -12,6 +12,6 @@
 	"cors": {
 		"origin": "*",
 		"methods": "GET, POST, PUT, DELETE",
-		"headers": "Content-Type, Authorization"
+		"headers": "Content-Type, Authorization, X-REDS-Test"
 	}
 }

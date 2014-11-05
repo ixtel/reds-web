@@ -9,6 +9,7 @@ var Request = function(crypto) {
 	this.$method = "";
 	this.$type = "application/octet-stream";
 	this.$data = "";
+	this.$responseAuthorization = undefined;
 	this.$responseDomain = undefined;
 	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
@@ -26,6 +27,7 @@ Request.prototype.$onLoad = function(evt) {
 		this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 		return;
 	}
+	// TODO Move into getter
 	if (type = this.$xhr.getResponseHeader("Content-Type")) {
 		options = new Object();
 		type = type.replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s*/, function(m, p1, p2) {
@@ -38,6 +40,11 @@ Request.prototype.$onLoad = function(evt) {
 		'type': type||null,
 		'options': options||null
 	};
+}
+
+Request.prototype.$emitError = function(error) {
+	this.dispatchEvent(new CustomEvent("error", {'detail':error}));
+	return false;
 }
 
 Request.prototype.addEventListener = function(type, listener, useCapture) {
@@ -64,9 +71,7 @@ Request.prototype.writeDomain = function(data, credentials, type) {
 			domain = JSON.stringify(data);
 		}
 		catch (e) {
-			error = new Error("request contains invalid JSON");
-			this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-			return;
+			return this.$emitError(new Error("request contains invalid JSON"));
 		}
 	}
 	this.write(domain, type||"application/x.reds.domain;did="+credentials['did']);
@@ -79,9 +84,7 @@ Request.prototype.writeJson = function(data, type) {
 			json = JSON.stringify(data);
 		}
 		catch (e) {
-			error = new Error("request contains invalid JSON");
-			this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-			return;
+			return this.$emitError(new Error("request contains invalid JSON"));
 		}
 	}
 	this.write(json, type||"application/json;charset=UTF-8");
@@ -89,7 +92,7 @@ Request.prototype.writeJson = function(data, type) {
 
 Request.prototype.write = function(data, type) {
 	if (this.$data.length)
-		throw new Error("Multiple Request.write calls are not supported yet (TODO)");
+		return this.$emitError(new Error("Multiple Request.write calls are not supported yet (TODO)"));
 	this.$type = type||"application/octet-stream";
 	this.$data = data||"";
 }
@@ -127,6 +130,37 @@ Request.prototype.send = function() {
 	return this.$xhr.send(new Blob([this.$data]));
 }
 
+Request.prototype.authorizeTicket = function(credentials) {
+	var tid, key, msg, sig;
+	if (!this.responseAuthorization)
+		return this.$emitError(new Error("Missing authorization"));
+	// NOTE Note this check won't be needed once the session can handle multiple facilities
+	if (this.responseAuthorization['crypto'] != this.crypto.name)
+		return this.$emitError(new Error("Unsupported crypto facility"));
+	if (this.responseAuthorization['realm'] != "ticket")
+		return this.$emitError(new Error("Invalid realm"));
+	if (!credentials['lid'])
+		return this.$emitError(new Error("Missing leaf"));
+	if (!credentials['did'])
+		return this.$emitError(new Error("Missing domain"));
+	if (!credentials['tid'])
+		return this.$emitError(new Error("Missing ticket"));
+	tid = this.crypto.decryptData(this.responseAuthorization['vec'], credentials['dkey'], credentials['vec']);
+	key = this.crypto.generateHmac(credentials['tkey'], credentials['vec']);
+	msg = this.crypto.concatenateStrings(
+		this.responseAuthorization['realm'],
+		this.responseAuthorization['id'],
+		this.responseAuthorization['vec'],
+		this.responseAuthorization['crypto'],
+		this.$xhr.getResponseHeader("Content-Type"),
+		this.$xhr.responseText||""
+	);
+	sig = this.crypto.generateHmac(msg, key);
+	if (sig != this.responseAuthorization['sig'])
+		return this.$emitError(new Error("Invalid authorization"));
+	return true;
+}
+
 Object.defineProperty(Request.prototype, "responseDomain", {
 	get: function() {
 		var error;
@@ -135,9 +169,7 @@ Object.defineProperty(Request.prototype, "responseDomain", {
 				this.$responseDomain = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
 			}
 			catch (e) {
-				error = new Error("response contains invalid JSON");
-				this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-				return;
+				return this.$emitError(new Error("response contains invalid JSON"));
 			}
 		}
 		return this.$responseDomain;
@@ -152,12 +184,31 @@ Object.defineProperty(Request.prototype, "responseJson", {
 				this.$responseJson = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
 			}
 			catch (e) {
-				error = new Error("response contains invalid JSON");
-				this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-				return;
+				return this.$emitError(new Error("response contains invalid JSON"));
 			}
 		}
 		return this.$responseJson;
+	}
+});
+
+Object.defineProperty(Request.prototype, "responseAuthorization", {
+	get: function() {
+		if (this.$responseAuthorization === undefined) {
+			this.$responseAuthorization = this.$xhr.getResponseHeader("Authorization") || null;
+			if (this.$responseAuthorization) {
+				this.$responseAuthorization = this.$responseAuthorization.match(/(account|domain|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+				if (this.$responseAuthorization) {
+					this.$responseAuthorization = {
+						'realm': this.$responseAuthorization[1],
+						'id': this.$responseAuthorization[2],
+						'vec': this.$responseAuthorization[3],
+						'sig': this.$responseAuthorization[4],
+						'crypto': this.$responseAuthorization[5]
+					};
+				}
+			}
+		}
+		return this.$responseAuthorization;
 	}
 });
 

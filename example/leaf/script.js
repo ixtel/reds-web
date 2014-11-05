@@ -1,7 +1,7 @@
 "use strict"
 
 var leaf = new reds.leaf.Client({
-	'url': "http://node.reds-web.dev",
+	'url': "http://reds-web.dev/!/node",
 	'crypto': ["sjcl-1", "cryptojs-1"]
 });
 

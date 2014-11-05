@@ -72,8 +72,13 @@ exports.POST = function(session) {
 		if (error)
 			return session.abort(error);
 		// TODO Support multiple MIME types
-		if (!route) session.writeJson(result);
-		session.write(route.responseText, route.responseType);
+		if (route) {
+			session.write(route.responseText, route.responseHeaders['content-type']);
+			session.response.setHeader("Authorization", route.responseHeaders['authorization']);
+		}
+		else {
+			session.writeJson(result);
+		}
 		session.end();
 	}
 }
@@ -135,6 +140,7 @@ exports.GET = function(session) {
 		// TODO Support multiple MIME types
 		//session.writeJson(selection.types);
 		session.write(route.responseText, route.responseHeaders['content-type']);
+		session.response.setHeader("Authorization", route.responseHeaders['authorization']);
 		session.end();
 	}
 
@@ -178,6 +184,8 @@ exports.PUT = function(session) {
 		// TODO Support multiple MIME types
 		//session.writeJson(selection.types);
 		session.write(route.responseText, route.responseHeaders['content-type']);
+		session.response.setHeader("Authorization", route.responseHeaders['authorization']);
+		session.response.setHeader("X-REDS-Authorization", route.responseHeaders['authorization']);
 		session.end();
 	}
 
@@ -229,7 +237,8 @@ exports.DELETE = function(session) {
 		if (error)
 			return session.abort(error);
 		// TODO Support multiple MIME types
-		//session.write(route.responseText, route.responseType);
+		//session.write(route.responseText, route.responseHeaders['content-type']);
+		//session.response.setHeader("Authorization", route.responseHeaders['authorization']);
 		session.writeJson(selection.types);
 		session.end();
 	}

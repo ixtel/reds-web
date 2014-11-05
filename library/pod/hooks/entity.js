@@ -33,6 +33,7 @@ exports.POST = function(session) {
 			}
 		}
 		session.writeDomain(result);
+		session.signTicket();
 		session.end();
 	}
 }
@@ -65,6 +66,7 @@ exports.GET = function(session) {
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
 		session.writeDomain(result);
+		session.signTicket();
 		session.end();
 	}
 }
@@ -108,6 +110,7 @@ exports.PUT = function(session) {
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
 		session.writeDomain(result);
+		session.signTicket();
 		session.end();
 	}
 }
@@ -140,6 +143,8 @@ exports.DELETE = function(session) {
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
 		session.writeDomain(result);
+		// TODO Support multiple MIME types
+		//session.signTicket();
 		session.end();
 	}
 }

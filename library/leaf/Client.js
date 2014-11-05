@@ -317,18 +317,20 @@ Client.prototype.createEntity = function(path, data, callback) {
 		request.writeDomain(data, Vault[this.vid].domain[did]);
 		request.signTicket(Vault[this.vid].domain[did]);
 		request.send();
-	}
 
-	function onLoad() {
-		callback(request.responseDomain);
-	}
+		function onLoad() {
+			if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+				return;
+			callback(request.responseDomain);
+		}
 
-	function onError(evt) {
-		if (evt.detail.code == 412) {
-			evt.stopImmediatePropagation();
-			this.refreshLeaf(did, function() {
-				afterResolvePath.call(this, did);
-			}.bind(this));
+		function onError(evt) {
+			if (evt.detail.code == 412) {
+				evt.stopImmediatePropagation();
+				this.refreshLeaf(did, function() {
+					afterResolvePath.call(this, did);
+				}.bind(this));
+			}
 		}
 	}
 }
@@ -348,12 +350,13 @@ Client.prototype.readEntities = function(path, callback) {
 		if (!did)
 			return;
 		request = this.$createRequest("GET", path, onLoad.bind(this), onError.bind(this));
-		// TODO Remove; use authorization did on pod
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.signTicket(Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
+			if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+				return;
 			count++;
 			for (type in request.responseDomain) {
 				if (results[type])
@@ -412,6 +415,8 @@ Client.prototype.updateEntities = function(path, data, callback) {
 		request.send();
 
 		function onLoad() {
+			if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+				return;
 			count++;
 			for (type in request.responseDomain) {
 				if (results[type])
@@ -461,12 +466,14 @@ Client.prototype.deleteEntities = function(path, callback) {
 		if (!did)
 			return;
 		request = this.$createRequest("DELETE", path, onLoad.bind(this), onError.bind(this));
-		// TODO Remove use authorization did on pod
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
 		request.signTicket(Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
+			// TODO Support multiple MIME types
+			//if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+			//	return;
 			count++;
 			for (type in request.responseDomain) {
 				if (results[type])
