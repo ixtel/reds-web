@@ -195,9 +195,12 @@ Client.prototype.deleteDomains = function(dids, callback) {
 		var request;
 		request = this.$createRequest("DELETE", "/!/domain/"+did, onLoad.bind(this), onError.bind(this));
 		request.writeDomain(undefined, Vault[this.vid].domain[did]);
+		request.signDomain(Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
+			if (!request.authorizeDomain(Vault[this.vid].domain[did]))
+				return;
 			results = results.concat(request.responseJson);
 			delete Vault[this.vid].domain[request.responseJson['did']];
 			if (--count == 0)
@@ -230,7 +233,8 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 	request.send();
 
 	function onLoad(result) {
-		// TODO Check dkey signature
+		if (!request.authorizeDomain(Vault[this.vid].domain[did]))
+			return;
 		var domain = Vault[this.vid].domain[did];
 		domain['tid'] = request.responseJson['tid'],
 		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
@@ -250,7 +254,8 @@ Client.prototype.refreshLeaf = function(did, callback) {
 	request.send();
 
 	function onLoad() {
-		// TODO Check dkey signature
+		if (!request.authorizeDomain(Vault[this.vid].domain[did]))
+			return;
 		var domain = Vault[this.vid].domain[did];
 		domain['vec'] = this.crypto.combineKeypair(vecL.privateKey, request.responseJson['vec_p']),
 		domain['lid'] = this.crypto.generateHmac(domain['vec'], request.responseJson['lsalt']);

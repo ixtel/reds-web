@@ -31,7 +31,7 @@ exports.POST = function(session) {
 	}
 
 	function onRouteResponse() {
-		session.write(route.responseText, route.responseType);
+		session.write(route.responseText, route.responseHeaders['content-type']);
 		session.end();
 	}
 
@@ -57,6 +57,7 @@ exports.DELETE = function(session) {
 		route.method = "DELETE";
 		route.path = "/!/domain/"+session.type.options['did'];
 		route.write(session.requestText, session.request.headers['content-type']);
+		route.requestHeaders['authorization'] = session.request.headers['authorization'];
 		route.send();
 	}
 
@@ -65,7 +66,8 @@ exports.DELETE = function(session) {
 	}
 
 	function afterUnregisterDomain(error, result) {
-		session.write(route.responseText, route.responseType);
+		session.write(route.responseText, route.responseHeaders['content-type']);
+		session.response.setHeader("Authorization", route.responseHeaders['authorization']);
 		session.end();
 	}
 

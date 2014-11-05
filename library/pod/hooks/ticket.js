@@ -2,7 +2,6 @@
 
 var HttpError = require("../../shared/HttpError");
 
-
 // TODO Create non-owner tickets
 exports.POST = function(session) {
 	var tkeyP;
@@ -36,6 +35,7 @@ exports.POST = function(session) {
 		}
 		result['tkey_p'] = tkeyP.publicKey;
 		session.writeJson(result);
+		session.signDomain();
 		session.end();
 	}
 }

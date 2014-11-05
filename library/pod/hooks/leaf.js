@@ -23,6 +23,7 @@ exports.POST = function(session) {
 			'vec_p': vecP.publicKey,
 			'lsalt': lsalt
 		});
+		session.signDomain();
 		session.end();
 	}
 }

@@ -22,6 +22,7 @@ exports.prototype.HookHandlers = {
 }
 
 exports.prototype.authorizeDomain = function(callback) {
+	console.log("authorizeDomain");
 	if (!this.authorization)
 		return callback(new HttpError(401, "Missing authorization"));
 	// NOTE Note this check won't be needed once the session can handle multiple facilities
@@ -38,10 +39,11 @@ exports.prototype.authorizeDomain = function(callback) {
 			return callback(new HttpError(403, "Unknown domain"));
 		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.authorization['vec'], this.authorization['crypto'], this.request.method, this.request.headers['content-type'], this.requestText||"");
 		var sig = this.crypto.generateHmac(msg, result['dkey']);
-		if (sig == this.authorization['sig'])
-			return callback();
-		else
+		if (sig != this.authorization['sig'])
 			return callback(new HttpError(403, "Invalid authorization"));
+		this.authorization['domain'] = result;
+		console.log(this.authorization);
+		callback();
 	}
 }
 
@@ -89,6 +91,14 @@ exports.prototype.authorizeTicket = function(callback) {
 	}
 }
 
+exports.prototype.signDomain = function() {
+	var time, msg, sig;
+	time = this.crypto.generateTimestamp();
+	msg = this.crypto.concatenateStrings("domain", this.authorization.domain['did'], time, this.crypto.name, this.response.getHeader("Content-Type"), this.$responseText);
+	sig = this.crypto.generateHmac(msg, this.authorization.domain['dkey']);
+	this.response.setHeader("Authorization", "domain:"+this.authorization.domain['did']+":"+time+":"+sig+":"+this.crypto.name);
+}
+
 exports.prototype.signTicket = function(credentials) {
 	var key, tid, msg, sig;
 	key = this.crypto.generateHmac(this.authorization.ticket['tkey'], this.authorization.leaf['vec']);
@@ -101,7 +111,7 @@ exports.prototype.signTicket = function(credentials) {
 exports.prototype.writeDomain = function(data, type) {
 	if (data!==undefined)
 		var json = JSON.stringify(data);
-	this.write(json, type||"application/x.reds.domain;XX=1;did="+this.type.options['did']);
+	this.write(json, type||"application/x.reds.domain;did="+this.type.options['did']);
 }
 
 Object.defineProperty(exports.prototype, "requestDomain", {

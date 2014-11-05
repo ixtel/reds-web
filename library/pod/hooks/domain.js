@@ -31,12 +31,19 @@ exports.POST = function(session) {
 }
 
 exports.DELETE = function(session) {
-	session.storage.deleteDomain(session.type.options['did'], afterDeleteDomain);
+	session.authorizeDomain(afterAuthorization);
+
+	function afterAuthorization(error) { 
+		if (error)
+			return session.abort(error);
+		session.storage.deleteDomain(session.type.options['did'], afterDeleteDomain);
+	}
 
 	function afterDeleteDomain(error, result) {
 		if (error !== null)
 			return session.abort(error);
 		session.writeJson(result, "application/x.reds.domain");
+		session.signDomain();
 		session.end();
 	}
 }
