@@ -29,7 +29,7 @@ function parseSelection(selection) {
 }
 
 exports.POST = function(session) {
-	var route;
+	var route, eid;
 	if (session.selector.last.value) {
 		session.storage.registerEntity(session.selector, session.type.options['did'], afterRegisterEntity);
 	}
@@ -45,9 +45,10 @@ exports.POST = function(session) {
 		session.storage.reserveEntity(session.selector, session.type.options['did'], afterReserveEntity);
 	}
 
-	function afterReserveEntity(error, eid) {
+	function afterReserveEntity(error, result) {
 		if (error)
 			return session.abort(error);
+		eid = result;
 		route.method = "POST";
 		route.path = "/"+session.selector.last.key+"/"+eid;
 		route.write(session.requestText, session.request.headers['content-type']);
@@ -60,7 +61,7 @@ exports.POST = function(session) {
 		// NOTE This JSON dance is neccasary to create a real clone.
 		rselector = JSON.parse(JSON.stringify(session.selector));
 		rselector.last = rselector[rselector.length-1];
-		rselector.last.value = route.responseJson['eid'];
+		rselector.last.value = eid;
 		session.storage.registerEntity(rselector, session.type.options['did'], afterRegisterEntity);
 	}
 

@@ -46,8 +46,8 @@ var Client = function(options) {
 
 CryptoFacilities.addFactoryToObject("createCryptoFacility", Client.prototype);
 
-Client.prototype.$createRequest = function(method, path, onload, onerror) {
-	var request = new Request(this.crypto);
+Client.prototype.$createRequest = function(credentials, method, path, onload, onerror) {
+	var request = new Request(this.crypto, credentials);
 	request.addEventListener("send", onSend.bind(this));
 	onload && request.addEventListener("load", onload);
 	onerror && request.addEventListener("error", onerror);
@@ -73,7 +73,7 @@ Client.prototype.$createRequest = function(method, path, onload, onerror) {
 Client.prototype.signin = function(name, password, callback) {
 	var alias = this.crypto.generateSecureHash(name, password);
 	var aliasUrl = alias.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-	var request = this.$createRequest("GET", "/!/account/"+aliasUrl, onLoad.bind(this));
+	var request = this.$createRequest(null, "GET", "/!/account/"+aliasUrl, onLoad.bind(this));
 	request.send();
 
 	function onLoad() {
@@ -98,7 +98,7 @@ Client.prototype.createAccount = function(name, password, callback) {
 	var alias = this.crypto.generateSecureHash(name, password);
 	var asalt = this.crypto.generateKey();
 	var authL = this.crypto.generateKeypair();
-	var request = this.$createRequest("POST", "/!/account", onLoad.bind(this));
+	var request = this.$createRequest(null, "POST", "/!/account", onLoad.bind(this));
 	request.writeJson({
 		'alias': alias,
 		'asalt': asalt,
@@ -126,8 +126,8 @@ Client.prototype.createAccount = function(name, password, callback) {
 }
 
 Client.prototype.deleteAccount = function(callback) {
-	var request = this.$createRequest("DELETE", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
-	request.signAccount(Vault[this.vid].account);
+	var request = this.$createRequest(Vault[this.vid].account, "DELETE", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
+	request.signAccount();
 	request.send();
 
 	function onLoad() {
@@ -148,16 +148,16 @@ Client.prototype.updateVault = function(callback) {
 		delete vault.domain[did]['vec'];
 	}
 	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
-	var request = this.$createRequest("PUT", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
+	var request = this.$createRequest(Vault[this.vid].account, "PUT", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
 	request.writeJson({
 		'vault': vault,
 		'vec': vec
 	});
-	request.signAccount(Vault[this.vid].account);
+	request.signAccount();
 	request.send();
 	
 	function onLoad() {
-		if (!request.authorizeAccount(Vault[this.vid].account))
+		if (!request.authorizeAccount())
 			return;
 		callback();
 	}
@@ -167,7 +167,7 @@ Client.prototype.updateVault = function(callback) {
 
 Client.prototype.createDomain = function(pod, password, callback) {
 	var dkeyL = this.crypto.generateKeypair();
-	var request = this.$createRequest("POST", "/!/domain", onLoad.bind(this));
+	var request = this.$createRequest(null, "POST", "/!/domain", onLoad.bind(this));
 	request.writeJson({
 		'pod': pod,
 		'dkey_l': dkeyL.publicKey
@@ -197,13 +197,13 @@ Client.prototype.deleteDomains = function(dids, callback) {
 
 	function deleteDomain(did, callback) {
 		var request;
-		request = this.$createRequest("DELETE", "/!/domain/"+did, onLoad.bind(this), onError.bind(this));
-		request.writeDomain(undefined, Vault[this.vid].domain[did]);
-		request.signDomain(Vault[this.vid].domain[did]);
+		request = this.$createRequest(Vault[this.vid].domain[did], "DELETE", "/!/domain/"+did, onLoad.bind(this), onError.bind(this));
+		request.writeEncrypted(undefined);
+		request.signDomain();
 		request.send();
 
 		function onLoad() {
-			if (!request.authorizeDomain(Vault[this.vid].domain[did]))
+			if (!request.authorizeDomain())
 				return;
 			results = results.concat(request.responseJson);
 			delete Vault[this.vid].domain[request.responseJson['did']];
@@ -229,15 +229,15 @@ Client.prototype.deleteDomains = function(dids, callback) {
 Client.prototype.createOwnerTicket = function(did, callback) {
 	var tkeyL, request, domain;
 	tkeyL = this.crypto.generateKeypair();
-	request = this.$createRequest("POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
+	request = this.$createRequest(Vault[this.vid].domain[did], "POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
 	request.writeJson({
 		'tkey_l': tkeyL.publicKey
 	});
-	request.signDomain(Vault[this.vid].domain[did]);
+	request.signDomain();
 	request.send();
 
 	function onLoad(result) {
-		if (!request.authorizeDomain(Vault[this.vid].domain[did]))
+		if (!request.authorizeDomain())
 			return;
 		var domain = Vault[this.vid].domain[did];
 		domain['tid'] = request.responseJson['tid'],
@@ -250,15 +250,15 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 Client.prototype.refreshLeaf = function(did, callback) {
 	var request, vecL;
 	vecL = this.crypto.generateKeypair();
-	request = this.$createRequest("POST", "/!/domain/"+did+"/leaf", onLoad.bind(this));
+	request = this.$createRequest(Vault[this.vid].domain[did], "POST", "/!/domain/"+did+"/leaf", onLoad.bind(this));
 	request.writeJson({
 		'vec_l': vecL.publicKey
 	});
-	request.signDomain(Vault[this.vid].domain[did]);
+	request.signDomain();
 	request.send();
 
 	function onLoad() {
-		if (!request.authorizeDomain(Vault[this.vid].domain[did]))
+		if (!request.authorizeDomain())
 			return;
 		var domain = Vault[this.vid].domain[did];
 		domain['vec'] = this.crypto.combineKeypair(vecL.privateKey, request.responseJson['vec_p']),
@@ -278,7 +278,7 @@ Client.prototype.registerLeaf = function(did, callback) {
 // TODO Implement some kind of caching to reduce HEAD requests
 Client.prototype.resolvePath = function(path, callback) {
 	var request;
-	request = this.$createRequest("HEAD", path, onLoad.bind(this));
+	request = this.$createRequest(null, "HEAD", path, onLoad.bind(this));
 	request.send();
 
 	// TODO Get rid of dids array
@@ -322,15 +322,15 @@ Client.prototype.createEntity = function(path, data, callback) {
 	function afterResolvePath(did) {
 		if (!did)
 			return;
-		request = this.$createRequest("POST", path, onLoad.bind(this), onError.bind(this));
-		request.writeDomain(data, Vault[this.vid].domain[did]);
-		request.signTicket(Vault[this.vid].domain[did]);
+		request = this.$createRequest(Vault[this.vid].domain[did], "POST", path, onLoad.bind(this), onError.bind(this));
+		request.writeEncrypted(data);
+		request.signTicket();
 		request.send();
 
 		function onLoad() {
-			if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+			if (!request.authorizeTicket())
 				return;
-			callback(request.responseDomain);
+			callback(request.responseEncrypted);
 		}
 
 		function onError(evt) {
@@ -358,20 +358,20 @@ Client.prototype.readEntities = function(path, callback) {
 		var request, type;
 		if (!did)
 			return;
-		request = this.$createRequest("GET", path, onLoad.bind(this), onError.bind(this));
-		request.writeDomain(undefined, Vault[this.vid].domain[did]);
+		request = this.$createRequest(Vault[this.vid].domain[did], "GET", path, onLoad.bind(this), onError.bind(this));
+		request.writeEncrypted(undefined);
 		request.signTicket(Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
-			if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+			if (!request.authorizeTicket())
 				return;
 			count++;
-			for (type in request.responseDomain) {
+			for (type in request.responseEncrypted) {
 				if (results[type])
-					results[type] = results[type].concat(request.responseDomain[type]);
+					results[type] = results[type].concat(request.responseEncrypted[type]);
 				else
-					results[type] = request.responseDomain[type];
+					results[type] = request.responseEncrypted[type];
 			}
 			if (length-count == 0)
 				finalize.call(this);
@@ -418,20 +418,20 @@ Client.prototype.updateEntities = function(path, data, callback) {
 		var request, type;
 		if (!did)
 			return;
-		request = this.$createRequest("PUT", path, onLoad.bind(this), onError.bind(this));
-		request.writeDomain(data, Vault[this.vid].domain[did]);
-		request.signTicket(Vault[this.vid].domain[did]);
+		request = this.$createRequest(Vault[this.vid].domain[did], "PUT", path, onLoad.bind(this), onError.bind(this));
+		request.writeEncrypted(data);
+		request.signTicket();
 		request.send();
 
 		function onLoad() {
-			if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+			if (!request.authorizeTicket())
 				return;
 			count++;
-			for (type in request.responseDomain) {
+			for (type in request.responseEncrypted) {
 				if (results[type])
-					results[type] = results[type].concat(request.responseDomain[type]);
+					results[type] = results[type].concat(request.responseEncrypted[type]);
 				else
-					results[type] = request.responseDomain[type];
+					results[type] = request.responseEncrypted[type];
 			}
 			if (length-count == 0)
 				finalize.call(this);
@@ -474,21 +474,23 @@ Client.prototype.deleteEntities = function(path, callback) {
 		var request, type;
 		if (!did)
 			return;
-		request = this.$createRequest("DELETE", path, onLoad.bind(this), onError.bind(this));
-		request.writeDomain(undefined, Vault[this.vid].domain[did]);
-		request.signTicket(Vault[this.vid].domain[did]);
+		request = this.$createRequest(Vault[this.vid].domain[did], "DELETE", path, onLoad.bind(this), onError.bind(this));
+		request.writeEncrypted(undefined);
+		request.signTicket();
 		request.send();
 
 		function onLoad() {
 			// TODO Support multiple MIME types
-			//if (!request.authorizeTicket(Vault[this.vid].domain[did]))
+			//if (!request.authorizeTicket())
 			//	return;
 			count++;
-			for (type in request.responseDomain) {
+			for (type in request.responseEncrypted) {
 				if (results[type])
-					results[type] = results[type].concat(request.responseDomain[type]);
+					//results[type] = results[type].concat(request.responseEncrypted[type]);
+					results[type] = results[type].concat(request.responseJson[type]);
 				else
-					results[type] = request.responseDomain[type];
+					//results[type] = request.responseEncrypted[type];
+					results[type] = request.responseJson[type];
 			}
 			if (length-count == 0)
 				finalize.call(this);

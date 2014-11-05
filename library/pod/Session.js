@@ -6,6 +6,7 @@ var TemporaryStorage = require("./TemporaryStorage");
 
 
 module.exports = exports = function(config, request, response) {
+	this.$requestEncrypted = undefined;
 	Session.call(this, config, request, response);
 }
 
@@ -106,16 +107,22 @@ exports.prototype.signTicket = function(credentials) {
 	this.response.setHeader("Authorization", "ticket:"+this.authorization['id']+":"+tid+":"+sig+":"+this.crypto.name);
 }
 
-exports.prototype.writeDomain = function(data, type) {
-	if (data!==undefined)
-		var json = JSON.stringify(data);
-	this.write(json, type||"application/x.reds.domain;did="+this.type.options['did']);
+exports.prototype.writeEncrypted = function(data, type) {
+	var msg, cipher;
+	if (data!==undefined) {
+		msg = JSON.stringify(data);
+		cipher = this.crypto.encryptData(msg, this.authorization.ticket['tkey'], this.authorization.leaf['vec']);
+	}
+	this.write(cipher, type||"application/x.reds.encrypted;did="+this.type.options['did']);
 }
 
-Object.defineProperty(exports.prototype, "requestDomain", {
+Object.defineProperty(exports.prototype, "requestEncrypted", {
 	get: function() {
-		if (this.$requestJson === undefined)
-			this.$requestJson = this.requestText ? JSON.parse(this.requestText) : null;
-		return this.$requestJson;
+		var msg;
+		if (this.$requestEncrypted === undefined) {
+			msg = this.crypto.decryptData(this.requestText, this.authorization.ticket['tkey'], this.authorization.leaf['vec']);
+			this.$requestEncrypted = msg ? JSON.parse(msg) : null;
+		}
+		return this.$requestEncrypted;
 	}
 });

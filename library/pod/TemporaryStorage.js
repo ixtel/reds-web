@@ -12,7 +12,6 @@ exports.prototype.$deleteItem = function(items, key) {
 }
 
 exports.prototype.setItem =  function(key, values) {
-	console.log("setItem "+key);
 	this.touchItem(key);
 	this.items[key] = values;
 }

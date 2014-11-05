@@ -11,10 +11,9 @@ exports.POST = function(session) {
 		var tkey, values;
 		if (error)
 			return session.abort(error);
-		console.log("FOO");
 		tkeyP = session.crypto.generateKeypair();
 		tkey = session.crypto.combineKeypair(tkeyP.privateKey, session.requestJson['tkey_l']);
-		// NOTE We don't want to modify requestDomain so we clone it
+		// NOTE We don't want to modify requestJson so we clone it
 		values = JSON.parse(JSON.stringify(session.requestJson));
 		values['did'] = session.selector[0].value;
 		values['tkey'] = tkey;

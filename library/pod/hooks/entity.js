@@ -15,8 +15,8 @@ exports.POST = function(session) {
 		var values;
 		if (error)
 			return session.abort(error);
-		// NOTE We don't want to modify requestDomain so we clone it
-		values = JSON.parse(JSON.stringify(session.requestDomain));
+		// NOTE We don't want to modify requestEncrypted so we clone it
+		values = JSON.parse(JSON.stringify(session.requestEncrypted));
 		values['eid'] = session.selector[0].value;
 		values['did'] = session.type.options['did'];
 		session.storage.createEntity(session.selector.last.key, values, afterCreateEntity);
@@ -32,7 +32,7 @@ exports.POST = function(session) {
 					return session.abort(error);
 			}
 		}
-		session.writeDomain(result);
+		session.writeEncrypted(result);
 		session.signTicket();
 		session.end();
 	}
@@ -65,7 +65,7 @@ exports.GET = function(session) {
 			return session.abort(errors[0]);
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
-		session.writeDomain(result);
+		session.writeEncrypted(result);
 		session.signTicket();
 		session.end();
 	}
@@ -86,7 +86,7 @@ exports.PUT = function(session) {
 			return session.abort(error);
 		types = session.selector.last.key.split(",");
 		eids = session.selector.last.value.split(";");
-		values = session.requestDomain;
+		values = session.requestEncrypted;
 		if (types.length != eids.length)
 			return session.abort(new HttpError(400, "url types and ids mismatch"));
 		if (types.length != Object.keys(values).length)
@@ -109,7 +109,7 @@ exports.PUT = function(session) {
 			return session.abort(error);
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
-		session.writeDomain(result);
+		session.writeEncrypted(result);
 		session.signTicket();
 		session.end();
 	}
@@ -142,7 +142,7 @@ exports.DELETE = function(session) {
 			return session.abort(errors[0]);
 		if (result.length == 0)
 			return session.abort(new HttpError(404, "entities not found"));
-		session.writeDomain(result);
+		session.writeEncrypted(result);
 		// TODO Support multiple MIME types
 		//session.signTicket();
 		session.end();

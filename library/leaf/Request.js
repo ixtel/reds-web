@@ -5,17 +5,18 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 
 // INFO Leaf client module
 
-var Request = function(crypto) {
+var Request = function(crypto, credentials) {
 	this.$method = "";
 	this.$type = "application/octet-stream";
 	this.$data = "";
 	this.$responseAuthorization = undefined;
-	this.$responseDomain = undefined;
+	this.$responseEncrypted = undefined;
 	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
 	this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
 	this.crypto = crypto;
-	this.credentials = null;
+	this.credentials = credentials;
+	// TODO Move into getter
 	this.responseType = null;
 }
 
@@ -64,17 +65,18 @@ Request.prototype.open = function(method, node, path) {
 	return this.$xhr.open(method, node+path, true);
 }
 
-Request.prototype.writeDomain = function(data, credentials, type) {
-	var domain, error;
+Request.prototype.writeEncrypted = function(data, type) {
+	var msg, cipher;
 	if (data !== undefined) {
 		try {
-			domain = JSON.stringify(data);
+			msg = JSON.stringify(data);
+			cipher = this.crypto.encryptData(msg, this.credentials['tkey'], this.credentials['vec']);
 		}
 		catch (e) {
-			return this.$emitError(new Error("request contains invalid JSON"));
+			return this.$emitError(e);
 		}
 	}
-	this.write(domain, type||"application/x.reds.domain;did="+credentials['did']);
+	this.write(cipher, type||"application/x.reds.encrypted;did="+this.credentials['did']);
 }
 
 Request.prototype.writeJson = function(data, type) {
@@ -84,7 +86,7 @@ Request.prototype.writeJson = function(data, type) {
 			json = JSON.stringify(data);
 		}
 		catch (e) {
-			return this.$emitError(new Error("request contains invalid JSON"));
+			return this.$emitError(e);
 		}
 	}
 	this.write(json, type||"application/json;charset=UTF-8");
@@ -97,29 +99,29 @@ Request.prototype.write = function(data, type) {
 	this.$data = data||"";
 }
 
-Request.prototype.signAccount = function(credentials) {
+Request.prototype.signAccount = function() {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
-	msg = this.crypto.concatenateStrings("account", credentials['aid'], time, this.crypto.name, this.$method, this.$type, this.$data);
-	sig = this.crypto.generateHmac(msg, credentials['akey']);
-	this.$xhr.setRequestHeader("Authorization", "account:"+credentials['aid']+":"+time+":"+sig+":"+this.crypto.name);
+	msg = this.crypto.concatenateStrings("account", this.credentials['aid'], time, this.crypto.name, this.$method, this.$type, this.$data);
+	sig = this.crypto.generateHmac(msg, this.credentials['akey']);
+	this.$xhr.setRequestHeader("Authorization", "account:"+this.credentials['aid']+":"+time+":"+sig+":"+this.crypto.name);
 }
 
-Request.prototype.signDomain = function(credentials) {
+Request.prototype.signDomain = function() {
 	var time, msg, sig;
 	time = this.crypto.generateTimestamp();
-	msg = this.crypto.concatenateStrings("domain", credentials['did'], time, this.crypto.name, this.$method, this.$type, this.$data);
-	sig = this.crypto.generateHmac(msg, credentials['dkey']);
-	this.$xhr.setRequestHeader("Authorization", "domain:"+credentials['did']+":"+time+":"+sig+":"+this.crypto.name);
+	msg = this.crypto.concatenateStrings("domain", this.credentials['did'], time, this.crypto.name, this.$method, this.$type, this.$data);
+	sig = this.crypto.generateHmac(msg, this.credentials['dkey']);
+	this.$xhr.setRequestHeader("Authorization", "domain:"+this.credentials['did']+":"+time+":"+sig+":"+this.crypto.name);
 }
 
-Request.prototype.signTicket = function(credentials) {
+Request.prototype.signTicket = function() {
 	var key, tid, msg, sig;
-	key = this.crypto.generateHmac(credentials['tkey'], credentials['vec']);
-	tid = this.crypto.encryptData(credentials['tid'], credentials['dkey'], credentials['vec']);
-	msg = this.crypto.concatenateStrings("ticket", credentials['lid'], tid, this.crypto.name, this.$method, this.$type, this.$data);
+	key = this.crypto.generateHmac(this.credentials['tkey'], this.credentials['vec']);
+	tid = this.crypto.encryptData(this.credentials['tid'], this.credentials['dkey'], this.credentials['vec']);
+	msg = this.crypto.concatenateStrings("ticket", this.credentials['lid'], tid, this.crypto.name, this.$method, this.$type, this.$data);
 	sig = this.crypto.generateHmac(msg, key);
-	this.$xhr.setRequestHeader("Authorization", "ticket:"+credentials['lid']+":"+tid+":"+sig+":"+this.crypto.name);
+	this.$xhr.setRequestHeader("Authorization", "ticket:"+this.credentials['lid']+":"+tid+":"+sig+":"+this.crypto.name);
 }
 
 Request.prototype.send = function() {
@@ -130,7 +132,7 @@ Request.prototype.send = function() {
 	return this.$xhr.send(new Blob([this.$data]));
 }
 
-Request.prototype.authorizeAccount = function(credentials) {
+Request.prototype.authorizeAccount = function() {
 	var msg, sig;
 	if (!this.responseAuthorization)
 		return this.$emitError(new Error("Missing authorization"));
@@ -139,7 +141,7 @@ Request.prototype.authorizeAccount = function(credentials) {
 		return this.$emitError(new Error("Unsupported crypto facility"));
 	if (this.responseAuthorization['realm'] != "account")
 		return this.$emitError(new Error("Invalid realm"));
-	if (!credentials['aid'])
+	if (!this.credentials['aid'])
 		return this.$emitError(new Error("Missing account"));
 	msg = this.crypto.concatenateStrings(
 		this.responseAuthorization['realm'],
@@ -149,13 +151,13 @@ Request.prototype.authorizeAccount = function(credentials) {
 		this.$xhr.getResponseHeader("Content-Type"),
 		this.$xhr.responseText||""
 	);
-	sig = this.crypto.generateHmac(msg, credentials['akey']);
+	sig = this.crypto.generateHmac(msg, this.credentials['akey']);
 	if (sig != this.responseAuthorization['sig'])
 		return this.$emitError(new Error("Invalid authorization"));
 	return true;
 }
 
-Request.prototype.authorizeDomain = function(credentials) {
+Request.prototype.authorizeDomain = function() {
 	var msg, sig;
 	if (!this.responseAuthorization)
 		return this.$emitError(new Error("Missing authorization"));
@@ -164,7 +166,7 @@ Request.prototype.authorizeDomain = function(credentials) {
 		return this.$emitError(new Error("Unsupported crypto facility"));
 	if (this.responseAuthorization['realm'] != "domain")
 		return this.$emitError(new Error("Invalid realm"));
-	if (!credentials['did'])
+	if (!this.credentials['did'])
 		return this.$emitError(new Error("Missing domain"));
 	msg = this.crypto.concatenateStrings(
 		this.responseAuthorization['realm'],
@@ -174,13 +176,13 @@ Request.prototype.authorizeDomain = function(credentials) {
 		this.$xhr.getResponseHeader("Content-Type"),
 		this.$xhr.responseText||""
 	);
-	sig = this.crypto.generateHmac(msg, credentials['dkey']);
+	sig = this.crypto.generateHmac(msg, this.credentials['dkey']);
 	if (sig != this.responseAuthorization['sig'])
 		return this.$emitError(new Error("Invalid authorization"));
 	return true;
 }
 
-Request.prototype.authorizeTicket = function(credentials) {
+Request.prototype.authorizeTicket = function() {
 	var tid, key, msg, sig;
 	if (!this.responseAuthorization)
 		return this.$emitError(new Error("Missing authorization"));
@@ -189,14 +191,14 @@ Request.prototype.authorizeTicket = function(credentials) {
 		return this.$emitError(new Error("Unsupported crypto facility"));
 	if (this.responseAuthorization['realm'] != "ticket")
 		return this.$emitError(new Error("Invalid realm"));
-	if (!credentials['lid'])
+	if (!this.credentials['lid'])
 		return this.$emitError(new Error("Missing leaf"));
-	if (!credentials['did'])
+	if (!this.credentials['did'])
 		return this.$emitError(new Error("Missing domain"));
-	if (!credentials['tid'])
+	if (!this.credentials['tid'])
 		return this.$emitError(new Error("Missing ticket"));
-	tid = this.crypto.decryptData(this.responseAuthorization['vec'], credentials['dkey'], credentials['vec']);
-	key = this.crypto.generateHmac(credentials['tkey'], credentials['vec']);
+	tid = this.crypto.decryptData(this.responseAuthorization['vec'], this.credentials['dkey'], this.credentials['vec']);
+	key = this.crypto.generateHmac(this.credentials['tkey'], this.credentials['vec']);
 	msg = this.crypto.concatenateStrings(
 		this.responseAuthorization['realm'],
 		this.responseAuthorization['id'],
@@ -211,32 +213,21 @@ Request.prototype.authorizeTicket = function(credentials) {
 	return true;
 }
 
-Object.defineProperty(Request.prototype, "responseDomain", {
+Object.defineProperty(Request.prototype, "responseEncrypted", {
 	get: function() {
-		var error;
-		if (this.$responseDomain === undefined) {
-			try {
-				this.$responseDomain = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
-			}
-			catch (e) {
-				return this.$emitError(new Error("response contains invalid JSON"));
-			}
+		var msg, cipher;
+		if (this.$responseEncrypted === undefined) {
+			msg = this.crypto.decryptData(this.$xhr.responseText, this.credentials['tkey'], this.credentials['vec']);
+			this.$responseEncrypted = msg ? JSON.parse(msg) : null;
 		}
-		return this.$responseDomain;
+		return this.$responseEncrypted;
 	}
 });
 
 Object.defineProperty(Request.prototype, "responseJson", {
 	get: function() {
-		var error;
-		if (this.$responseJson === undefined) {
-			try {
-				this.$responseJson = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
-			}
-			catch (e) {
-				return this.$emitError(new Error("response contains invalid JSON"));
-			}
-		}
+		if (this.$responseJson === undefined)
+			this.$responseJson = this.$xhr.responseText ? JSON.parse(this.$xhr.responseText) : null;
 		return this.$responseJson;
 	}
 });
