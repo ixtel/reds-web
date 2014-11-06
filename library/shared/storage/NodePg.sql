@@ -23,14 +23,6 @@ $$ LANGUAGE plperl;
 
 -- INFO Entity triggers
 
-CREATE OR REPLACE FUNCTION after_insert_entity() RETURNS TRIGGER AS $$
-	spi_exec_query("UPDATE domains SET ecount = ecount+1 WHERE did = $_TD->{new}{did};", 1);
-	return;
-$$ LANGUAGE plperl;
-DROP TRIGGER IF EXISTS after_insert_entity_trigger ON entities;
-CREATE TRIGGER after_insert_entity_trigger AFTER INSERT ON entities
-	FOR EACH ROW EXECUTE PROCEDURE after_insert_entity();
-
 CREATE OR REPLACE FUNCTION before_delete_entity() RETURNS TRIGGER AS $$
 	if ($_SHARED{cascade_domain} && ($_SHARED{cascade_domain} != $_TD->{old}{did})) {
 		return "SKIP";
@@ -47,7 +39,6 @@ CREATE TRIGGER before_delete_entity_trigger BEFORE DELETE ON entities
   FOR EACH ROW EXECUTE PROCEDURE before_delete_entity();
 
 CREATE OR REPLACE FUNCTION after_delete_entity() RETURNS TRIGGER AS $$
-	spi_exec_query("UPDATE domains SET ecount = ecount-1 WHERE did = $_TD->{old}{did};", 1);
 	spi_exec_query("DELETE FROM relations WHERE parent = $_TD->{old}{eid}", 1);
 	return;
 $$ LANGUAGE plperl;

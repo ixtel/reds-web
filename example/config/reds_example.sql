@@ -13,6 +13,8 @@ CREATE DATABASE reds_example_pod WITH TEMPLATE = template0 OWNER = reds_example;
 
 \connect reds_example_node
 
+SET default_transaction_read_only = off;
+
 --
 -- PostgreSQL database dump
 --
@@ -50,19 +52,18 @@ COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
 SET search_path = public, pg_catalog;
 
 --
--- Name: after_delete_entity(); Type: FUNCTION; Schema: public; Owner: reds_example
+-- Name: after_delete_entity(); Type: FUNCTION; Schema: public; Owner: root
 --
 
 CREATE FUNCTION after_delete_entity() RETURNS trigger
     LANGUAGE plperl
     AS $_X$
-	spi_exec_query("UPDATE domains SET ecount = ecount-1 WHERE did = $_TD->{old}{did};", 1);
 	spi_exec_query("DELETE FROM relations WHERE parent = $_TD->{old}{eid}", 1);
 	return;
 $_X$;
 
 
-ALTER FUNCTION public.after_delete_entity() OWNER TO reds_example;
+ALTER FUNCTION public.after_delete_entity() OWNER TO root;
 
 --
 -- Name: after_delete_relation(); Type: FUNCTION; Schema: public; Owner: reds_example
@@ -79,21 +80,7 @@ $_X$;
 ALTER FUNCTION public.after_delete_relation() OWNER TO reds_example;
 
 --
--- Name: after_insert_entity(); Type: FUNCTION; Schema: public; Owner: reds_example
---
-
-CREATE FUNCTION after_insert_entity() RETURNS trigger
-    LANGUAGE plperl
-    AS $_X$
-	spi_exec_query("UPDATE domains SET ecount = ecount+1 WHERE did = $_TD->{new}{did};", 1);
-	return;
-$_X$;
-
-
-ALTER FUNCTION public.after_insert_entity() OWNER TO reds_example;
-
---
--- Name: before_delete_entity(); Type: FUNCTION; Schema: public; Owner: reds_example
+-- Name: before_delete_entity(); Type: FUNCTION; Schema: public; Owner: root
 --
 
 CREATE FUNCTION before_delete_entity() RETURNS trigger
@@ -111,7 +98,7 @@ CREATE FUNCTION before_delete_entity() RETURNS trigger
 $_X$;
 
 
-ALTER FUNCTION public.before_delete_entity() OWNER TO reds_example;
+ALTER FUNCTION public.before_delete_entity() OWNER TO root;
 
 --
 -- Name: before_delete_relation(); Type: FUNCTION; Schema: public; Owner: reds_example
@@ -220,8 +207,7 @@ ALTER TABLE public.accounts OWNER TO reds_example;
 
 CREATE TABLE domains (
     did integer NOT NULL,
-    pid integer NOT NULL,
-    ecount integer DEFAULT 0 NOT NULL
+    pid integer NOT NULL
 );
 
 
@@ -255,7 +241,8 @@ ALTER SEQUENCE domains_did_seq OWNED BY domains.did;
 CREATE TABLE entities (
     eid integer NOT NULL,
     tid integer,
-    did integer NOT NULL
+    did integer NOT NULL,
+    root boolean DEFAULT false NOT NULL
 );
 
 
@@ -429,7 +416,7 @@ COPY accounts (aid, alias, auth, asalt, vault, vec) FROM stdin;
 -- Data for Name: domains; Type: TABLE DATA; Schema: public; Owner: reds_example
 --
 
-COPY domains (did, pid, ecount) FROM stdin;
+COPY domains (did, pid) FROM stdin;
 \.
 
 
@@ -444,7 +431,7 @@ SELECT pg_catalog.setval('domains_did_seq', 1, false);
 -- Data for Name: entities; Type: TABLE DATA; Schema: public; Owner: reds_example
 --
 
-COPY entities (eid, tid, did) FROM stdin;
+COPY entities (eid, tid, did, root) FROM stdin;
 \.
 
 
@@ -468,7 +455,7 @@ COPY pods (pid, url, auth) FROM stdin;
 -- Name: pods_id_seq; Type: SEQUENCE SET; Schema: public; Owner: reds_example
 --
 
-SELECT pg_catalog.setval('pods_id_seq', 1, false);
+SELECT pg_catalog.setval('pods_id_seq', 1, true);
 
 
 --
@@ -574,13 +561,6 @@ CREATE TRIGGER after_delete_relation_trigger AFTER DELETE ON relations FOR EACH 
 
 
 --
--- Name: after_insert_entity_trigger; Type: TRIGGER; Schema: public; Owner: reds_example
---
-
-CREATE TRIGGER after_insert_entity_trigger AFTER INSERT ON entities FOR EACH ROW EXECUTE PROCEDURE after_insert_entity();
-
-
---
 -- Name: before_delete_entity_trigger; Type: TRIGGER; Schema: public; Owner: reds_example
 --
 
@@ -649,6 +629,8 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 --
 
 \connect reds_example_pod
+
+SET default_transaction_read_only = off;
 
 --
 -- PostgreSQL database dump
