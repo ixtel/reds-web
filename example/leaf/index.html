@@ -12,12 +12,12 @@
 	<script type="text/javascript" src="reds/leaf/Request.js"></script>
 	<script type="text/javascript" src="reds/leaf/Client.js"></script>
 	<script type="text/javascript" src="script.js"></script>
-	<title>REDS web  example</title>
+	<title>REDS web framework example</title>
 </head>
 
 <body>
 	<header>
-		<h1>REDS web  example </h1>
+		<h1>REDS web framework example</h1>
 	</header>
 	<div id="SignUpSignIn">
 		<div id="SignUpDiv">
@@ -44,11 +44,6 @@
 				<button id="DeleteAccount" type="button">delete <img src="./resources/images/button_cross.svg"/></button>
 				<button id="SignOut" type="button">sign out <img src="./resources/images/button_exit.svg"/></button>
 			</form>
-			<form id="UpdateAccount">
-				<div><label>Password</label><input type="password" name="password"></div>
-				<div><label>Confirmation</label><input type="password" name="confirmation"></div>
-				<button type="submit">update <img src="./resources/images/button_right.svg"/></button>
-			</form>
 		</div>
 	</div>
 	<div id="Addressbook">
@@ -73,11 +68,9 @@
 		<h3>Edit Contact</h3>
 		<form id="EditContact">
 			<div><label>ID</label><input id="ContactId" type="text" name="id" readonly></div>
+			<div><label>Name</label><input type="text" name="name"></div>
 			<button id="DeleteContact" type="button">delete <img src="./resources/images/button_cross.svg"/></button>
 			<button id="HideContact" type="button">hide <img src="./resources/images/button_right.svg"/></button>
-			<div style="visiblity:hidden;height:2em!important;margin:0!important;padding:0!important"></div>
-			<div><label>Name</label><input type="text" name="name"></div>
-			<div style="visibility:hidden"><label></label><input></div><!-- Spacer -->
 			<button type="submit">save <img src="./resources/images/button_right.svg"/></button>
 		</form>
 		<h3>Add address</h3>

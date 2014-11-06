@@ -276,7 +276,6 @@ function deleteContact(contact) {
 	leaf.deleteEntitiesAndDomains("/contact/"+contact, afterDeleteEntitiesAndDomains);
 
 	function afterDeleteEntitiesAndDomains(response) {
-		console.log(response);
 		hideContact();
 	}
 }
@@ -357,7 +356,7 @@ function saveAddress(address, street, city) {
 
 	leaf.updateEntities("/address/"+address, [
 		{'eid':parseInt(address), 'street': street, 'city': city}
-	], null, afterUpdateEntities);
+	], afterUpdateEntities);
 
 	function afterUpdateEntities(response) {
 		document.getElementById("Address").style['display'] = "block";

@@ -480,11 +480,12 @@ Client.prototype.deleteEntities = function(path, callback) {
 		request.send();
 
 		function onLoad() {
+			console.log("onLoad");
 			// TODO Support multiple MIME types
 			//if (!request.authorizeTicket())
 			//	return;
 			count++;
-			for (type in request.responseEncrypted) {
+			for (type in request.responseJson) {
 				if (results[type])
 					//results[type] = results[type].concat(request.responseEncrypted[type]);
 					results[type] = results[type].concat(request.responseJson[type]);
@@ -511,6 +512,7 @@ Client.prototype.deleteEntities = function(path, callback) {
 	}
 
 	function finalize() {
+		console.log("finalize");
 		var type
 		if (errors.length > 0)
 			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
