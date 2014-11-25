@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-var FacilityManager = window.reds ? reds.FacilityManager : require("../shared/FacilityManager");
+var FacilityManager = window.reds ? reds.FacilityManager : require("./FacilityManager");
 var Request = window.reds ? reds.leaf.Request : require("./Request");
 
 // INFO Credential database
@@ -27,8 +27,8 @@ Vault.resetClient = function(vid) {
 // INFO Facility managers
 
 var CryptoFacilities = new FacilityManager();
-CryptoFacilities.addFacility(window.reds ? reds.crypto.CryptoJs : require("../shared/crypto/CryptoJs"));
-CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl"));
+CryptoFacilities.addFacility(window.reds ? reds.crypto.CryptoJs : require("./crypto/CryptoJs"));
+CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("./crypto/Sjcl"));
 
 // INFO Client
 
