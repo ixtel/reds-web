@@ -1,8 +1,8 @@
 #REDS.web
 
-REDS.web is an open-source web application framework based on the REDS data storage concept. The framework is mainly written in JavaScript and contains the code for all client- and server-side components required to run a webapp with REDS. It is still under development therefore we cannot recommended to use REDS.web on production systems right now.
+REDS.web is an open-source web application framework based on [the REDS data storage concept](https://github.com/flowyapps/reds-concept). The framework is mainly written in JavaScript and contains the code for all client- and server-side components required to run a webapp with REDS. It is still under development therefore we cannot recommended to use REDS.web on production systems right now.
 
-The REDS concept allows users to decide freely where they want to store their data. All data transfers and account information are encrypted, so the webapp can be used privately and anonymously. However, the provider can still control the access to the webapp and its data, so it is still possible to run a service based on subscriptions or a freemium model. All details about how REDS works can be found in the [REDS.concept repository](https://github.com/flowyapps/reds-concept) here on GitHub.
+The REDS concept allows users to decide freely where they want to store their data. All data transfers and account information are encrypted, so the webapp can be used privately and anonymously. However, the provider can still control the access to the webapp and its data, so it is still possible to run a service based on subscriptions or a freemium model.
 
 ## Example
 
