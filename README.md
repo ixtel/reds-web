@@ -14,7 +14,7 @@ The [REDS.web API Documentation](https://github.com/flowyapps/reds-web/wiki/REDS
 
 ## Contact
 
-REDS.web is maintained by Flowy Apps. More information about REDS and Flowy Apps be found on the following websites:
+REDS.web is maintained by Flowy Apps. More information about REDS and Flowy Apps can be found on the following websites:
 
   * The official REDS website: http://reds.io
   * The website of Flowy Apps: http://flowyapps.com
