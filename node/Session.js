@@ -11,6 +11,7 @@ exports.prototype = Object.create(Session.prototype);
 
 exports.prototype.HookHandlers = {
 	'/!/account': require("./hooks/account"),
+	'/!/pod': require("./hooks/pod"),
 	'/!/domain': require("./hooks/domain"),
 	'/!/domain/ticket': require("./hooks/ticket.js"),
 	'/!/domain/leaf': require("./hooks/leaf.js"),

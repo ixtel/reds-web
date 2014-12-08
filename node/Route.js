@@ -25,23 +25,10 @@ exports.prototype.init = function(pod) {
 	this.storage.readPod(pod, afterReadPod.bind(this));
 
 	function afterReadPod(error, result) {
-		if (error) {
-			if ((error.message == "pod not found") && (typeof(pod) != "number"))
-				return this.storage.createPod({'url':pod}, afterCreatePod.bind(this));
-			else
-				return this.emit("error", error);
-		}
-		if (!result)
-			return this.emit("error", new Error("unknown pod"))
-		this.pod = result;
-		this.emit("ready");
-	}
-
-	function afterCreatePod(error, result) {
 		if (error)
-			return this.emit("error", error);
+			return this.emit("error", error)
 		if (!result)
-			return this.emit("error", new Error("unable to create pod"));
+			return this.emit("error", new Error("unable to read pod"))
 		this.pod = result;
 		this.emit("ready");
 	}
@@ -54,7 +41,7 @@ exports.prototype.resolve = function(did) {
 		if (error)
 			return this.emit("error", error)
 		if (!result)
-			return this.emit("error", new Error("unknown pod"))
+			return this.emit("error", new Error("unable to resolve pod"))
 		this.pod = result;
 		this.emit("ready");
 	}

@@ -133,7 +133,6 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
 			this.$emitEvent("load", callback, {'aid':Vault[this.vid].account['aid']});
 		}
 	}
-	
 }
 
 Client.prototype.deleteAccount = function(callback, errorCallback) {
@@ -173,6 +172,21 @@ Client.prototype.updateVault = function(callback, errorCallback) {
 		if (!request.authorizeAccount())
 			return;
 		this.$emitEvent("load", callback);
+	}
+}
+
+// INFO Pod operations
+
+Client.prototype.createPod = function(url, password, callback, errorCallback) {
+	var request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
+	request.open("POST", this.options.url, "/!/pod");
+	request.writeJson({
+		'url': url
+	});
+	request.send();
+
+	function onLoad() {
+		this.$emitEvent("load", callback, request.responseJson);
 	}
 }
 
@@ -583,11 +597,22 @@ Client.prototype.createEntityAndDomain = function(path, data, url, password, cal
 		'domain': null,
 		'entity': null
 	}
-	this.createDomain(url, password, afterCreateDomain.bind(this));
+	this.createDomain(url, password, afterCreateDomain.bind(this), afterCreateDomainError.bind(this));
 
 	function afterCreateDomain(result) {
 		results.domain = result;
 		this.createOwnerTicket(result['did'], afterCreateOwnerTicket.bind(this));
+	}
+
+	function afterCreateDomainError(error) {
+		if (error.code == 502) {
+			this.createPod(url, password, afterCreatePod.bind(this));
+			return false;
+		}
+
+		function afterCreatePod(result) {
+			this.createDomain(url, password, afterCreateDomain.bind(this));
+		}
 	}
 
 	function afterCreateOwnerTicket(result) {
