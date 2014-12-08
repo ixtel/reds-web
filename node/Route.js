@@ -21,15 +21,27 @@ module.exports = exports = function(crypto, storage) {
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
 
-// TODO Handle unknown pod
 exports.prototype.init = function(pod) {
 	this.storage.readPod(pod, afterReadPod.bind(this));
 
 	function afterReadPod(error, result) {
-		if (error)
-			return this.emit("error", error)
+		if (error) {
+			if ((error.message == "pod not found") && (typeof(pod) != "number"))
+				return this.storage.createPod({'url':pod}, afterCreatePod.bind(this));
+			else
+				return this.emit("error", error);
+		}
 		if (!result)
 			return this.emit("error", new Error("unknown pod"))
+		this.pod = result;
+		this.emit("ready");
+	}
+
+	function afterCreatePod(error, result) {
+		if (error)
+			return this.emit("error", error);
+		if (!result)
+			return this.emit("error", new Error("unable to create pod"));
 		this.pod = result;
 		this.emit("ready");
 	}

@@ -29,8 +29,9 @@ exports.prototype.disconnect = function(callback) {
 // INFO Pod operation
 
 exports.prototype.createPod = function(values, callback) {
+	console.log(values)
 	this.$client.query("INSERT INTO pods (url) "+
-		"VALUES $1 "+
+		"VALUES ($1) "+
 		"RETURNING pid,url",
 		[values['url']],
 	afterQuery);
@@ -43,7 +44,7 @@ exports.prototype.createPod = function(values, callback) {
 exports.prototype.readPod = function(pod, callback) {
 	this.$client.query("SELECT pid,url "+
 		"FROM pods "+
-		"WHERE "+(typeof pod == "number" ? "pid" : "url")+"=$1",
+		"WHERE "+(typeof(pod) == "number" ? "pid" : "url")+"=$1",
 		[pod],
 	afterQuery);
 
