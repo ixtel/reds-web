@@ -46,34 +46,42 @@ var Client = function(options) {
 
 CryptoFacilities.addFactoryToObject("createCryptoFacility", Client.prototype);
 
-Client.prototype.$createRequest = function(credentials, method, path, onload, onerror) {
+Client.prototype.$emitEvent = function(name, callback, detail) {
+	var retval;
+	if (callback) {
+		retval = callback(detail);
+		detail = retval!==undefined?retval:detail;
+	}
+	if (detail !== false)
+		this.dispatchEvent(new CustomEvent(name, {'detail':detail}));
+	return detail;
+}
+
+Client.prototype.$createRequest = function(credentials, callback, errorCallback, onLoad, onError) {
 	var request = new Request(this.crypto, credentials);
 	request.addEventListener("send", onSend.bind(this));
-	onload && request.addEventListener("load", onload);
-	onerror && request.addEventListener("error", onerror);
-	request.addEventListener("load", onLoad.bind(this));
-	request.addEventListener("error", onError.bind(this));
-	request.open(method, this.options.url, path);
+	request.addEventListener("load", onLoad||onLoadDefault.bind(this));
+	request.addEventListener("error", onError||onErrorDefault.bind(this));
 	return request;
 
 	function onSend(evt) {
 		this.dispatchEvent(new Event("send"));
 	}
 
-	function onLoad(evt) {
-		this.dispatchEvent(new Event("load"));
+	function onLoadDefault(evt) {
+		this.$emitEvent("load", callback, null);
 	}
 
-	function onError(evt) {
-		var error = evt.detail||new Error("connection error");
-		this.dispatchEvent(new CustomEvent("error", {'detail':error}));
+	function onErrorDefault(evt) {
+		this.$emitEvent("error", errorCallback, evt.detail);
 	}
 }
 
-Client.prototype.signin = function(name, password, callback) {
+Client.prototype.signin = function(name, password, callback, errorCallback) {
 	var alias = this.crypto.generateSecureHash(name, password);
 	var aliasUrl = alias.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-	var request = this.$createRequest(null, "GET", "/!/account/"+aliasUrl, onLoad.bind(this));
+	var request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
+	request.open("GET", this.options.url, "/!/account/"+aliasUrl);
 	request.send();
 
 	function onLoad() {
@@ -81,7 +89,7 @@ Client.prototype.signin = function(name, password, callback) {
 		var vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
 		Vault[this.vid] = vault;
 		Vault[this.vid].account['asec'] = asec;
-		callback({'aid':Vault[this.vid].account['aid']});
+		this.$emitEvent("load", callback, {'aid':Vault[this.vid].account['aid']});
 	}
 }
 
@@ -93,12 +101,13 @@ Client.prototype.signout = function(callback) {
 
 // INFO Account operations
 
-Client.prototype.createAccount = function(name, password, callback) {
+Client.prototype.createAccount = function(name, password, callback, errorCallback) {
 	var account = null;
 	var alias = this.crypto.generateSecureHash(name, password);
 	var asalt = this.crypto.generateKey();
 	var authL = this.crypto.generateKeypair();
-	var request = this.$createRequest(null, "POST", "/!/account", onLoad.bind(this));
+	var request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
+	request.open("POST", this.options.url, "/!/account");
 	request.writeJson({
 		'alias': alias,
 		'asalt': asalt,
@@ -117,16 +126,19 @@ Client.prototype.createAccount = function(name, password, callback) {
 			},
 			'domain': {}
 		};
+		// TODO Move into conveniance
 		this.updateVault(afterUpdateVault.bind(this));
+	
+		function afterUpdateVault() {
+			this.$emitEvent("load", callback, {'aid':Vault[this.vid].account['aid']});
+		}
 	}
 	
-	function afterUpdateVault() {
-		callback({'aid':Vault[this.vid].account['aid']});
-	}
 }
 
-Client.prototype.deleteAccount = function(callback) {
-	var request = this.$createRequest(Vault[this.vid].account, "DELETE", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
+Client.prototype.deleteAccount = function(callback, errorCallback) {
+	var request = this.$createRequest(Vault[this.vid].account, callback, errorCallback, onLoad.bind(this));
+	request.open("DELETE", this.options.url, "/!/account/"+Vault[this.vid].account['aid']);
 	request.signAccount();
 	request.send();
 
@@ -134,11 +146,11 @@ Client.prototype.deleteAccount = function(callback) {
 		if (!request.authorizeAccount(Vault[this.vid].account))
 			return;
 		Vault.resetClient(this.vid);
-		callback();
+		this.$emitEvent("load", callback);
 	}
 }
 
-Client.prototype.updateVault = function(callback) {
+Client.prototype.updateVault = function(callback, errorCallback) {
 	var vec = this.crypto.generateTimestamp();
 	// NOTE This JSON dance is neccasary to create a real clone.
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
@@ -148,7 +160,8 @@ Client.prototype.updateVault = function(callback) {
 		delete vault.domain[did]['vec'];
 	}
 	vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
-	var request = this.$createRequest(Vault[this.vid].account, "PUT", "/!/account/"+Vault[this.vid].account['aid'], onLoad.bind(this));
+	var request = this.$createRequest(Vault[this.vid].account, callback, errorCallback, onLoad.bind(this));
+	request.open("PUT", this.options.url, "/!/account/"+Vault[this.vid].account['aid']);
 	request.writeJson({
 		'vault': vault,
 		'vec': vec
@@ -159,22 +172,23 @@ Client.prototype.updateVault = function(callback) {
 	function onLoad() {
 		if (!request.authorizeAccount())
 			return;
-		callback();
+		this.$emitEvent("load", callback);
 	}
 }
 
 // INFO Domain operations
 
-Client.prototype.createDomain = function(pod, password, callback) {
+Client.prototype.createDomain = function(pod, password, callback, errorCallback) {
 	var dkeyL = this.crypto.generateKeypair();
-	var request = this.$createRequest(null, "POST", "/!/domain", onLoad.bind(this));
+	var request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this), onerror);
+	request.open("POST", this.options.url, "/!/domain");
 	request.writeJson({
 		'pod': pod,
 		'dkey_l': dkeyL.publicKey
 	});
 	request.send();
 
-	function onLoad(result) {
+	function onLoad() {
 		var pkey, domain;
 		pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
 		domain = {
@@ -182,11 +196,11 @@ Client.prototype.createDomain = function(pod, password, callback) {
 			'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
 		};
 		Vault[this.vid].domain[domain['did']] = domain;
-		callback({'did':domain['did']});
+		this.$emitEvent("load", callback, {'did':domain['did']});
 	}
 }
 
-Client.prototype.deleteDomains = function(dids, callback) {
+Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
 	var results, errors, count;
 	if (dids.length == 0)
 		return callback(null);
@@ -197,7 +211,8 @@ Client.prototype.deleteDomains = function(dids, callback) {
 
 	function deleteDomain(did, callback) {
 		var request;
-		request = this.$createRequest(Vault[this.vid].domain[did], "DELETE", "/!/domain/"+did, onLoad.bind(this), onError.bind(this));
+		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+		request.open("DELETE", this.options.url, "/!/domain/"+did);
 		request.writeEncrypted(undefined);
 		request.signDomain();
 		request.send();
@@ -221,15 +236,17 @@ Client.prototype.deleteDomains = function(dids, callback) {
 
 	function afterDeleteDomain() {
 		if (errors.length)
-			return this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
-		callback(results);
+			this.$emitEvent("error", errorCallback, errors);
+		else
+			this.$emitEvent("load", callback, results);
 	}
 }
 
-Client.prototype.createOwnerTicket = function(did, callback) {
+Client.prototype.createOwnerTicket = function(did, callback, errorCallback) {
 	var tkeyL, request, domain;
 	tkeyL = this.crypto.generateKeypair();
-	request = this.$createRequest(Vault[this.vid].domain[did], "POST", "/!/domain/"+did+"/ticket", onLoad.bind(this));
+	request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this));
+	request.open("POST", this.options.url, "/!/domain/"+did+"/ticket");
 	request.writeJson({
 		'tkey_l': tkeyL.publicKey
 	});
@@ -243,14 +260,17 @@ Client.prototype.createOwnerTicket = function(did, callback) {
 		domain['tid'] = request.responseJson['tid'],
 		domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
 		domain['tflags'] = request.responseJson['tflags']
-		callback({'did':did,'tid':domain['tid']});
+		this.$emitEvent("load", callback, {'did':did,'tid':domain['tid']});
 	}
 }
 
-Client.prototype.refreshLeaf = function(did, callback) {
+
+// NOTE This function won't fire a load event!  
+Client.prototype.refreshLeaf = function(did, callback, errorCallback) {
 	var request, vecL;
 	vecL = this.crypto.generateKeypair();
-	request = this.$createRequest(Vault[this.vid].domain[did], "POST", "/!/domain/"+did+"/leaf", onLoad.bind(this));
+	request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this));
+	request.open("POST", this.options.url, "/!/domain/"+did+"/leaf");
 	request.writeJson({
 		'vec_l': vecL.publicKey
 	});
@@ -267,18 +287,22 @@ Client.prototype.refreshLeaf = function(did, callback) {
 	}
 }
 
-Client.prototype.registerLeaf = function(did, callback) {
+// NOTE This function won't fire a load event!  
+Client.prototype.registerLeaf = function(did, callback, errorCallback) {
 	if (Vault[this.vid].domain[did]['vec'])
-		return callback(did);
-	this.refreshLeaf(did, callback);
+		callback(did);
+	else
+		this.refreshLeaf(did, callback, errorCallback);
 }
 
 // INFO Entity operations
 
+// NOTE This function won't fire a load event!  
 // TODO Implement some kind of caching to reduce HEAD requests
-Client.prototype.resolvePath = function(path, callback) {
+Client.prototype.$resolvePath = function(path, callback, errorCallback) {
 	var request;
-	request = this.$createRequest(null, "HEAD", path, onLoad.bind(this));
+	request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
+	request.open("HEAD", this.options.url, path);
 	request.send();
 
 	// TODO Get rid of dids array
@@ -307,65 +331,68 @@ Client.prototype.resolvePath = function(path, callback) {
 	}
 }
 
-Client.prototype.createEntity = function(path, data, callback) {
+Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 	var match, request;
 	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+$/);
 	if (!match)
-		return this.dispatchEvent("error", new Error("invalid path"));
+		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
 	if (data['did'])
-		this.registerLeaf(data['did'], afterResolvePath.bind(this));
+		this.registerLeaf(data['did'], afterResolvePath.bind(this), errorCallback);
 	else if (match[1])
-		this.resolvePath(match[1], afterResolvePath.bind(this));
+		this.$resolvePath(match[1], afterResolvePath.bind(this), errorCallback);
 	else
-		this.dispatchEvent("error", new Error("unknown did"));
+		return this.$emitEvent("error", errorCallback, new Error("unknown did"));
 
 	function afterResolvePath(did) {
 		if (!did)
 			return;
-		request = this.$createRequest(Vault[this.vid].domain[did], "POST", path, onLoad.bind(this), onError.bind(this));
+		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+		request.open("POST", this.options.url, path);
 		request.writeEncrypted(data);
 		request.signTicket();
 		request.send();
 
 		function onLoad() {
 			if (!request.authorizeTicket())
-				return;
-			callback(request.responseEncrypted);
+				this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
+			else
+				this.$emitEvent("load", callback, request.responseEncrypted);
 		}
 
 		function onError(evt) {
 			if (evt.detail.code == 412) {
-				evt.stopImmediatePropagation();
-				this.refreshLeaf(did, function() {
+				return this.refreshLeaf(did, function() {
 					afterResolvePath.call(this, did);
-				}.bind(this));
+				}.bind(this), errorCallback);
 			}
+			this.$emitEvent("error", errorCallback, evt.detail);
 		}
 	}
 }
 
-Client.prototype.readEntities = function(path, callback) {
+Client.prototype.readEntities = function(path, callback, errorCallback) {
 	var match, results, errors, count;
 	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
 	if (!match)
-		return this.dispatchEvent("error", new Error("invalid path"));
+		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
 	results = new Object();
 	errors = new Array();
 	count = 0;
-	this.resolvePath(match[0], afterResolvePath.bind(this));
+	this.$resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(did, index, length) {
 		var request, type;
-		if (!did)
-			return;
-		request = this.$createRequest(Vault[this.vid].domain[did], "GET", path, onLoad.bind(this), onError.bind(this));
+		if (!did && length)
+			return this.$emitEvent("error", errorCallback, new Error("undefined domain id"));
+		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+		request.open("GET", this.options.url, path);
 		request.writeEncrypted(undefined);
 		request.signTicket(Vault[this.vid].domain[did]);
 		request.send();
 
 		function onLoad() {
 			if (!request.authorizeTicket())
-				return;
+				return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
 			count++;
 			for (type in request.responseEncrypted) {
 				if (results[type])
@@ -378,11 +405,10 @@ Client.prototype.readEntities = function(path, callback) {
 		}
 
 		function onError(evt) {
-			evt.stopImmediatePropagation();
 			if (evt.detail.code == 412) {
 				return this.refreshLeaf(did, function() {
 					afterResolvePath.call(this, did, index, length);
-				}.bind(this));
+				}.bind(this), errorCallback);
 			}
 			count++;
 			errors.push(evt.detail);
@@ -393,18 +419,18 @@ Client.prototype.readEntities = function(path, callback) {
 
 	function finalize() {
 		var type;
-		if (errors.length > 0)
-			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		if (errors.length)
+			this.$emitEvent("error", errorCallback, errors);
 		else for (type in results)
-			callback(results[type], type);
+			this.$emitEvent("load", callback, results[type], type);
 	}
 }
 
-Client.prototype.updateEntities = function(path, data, callback) {
+Client.prototype.updateEntities = function(path, data, callback, errorCallback) {
 	var match, results, errors, count;
 	match = path.match(/^(?:\/(\w+)\/[\d,]+)+$/);
 	if (!match)
-		return this.dispatchEvent("error", new Error("invalid path"));
+		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
 	// NOTE We use results as a temporary buffer here - dirty but it works ;)
 	results = data;
 	data = new Object();
@@ -412,20 +438,21 @@ Client.prototype.updateEntities = function(path, data, callback) {
 	results = new Object();
 	errors = new Array();
 	count = 0;
-	this.resolvePath(match[0], afterResolvePath.bind(this));
+	this.$resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(did, index, length) {
 		var request, type;
-		if (!did)
-			return;
-		request = this.$createRequest(Vault[this.vid].domain[did], "PUT", path, onLoad.bind(this), onError.bind(this));
+		if (!did && length)
+			return this.$emitEvent("error", errorCallback, new Error("undefined domain id"));
+		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+		request.open("PUT", this.options.url, path);
 		request.writeEncrypted(data);
 		request.signTicket();
 		request.send();
 
 		function onLoad() {
 			if (!request.authorizeTicket())
-				return;
+				return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
 			count++;
 			for (type in request.responseEncrypted) {
 				if (results[type])
@@ -442,7 +469,7 @@ Client.prototype.updateEntities = function(path, data, callback) {
 			if (evt.detail.code == 412) {
 				return this.refreshLeaf(did, function() {
 					afterResolvePath.call(this, did, index, length);
-				}.bind(this));
+				}.bind(this), errorCallback);
 			}
 			count++;
 			errors.push(evt.detail);
@@ -453,14 +480,14 @@ Client.prototype.updateEntities = function(path, data, callback) {
 
 	function finalize() {
 		var type;
-		if (errors.length > 0)
-			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		if (errors.length)
+			this.$emitEvent("error", errorCallback, errors);
 		else for (type in results)
-			callback(results[type], type);
+			this.$emitEvent("load", callback, results[type], type);
 	}
 }
 
-Client.prototype.deleteEntities = function(path, callback) {
+Client.prototype.deleteEntities = function(path, callback, errorCallback) {
 	var match, results, errors, count;
 	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
 	if (!match)
@@ -468,22 +495,22 @@ Client.prototype.deleteEntities = function(path, callback) {
 	results = new Object();
 	errors = new Array();
 	count = 0;
-	this.resolvePath(match[0], afterResolvePath.bind(this));
+	this.$resolvePath(match[0], afterResolvePath.bind(this));
 
 	function afterResolvePath(did, index, length) {
 		var request, type;
-		if (!did)
+		if (!did && length)
 			return;
-		request = this.$createRequest(Vault[this.vid].domain[did], "DELETE", path, onLoad.bind(this), onError.bind(this));
+		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+		request.open("DELETE", this.options.url, path);
 		request.writeEncrypted(undefined);
 		request.signTicket();
 		request.send();
 
 		function onLoad() {
-			console.log("onLoad");
 			// TODO Support multiple MIME types
 			//if (!request.authorizeTicket())
-			//	return;
+			//	return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
 			count++;
 			for (type in request.responseJson) {
 				if (results[type])
@@ -502,7 +529,7 @@ Client.prototype.deleteEntities = function(path, callback) {
 			if (evt.detail.code == 412) {
 				return this.refreshLeaf(did, function() {
 					afterResolvePath.call(this, did, index, length);
-				}.bind(this));
+				}.bind(this), errorCallback);
 			}
 			count++;
 			errors.push(evt.detail);
@@ -512,12 +539,11 @@ Client.prototype.deleteEntities = function(path, callback) {
 	}
 
 	function finalize() {
-		console.log("finalize");
-		var type
-		if (errors.length > 0)
-			this.dispatchEvent(new CustomEvent("error", {'detail':errors}));
+		var type;
+		if (errors.length)
+			this.$emitEvent("error", errorCallback, errors);
 		else for (type in results)
-			callback(results[type], type);
+			this.$emitEvent("load", callback, results[type], type);
 	}
 }
 

@@ -14,10 +14,17 @@ var Request = function(crypto, credentials) {
 	this.$responseJson = undefined;
 	this.$xhr = new XMLHttpRequest();
 	this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
+	this.$xhr.addEventListener("error", this.$onError.bind(this), false);
+	// TODO store client instead
 	this.crypto = crypto;
+	// TODO Don't store globally
 	this.credentials = credentials;
 	// TODO Move into getter
 	this.responseType = null;
+	// NOTE Pass event handling to XMLHttpRequest
+	this.addEventListener = this.$xhr.addEventListener.bind(this.$xhr);
+	this.removeEventListener = this.$xhr.removeEventListener.bind(this.$xhr);
+	this.dispatchEvent = this.$xhr.dispatchEvent.bind(this.$xhr);
 }
 
 Request.prototype.$onLoad = function(evt) {
@@ -43,21 +50,13 @@ Request.prototype.$onLoad = function(evt) {
 	};
 }
 
+Request.prototype.$onError = function(evt) {
+	this.error = evt.detail||new Error("connection error");
+}
+
 Request.prototype.$emitError = function(error) {
 	this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 	return false;
-}
-
-Request.prototype.addEventListener = function(type, listener, useCapture) {
-	return this.$xhr.addEventListener(type, listener, useCapture);
-}
-
-Request.prototype.removeEventListener = function(type, listener, useCapture) {
-	return this.$xhr.removeEventListener(type, listener, useCapture);
-}
-
-Request.prototype.dispatchEvent = function(evt) {
-	return this.$xhr.dispatchEvent(evt);
 }
 
 Request.prototype.open = function(method, node, path) {
