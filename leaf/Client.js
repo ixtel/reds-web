@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-var FacilityManager = window.reds ? reds.FacilityManager : require("./FacilityManager");
+var FacilityManager = window.reds ? reds.FacilityManager : require("../shared/FacilityManager");
 var Request = window.reds ? reds.leaf.Request : require("./Request");
 
 // INFO Credential database
@@ -27,8 +27,8 @@ Vault.resetClient = function(vid) {
 // INFO Facility managers
 
 var CryptoFacilities = new FacilityManager();
-CryptoFacilities.addFacility(window.reds ? reds.crypto.CryptoJs : require("./crypto/CryptoJs"));
-CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("./crypto/Sjcl"));
+CryptoFacilities.addFacility(window.reds ? reds.crypto.CryptoJs : require("../shared/crypto/CryptoJs"));
+CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl"));
 
 // INFO Client
 
@@ -95,7 +95,7 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
 
 Client.prototype.signout = function(callback) {
 	Vault.resetClient(this.vid);
-	// NOTE Always call the callback asynchoniously
+	// NOTE Always call the callback asynchronously
 	setTimeout(callback, 0);
 }
 
@@ -151,7 +151,7 @@ Client.prototype.deleteAccount = function(callback, errorCallback) {
 
 Client.prototype.updateVault = function(callback, errorCallback) {
 	var vec = this.crypto.generateTimestamp();
-	// NOTE This JSON dance is neccasary to create a real clone.
+	// NOTE This JSON dance is necessary to create a real clone.
 	var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
 	delete vault.account['asec'];
 	for (var did in vault.domain) {
@@ -396,13 +396,17 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
 
 	function afterResolvePath(did, index, length) {
 		var request, type;
-		if (!did && length)
-			return this.$emitEvent("error", errorCallback, new Error("undefined domain id"));
+		if (!did) {
+            if (length == 0)
+    			return this.$emitEvent("load", callback, null);
+            else
+                return this.$emitEvent("error", errorCallback, new Error("undefined domain id"));
+        }
 		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
 		request.open("GET", this.options.url, path);
-		request.writeEncrypted(undefined);
-		request.signTicket(Vault[this.vid].domain[did]);
-		request.send();
+        request.writeEncrypted();
+        request.signTicket(Vault[this.vid].domain[did]);
+        request.send();
 
 		function onLoad() {
 			if (!request.authorizeTicket())
@@ -456,8 +460,12 @@ Client.prototype.updateEntities = function(path, data, callback, errorCallback) 
 
 	function afterResolvePath(did, index, length) {
 		var request, type;
-		if (!did && length)
-			return this.$emitEvent("error", errorCallback, new Error("undefined domain id"));
+        if (!did) {
+            if (length == 0)
+                return this.$emitEvent("load", callback, null);
+            else
+                return this.$emitEvent("error", errorCallback, new Error("undefined domain id"));
+        }
 		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
 		request.open("PUT", this.options.url, path);
 		request.writeEncrypted(data);
@@ -513,8 +521,12 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
 
 	function afterResolvePath(did, index, length) {
 		var request, type;
-		if (!did && length)
-			return;
+        if (!did) {
+            if (length == 0)
+                return this.$emitEvent("load", callback, null);
+            else
+                return this.$emitEvent("error", errorCallback, new Error("undefined domain id"));
+        }
 		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
 		request.open("DELETE", this.options.url, path);
 		request.writeEncrypted(undefined);
@@ -561,7 +573,7 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
 	}
 }
 
-// INFO Conveniance functions
+// INFO Convenience functions
 
 Client.prototype.deleteEntitiesAndDomains = function(path, callback) {
 	this.deleteEntities(path, afterDeleteEntities.bind(this));
