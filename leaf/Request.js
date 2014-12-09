@@ -75,6 +75,7 @@ Request.prototype.writeEncrypted = function(data, type) {
 			return this.$emitError(e);
 		}
 	}
+    console.log(this.credentials);
 	this.write(cipher, type||"application/x.reds.encrypted;did="+this.credentials['did']);
 }
 
@@ -253,6 +254,6 @@ Object.defineProperty(Request.prototype, "responseAuthorization", {
 });
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
-typeof exports=='object' ? module.exports=exports=Client : ((self.reds=self.reds||new Object()).leaf=reds.leaf||new Object()).Request=Request;
+typeof exports=='object' ? module.exports=exports=Request : ((self.reds=self.reds||new Object()).leaf=reds.leaf||new Object()).Request=Request;
 
 })();
