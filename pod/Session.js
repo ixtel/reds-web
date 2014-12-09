@@ -16,6 +16,7 @@ exports.prototype = Object.create(Session.prototype);
 exports.prototype.leafs = new TemporaryStorage(30000, 5000);
 
 exports.prototype.HookHandlers = {
+	'/!/node': require("./hooks/node.js"),
 	'/!/domain': require("./hooks/domain.js"),
 	'/!/domain/ticket': require("./hooks/ticket.js"),
 	'/!/domain/leaf': require("./hooks/leaf.js"),

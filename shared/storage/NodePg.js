@@ -29,7 +29,6 @@ exports.prototype.disconnect = function(callback) {
 // INFO Pod operation
 
 exports.prototype.createPod = function(values, callback) {
-	console.log(values)
 	this.$client.query("INSERT INTO pods (url) "+
 		"VALUES ($1) "+
 		"RETURNING pid,url",
@@ -41,16 +40,41 @@ exports.prototype.createPod = function(values, callback) {
 	}
 }
 
-exports.prototype.readPod = function(pod, callback) {
+exports.prototype.readPod = function(pid_url, callback) {
 	this.$client.query("SELECT pid,url "+
 		"FROM pods "+
-		"WHERE "+(typeof(pod) == "number" ? "pid" : "url")+"=$1",
-		[pod],
+		"WHERE "+(typeof(pid_url) == "number" ? "pid" : "url")+"=$1",
+		[pid_url],
 	afterQuery);
 
 	function afterQuery(error, result) {
 		if (result.rows[0] === undefined)
 			error = new Error("pod not found");
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.updatePod = function(values, callback) {
+	this.$client.query("UPDATE pods "+
+		"SET nid=$1, auth=decode($2,'base64') "+
+		"WHERE pid=$3 "+
+		"RETURNING pid",
+		[values['nid'], values['auth'], values['pid']],
+	afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.deletePod = function(pid, callback) {
+	this.$client.query("DELETE FROM pods "+
+		"WHERE pid=$1 "+
+		"RETURNING pid",
+		[pid],
+	afterQuery);
+
+	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -65,6 +89,20 @@ exports.prototype.resolvePod = function(did, callback) {
 	function afterQuery(error, result) {
 		if (result.rows[0] === undefined)
 			error = new Error("pod not found");
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+// INFO Node operations
+
+exports.prototype.createNode = function(values, callback) {
+	this.$client.query("INSERT INTO nodes (namespace,pid,auth) "+
+		"VALUES ($1,$2,decode($3,'base64')) "+
+		"RETURNING nid",
+		[values['namespace'], values['pid'], values['auth']],
+	afterQuery);
+
+	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }

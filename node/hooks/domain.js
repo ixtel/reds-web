@@ -37,7 +37,7 @@ exports.POST = function(session) {
 
 	function onRouteError(error) {
 		if (domain)
-			session.storage.deleteDomain(domain['did'], function() {
+			session.storage.unregisterDomain(domain['did'], function() {
 				session.abort(new HttpError(502, error.message));
 			});
 		else
