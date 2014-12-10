@@ -35,6 +35,7 @@ StorageFacilities.addFactoryToObject("createStorageFacility", exports.prototype)
 
 exports.prototype.run = function() {
 	console.log("REQUEST "+this.request.headers["content-type"]); // DEBUG
+	//console.log("REQUEST "+this.request.headers["authorization"]); // DEBUG
 	var lock = 2;
 	// TODO Select crypto facility by content-type
 	this.crypto = this.createCryptoFacility(this.config.crypto[0]);
@@ -74,6 +75,7 @@ exports.prototype.end = function(status) {
 		this.storage.disconnect();
 	console.log("RESPONSE "+this.$responseText); // DEBUG
 	console.log("RESPONSE "+this.response.getHeader("Content-Type")); // DEBUG
+	//console.log("RESPONSE "+this.response.getHeader["Authorization"]); // DEBUG
 }
 
 exports.prototype.abort = function(error) {
@@ -162,14 +164,15 @@ Object.defineProperty(exports.prototype, "authorization", {
 		if (this.$authorization === undefined) {
 			this.$authorization = this.request.headers['authorization'] || null;
 			if (this.$authorization) {
-				this.$authorization = this.$authorization.match(/(account|domain|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+				this.$authorization = this.$authorization.match(/(account|node|domain|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
 				if (this.$authorization) {
 					this.$authorization = {
 						'realm': this.$authorization[1],
 						'id': this.$authorization[2],
 						'vec': this.$authorization[3],
 						'sig': this.$authorization[4],
-						'crypto': this.$authorization[5]
+						'crypto': this.$authorization[5],
+						'length': this.$authorization[0].length
 					};
 				}
 			}

@@ -35,6 +35,7 @@ Sjcl.prototype.compareTimestamps = function(a, b) {
 	return nowA - nowB;
 }
 
+// TODO Check if \n exists in arguments
 Sjcl.prototype.concatenateStrings = function() {
 	var values = Array.prototype.slice.apply(arguments);
 	return values.join("\n");

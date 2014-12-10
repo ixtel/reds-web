@@ -61,6 +61,7 @@ CryptoJs.prototype.compareTimestamps = function(a, b) {
 	return nowA - nowB;
 }
 
+// TODO Check if \n exists in arguments
 CryptoJs.prototype.concatenateStrings = function() {
 	var values = Array.prototype.slice.apply(arguments);
 	return values.join("\n");

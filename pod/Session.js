@@ -23,6 +23,45 @@ exports.prototype.HookHandlers = {
 	'*': require("./hooks/entity.js")
 }
 
+exports.prototype.delegate = function() {
+	this.authorizeNode(afterAuthorizeNode.bind(this));
+
+	function afterAuthorizeNode(error) {
+		if (error)
+			return this.abort(error);
+		Session.prototype.delegate.call(this);
+	}
+}
+
+exports.prototype.authorizeNode = function(callback) {
+	if (!this.authorization)
+		return callback(new HttpError(401, "Missing authorization"));
+	// NOTE Note this check won't be needed once the session can handle multiple facilities
+	if (this.authorization['crypto'] != this.crypto.name)
+		return callback(new HttpError(400, "Unsupported crypto facility"));
+	if (this.authorization['realm'] != "node")
+		return callback(new HttpError(400, "Invalid realm"));
+	this.storage.readNode(this.authorization['id'], afterReadDomain.bind(this));
+
+	function afterReadDomain(error, result) {
+		if (error)
+			return callback(error);
+		if (!result)
+			return callback(new HttpError(403, "Unknown node"));
+		var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.authorization['vec'], this.authorization['crypto'], this.request.method, this.request.headers['content-type'], this.requestText||"");
+		var sig = this.crypto.generateHmac(msg, result['auth']);
+		if (sig != this.authorization['sig'])
+			return callback(new HttpError(403, "Invalid authorization"));
+		// NOTE Reset the authorization and cleanup the authorization header
+		//      to make the way free for other authorzation.
+		// TODO Pretty dirty, find a better way
+		this.request.headers['authorization'] = this.request.headers['authorization'].substr(this.authorization.length)
+		this.$authorization = undefined;
+		console.log(this.request.headers['authorization']);
+		callback();
+	}
+}
+
 exports.prototype.authorizeDomain = function(callback) {
 	if (!this.authorization)
 		return callback(new HttpError(401, "Missing authorization"));
@@ -55,7 +94,7 @@ exports.prototype.authorizeTicket = function(callback) {
 	if (this.authorization['crypto'] != this.crypto.name)
 		return callback(new HttpError(400, "Unsupported crypto facility"));
 	if (this.authorization['realm'] != "ticket")
-		return callback(new HttpError(400, "Invalid realm"));
+		return callback(new HttpError(400, "Invalid realm 'ticket'"));
 	leaf = this.leafs.getItem(this.authorization['id']);
 	if (!leaf)
 		return callback(new HttpError(412, "Unknown leaf"));

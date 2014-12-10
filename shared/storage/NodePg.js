@@ -41,7 +41,7 @@ exports.prototype.createPod = function(values, callback) {
 }
 
 exports.prototype.readPod = function(pid_url, callback) {
-	this.$client.query("SELECT pid,url "+
+	this.$client.query("SELECT pid,url,nid,encode(auth,'base64') AS auth "+
 		"FROM pods "+
 		"WHERE "+(typeof(pid_url) == "number" ? "pid" : "url")+"=$1",
 		[pid_url],
@@ -58,7 +58,7 @@ exports.prototype.updatePod = function(values, callback) {
 	this.$client.query("UPDATE pods "+
 		"SET nid=$1, auth=decode($2,'base64') "+
 		"WHERE pid=$3 "+
-		"RETURNING pid",
+		"RETURNING pid,url,nid,encode(auth,'base64') AS auth",
 		[values['nid'], values['auth'], values['pid']],
 	afterQuery);
 
@@ -80,7 +80,7 @@ exports.prototype.deletePod = function(pid, callback) {
 }
 
 exports.prototype.resolvePod = function(did, callback) {
-	this.$client.query("SELECT p.pid,p.url "+
+	this.$client.query("SELECT p.pid,p.url,p.nid,encode(p.auth,'base64') AS auth "+
 		"FROM pods p JOIN domains d ON p.pid=d.pid "+
 		"WHERE did=$1",
 		[did],
@@ -103,6 +103,20 @@ exports.prototype.createNode = function(values, callback) {
 	afterQuery);
 
 	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.readNode = function(nid, callback) {
+	this.$client.query("SELECT nid,namespace,pid,encode(auth,'base64') AS auth "+
+		"FROM nodes "+
+		"WHERE nid=$1",
+		[nid],
+	afterQuery);
+
+	function afterQuery(error, result) {
+		if (result.rows[0] === undefined)
+			error = new Error("node not found");
 		callback(error||null, result?result.rows[0]:null);
 	}
 }

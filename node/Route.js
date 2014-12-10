@@ -80,9 +80,16 @@ exports.prototype.send = function(data, authorization) {
 	});
 	request.addListener("error", onError.bind(this));
 	request.addListener('response', onResponse.bind(this));
-	request.setHeader("content-length", this.$data ? Buffer.byteLength(this.$data) : 0);
+	if (this.pod['auth']) {
+		var time, msg, sig;
+		time = this.crypto.generateTimestamp();
+		msg = this.crypto.concatenateStrings("node", this.pod['nid'], time, this.crypto.name, this.method, this.requestHeaders['content-type'], this.$data);
+		sig = this.crypto.generateHmac(msg, this.pod['auth']);
+		this.requestHeaders['authorization'] = "node:"+this.pod['nid']+":"+time+":"+sig+":"+this.crypto.name+":"+this.requestHeaders['authorization'];
+	}
 	for (header in this.requestHeaders)
 		request.setHeader(header, this.requestHeaders[header]);
+	request.setHeader("content-length", this.$data ? Buffer.byteLength(this.$data) : 0);
 	request.end(this.$data);
 
 	function onResponse(response) {

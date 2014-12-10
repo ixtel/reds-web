@@ -44,7 +44,10 @@ exports.POST = function(session) {
 		function afterUpdatePod(error, result) {
 			if (error)
 				return session.abort(error);
-			session.writeJson(result);
+			session.writeJson({
+				'pid': result['pid'],
+				'url': result['url']
+			});
 			session.end();
 		}
 	}
