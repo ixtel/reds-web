@@ -75,7 +75,6 @@ Request.prototype.writeEncrypted = function(data, type) {
 			return this.$emitError(e);
 		}
 	}
-    console.log(this.credentials);
 	this.write(cipher, type||"application/x.reds.encrypted;did="+this.credentials['did']);
 }
 
