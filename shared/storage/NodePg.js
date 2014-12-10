@@ -11,7 +11,7 @@ module.exports = exports = function(options) {
 exports.prototype.name = "nodepg-1"
 
 exports.prototype.connect = function(callback) {
-	pg.connect(this.options, afterConnect.bind(this));
+	pg.connect(this.options.connect, afterConnect.bind(this));
 	pg.end();
 
 	function afterConnect(error, client, done) {
@@ -213,7 +213,8 @@ exports.prototype.unregisterDomain = function(did, callback) {
 }
 
 exports.prototype.createDomain = function(values, callback) {
-	this.$client.query("INSERT INTO domains (did, dkey) "+
+	var table = this.options['namespace']+".domains";
+	this.$client.query("INSERT INTO \""+table+"\" (did, dkey) "+
 		"VALUES ($1,decode($2,'base64')) "+
 		"RETURNING did",
 		[values['did'], values['dkey']],
@@ -225,8 +226,9 @@ exports.prototype.createDomain = function(values, callback) {
 }
 
 exports.prototype.readDomain = function(did, callback) {
+	var table = this.options['namespace']+".domains";
 	this.$client.query("SELECT did, encode(dkey,'base64') AS dkey "+
-		"FROM domains "+
+		"FROM \""+table+"\" "+
 		"WHERE did=$1 ",
 		[did],
 	afterQuery);
@@ -237,7 +239,8 @@ exports.prototype.readDomain = function(did, callback) {
 }
 
 exports.prototype.deleteDomain = function(did, callback) {
-	this.$client.query("DELETE FROM domains "+
+	var table = this.options['namespace']+".domains";
+	this.$client.query("DELETE FROM \""+table+"\" "+
 		"WHERE did=$1 "+
 		"RETURNING did",
 		[did],
@@ -251,7 +254,8 @@ exports.prototype.deleteDomain = function(did, callback) {
 // INFO Ticket operations
 
 exports.prototype.createTicket = function(values, callback) {
-	this.$client.query("INSERT INTO tickets (did, tkey, tflags) "+
+	var table = this.options['namespace']+".tickets";
+	this.$client.query("INSERT INTO \""+table+"\" (did, tkey, tflags) "+
 		"VALUES ($1,decode($2,'base64'), $3) "+
 		"RETURNING tid, tflags",
 		[values['did'], values['tkey'], values['tflags']],
@@ -263,8 +267,9 @@ exports.prototype.createTicket = function(values, callback) {
 }
 
 exports.prototype.readTicket = function(tid, callback) {
+	var table = this.options['namespace']+".tickets";
 	this.$client.query("SELECT tid, encode(tkey,'base64') AS tkey, tflags "+
-		"FROM tickets "+
+		"FROM \""+table+"\" "+
 		"WHERE tid=$1 ",
 		[tid],
 	afterQuery);
@@ -431,7 +436,8 @@ exports.prototype.unregisterEntities = function(selector, did, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.createEntity = function(type, values, callback) {
-	var fields, vals, params, field;
+	var table, fields, vals, params, field;
+	table = this.options['namespace']+".entity."+type;
 	fields = new Array();
 	vals = new Array();
 	params = new Array();
@@ -440,7 +446,7 @@ exports.prototype.createEntity = function(type, values, callback) {
 		params.push(values[field]);
 		vals.push("$"+params.length);
 	}
-	this.$client.query("INSERT INTO "+type+" ("+fields.join(",")+") "+
+	this.$client.query("INSERT INTO \""+table+"\" ("+fields.join(",")+") "+
 		"VALUES ("+vals.join(",")+") "+
 		"RETURNING *",
 		params,
@@ -458,8 +464,11 @@ exports.prototype.readEntities = function(types, eids, callback) {
 	types.forEach(readEntitiesForType.bind(this));
 
 	function readEntitiesForType(type, index) {
+		var table;
+		console.log(this.options);
+		table = this.options['namespace']+".entity."+type;
 		count = index;
-		this.$client.query("SELECT * FROM "+type+" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
+		this.$client.query("SELECT * FROM \""+table+"\" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
 
 		function afterQuery(error, result) {
 			if (error)
@@ -479,7 +488,8 @@ exports.prototype.updateEntities = function(types, values, callback) {
 	types.forEach(updateEntitiesForType.bind(this));
 
 	function updateEntitiesForType(type, index) {
-		var field, set, fields, params, vals, val, i;
+		var table, field, set, fields, params, vals, val, i;
+		table = this.options['namespace']+".entity."+type;
 		count = index;
 		set = new Array();
 		fields = new Array();
@@ -502,7 +512,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
 			}
 			vals.push("("+val.substr(1)+")");
 		}
-		this.$client.query("UPDATE "+type+" t SET "+set.join(",")+" "+
+		this.$client.query("UPDATE \""+table+"\" t SET "+set.join(",")+" "+
 			"FROM (VALUES "+vals.join(",")+") AS v("+fields.join(",")+") "+
 			"WHERE t.eid = v.eid "+
 			"RETURNING *",
@@ -526,8 +536,10 @@ exports.prototype.deleteEntities = function(types, eids, callback) {
 	types.forEach(deleteEntitiesForType.bind(this));
 
 	function deleteEntitiesForType(type, index) {
+		var table;
+		table = this.options['namespace']+".entity."+type;
 		count = index;
-		this.$client.query("DELETE FROM "+type+" WHERE eid IN ("+eids[index].join(",")+") RETURNING *", afterQuery);
+		this.$client.query("DELETE FROM \""+table+"\" WHERE eid IN ("+eids[index].join(",")+") RETURNING *", afterQuery);
 
 		function afterQuery(error, result) {
 			if (error)

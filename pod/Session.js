@@ -26,9 +26,10 @@ exports.prototype.HookHandlers = {
 exports.prototype.delegate = function() {
 	this.authorizeNode(afterAuthorizeNode.bind(this));
 
-	function afterAuthorizeNode(error) {
+	function afterAuthorizeNode(error, result) {
 		if (error)
 			return this.abort(error);
+		this.storage.options['namespace'] = result['namespace'];
 		Session.prototype.delegate.call(this);
 	}
 }
@@ -57,8 +58,7 @@ exports.prototype.authorizeNode = function(callback) {
 		// TODO Pretty dirty, find a better way
 		this.request.headers['authorization'] = this.request.headers['authorization'].substr(this.authorization.length)
 		this.$authorization = undefined;
-		console.log(this.request.headers['authorization']);
-		callback();
+		callback(null, result);
 	}
 }
 
