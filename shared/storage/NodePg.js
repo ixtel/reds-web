@@ -465,7 +465,6 @@ exports.prototype.readEntities = function(types, eids, callback) {
 
 	function readEntitiesForType(type, index) {
 		var table;
-		console.log(this.options);
 		table = this.options['namespace']+".entity."+type;
 		count = index;
 		this.$client.query("SELECT * FROM \""+table+"\" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);

@@ -35,8 +35,10 @@ exports.prototype.delegate = function() {
 }
 
 exports.prototype.authorizeNode = function(callback) {
+	// TODO Ignoring a missing authorization and simply returning the
+	//      request data is probably not the best idea.
 	if (!this.authorization)
-		return callback(new HttpError(401, "Missing authorization"));
+		return callback(null, this.requestJson);
 	// NOTE Note this check won't be needed once the session can handle multiple facilities
 	if (this.authorization['crypto'] != this.crypto.name)
 		return callback(new HttpError(400, "Unsupported crypto facility"));
