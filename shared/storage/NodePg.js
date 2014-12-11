@@ -48,7 +48,7 @@ exports.prototype.readPod = function(pid_url, callback) {
 	afterQuery);
 
 	function afterQuery(error, result) {
-		if (result.rows[0] === undefined)
+		if (result && result.rows[0] === undefined)
 			error = new Error("pod not found");
 		callback(error||null, result?result.rows[0]:null);
 	}
@@ -87,7 +87,7 @@ exports.prototype.resolvePod = function(did, callback) {
 	afterQuery);
 
 	function afterQuery(error, result) {
-		if (result.rows[0] === undefined)
+		if (result && result.rows[0] === undefined)
 			error = new Error("pod not found");
 		callback(error||null, result?result.rows[0]:null);
 	}
@@ -115,7 +115,7 @@ exports.prototype.readNode = function(nid, callback) {
 	afterQuery);
 
 	function afterQuery(error, result) {
-		if (result.rows[0] === undefined)
+		if (result && result.rows[0] === undefined)
 			error = new Error("node not found");
 		callback(error||null, result?result.rows[0]:null);
 	}
