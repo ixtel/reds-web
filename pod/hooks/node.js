@@ -3,13 +3,15 @@
 var HttpError = require("../../shared/HttpError");
 
 exports.POST = function(session) {
-	var authP = session.crypto.generateKeypair();
-	var auth = session.crypto.combineKeypair(authP.privateKey, session.requestJson['auth_n']);
+	var authP, auth, values, node;
+	authP = session.crypto.generateKeypair();
+	auth = session.crypto.combineKeypair(authP.privateKey, session.requestJson['auth_n']);
 	// NOTE We don't want to modify requestJson so we create our own JSON object here
-	var values = JSON.parse(session.requestText);
+	values = JSON.parse(session.requestText);
 	values['auth'] = auth;
 	delete values['auth_n'];
-	session.storage.createNode(values, afterCreateNode);
+	delete values['types'];
+	session.storage.createNode(values, afterCreateNode.bind(this));
 
 	function afterCreateNode(error, result) {
 		if (error !== null) {
@@ -21,8 +23,25 @@ exports.POST = function(session) {
 					return session.abort(error);
 			}
 		}
-		result['auth_p'] = authP.publicKey;
-		session.writeJson(result);
+		node = result
+		delete node['auth'];
+		node['auth_p'] = authP.publicKey;
+		session.storage.createNamespace(node['namespace'], session.requestJson['types'], afterCreateNamespace.bind(this));
+	}
+
+	function afterCreateNamespace(error) {
+		if (error) {
+			if (node) {
+				return session.storage.deleteNode(node['nid'], function(err) {
+					// NOTE Simply logging the error is probably not the best way to handle it ;)
+					if (err)
+						console.error(err);
+					session.abort(error[0]||error);
+				});
+			}
+			return session.abort(error[0]||error);
+		}
+		session.writeJson(node);
 		session.end();
 	}
 }

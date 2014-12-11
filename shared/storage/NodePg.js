@@ -98,9 +98,9 @@ exports.prototype.resolvePod = function(did, callback) {
 exports.prototype.createNode = function(values, callback) {
 	this.$client.query("INSERT INTO nodes (namespace,pid,auth) "+
 		"VALUES ($1,$2,decode($3,'base64')) "+
-		"RETURNING nid",
+		"RETURNING nid, namespace, pid, encode(auth,'base64') AS auth",
 		[values['namespace'], values['pid'], values['auth']],
-	afterQuery);
+	afterQuery.bind(this));
 
 	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
@@ -117,6 +117,86 @@ exports.prototype.readNode = function(nid, callback) {
 	function afterQuery(error, result) {
 		if (result && result.rows[0] === undefined)
 			error = new Error("node not found");
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+exports.prototype.deleteNode = function(nid, callback) {
+	this.$client.query("DELETE FROM nodes "+
+		"WHERE nid=$1 "+
+		"RETURNING nid",
+		[nid],
+	afterQuery);
+
+	function afterQuery(error, result) {
+		callback(error||null, result?result.rows[0]:null);
+	}
+}
+
+// INFO Namespace operations
+
+exports.prototype.createNamespace = function(name, types, callback) {
+	var count, errors;
+	this.$client.query("CREATE SCHEMA \""+name+"\"", afterCreateQuery.bind(this));
+
+	function afterCreateQuery(error, result) {
+		if (error)
+			return cleanupAfterError.call(this, error);
+		this.$client.query("CREATE TABLE \""+name+"\".tickets "+
+   			"(tid SERIAL PRIMARY KEY, did INTEGER NOT NULL, tkey BYTEA NOT NULL, tflags INTEGER NOT NULL)",
+		afterTicketQuery.bind(this));
+	}
+
+	function afterTicketQuery(error, result) {
+		if (error)
+			return cleanupAfterError.call(this, error);
+		this.$client.query("CREATE TABLE \""+name+"\".domains "+
+   			"(did INTEGER PRIMARY KEY, dkey BYTEA NOT NULL)",
+		afterDomainQuery.bind(this));
+	}
+
+	function afterDomainQuery(error) {
+		var type, columns, column;
+		if (error)
+			return cleanupAfterError.call(this, error);
+		errors = new Array();
+		count = 0;
+		for (type in types) {
+			columns = "eid INTEGER PRIMARY KEY, did INTEGER NOT NULL";
+			for (column in types[type])
+				columns += ", "+column+" "+types[type][column];
+			this.$client.query("CREATE TABLE \""+name+"\".entity_"+type+" "+
+				"("+columns+")",
+			afterTypeQuery.bind(this));
+			count++;
+		}
+	}
+
+	function afterTypeQuery(error) {
+		if (error)
+			errors.push(error);
+		if (--count == 0) {
+			if (errors.length)
+				cleanupAfterError.call(this, errors);
+			else
+				callback(null);
+		}
+	}
+
+	function cleanupAfterError(error) {
+		this.$client.query("DROP SCHEMA IF EXISTS \""+name+"\" CASCADE", function(err) {
+			// NOTE Simply logging the error is probably not the best way to handle it ;)
+			if (err)
+				console.error(err);
+			callback(error);
+		});
+	}
+}
+
+exports.prototype.deleteNamespace = function(name, types, callback) {
+	this.$client.query("DROP SCHEMA IF EXISTS \""+name+"\" CASCADE", afterQuery);
+
+	function afterQuery(error, result) {
 		callback(error||null, result?result.rows[0]:null);
 	}
 }
@@ -212,9 +292,10 @@ exports.prototype.unregisterDomain = function(did, callback) {
 	}
 }
 
+// TODO Check for SQL injection!
 exports.prototype.createDomain = function(values, callback) {
-	var table = this.options['namespace']+".domains";
-	this.$client.query("INSERT INTO \""+table+"\" (did, dkey) "+
+	var table = "\""+this.options['namespace']+"\".domains";
+	this.$client.query("INSERT INTO "+table+" (did, dkey) "+
 		"VALUES ($1,decode($2,'base64')) "+
 		"RETURNING did",
 		[values['did'], values['dkey']],
@@ -225,10 +306,11 @@ exports.prototype.createDomain = function(values, callback) {
 	}
 }
 
+// TODO Check for SQL injection!
 exports.prototype.readDomain = function(did, callback) {
-	var table = this.options['namespace']+".domains";
+	var table = "\""+this.options['namespace']+"\".domains";
 	this.$client.query("SELECT did, encode(dkey,'base64') AS dkey "+
-		"FROM \""+table+"\" "+
+		"FROM "+table+" "+
 		"WHERE did=$1 ",
 		[did],
 	afterQuery);
@@ -238,9 +320,10 @@ exports.prototype.readDomain = function(did, callback) {
 	}
 }
 
+// TODO Check for SQL injection!
 exports.prototype.deleteDomain = function(did, callback) {
-	var table = this.options['namespace']+".domains";
-	this.$client.query("DELETE FROM \""+table+"\" "+
+	var table = "\""+this.options['namespace']+"\".domains";
+	this.$client.query("DELETE FROM "+table+" "+
 		"WHERE did=$1 "+
 		"RETURNING did",
 		[did],
@@ -253,9 +336,10 @@ exports.prototype.deleteDomain = function(did, callback) {
 
 // INFO Ticket operations
 
+// TODO Check for SQL injection!
 exports.prototype.createTicket = function(values, callback) {
-	var table = this.options['namespace']+".tickets";
-	this.$client.query("INSERT INTO \""+table+"\" (did, tkey, tflags) "+
+	var table = "\""+this.options['namespace']+"\".tickets";
+	this.$client.query("INSERT INTO "+table+" (did, tkey, tflags) "+
 		"VALUES ($1,decode($2,'base64'), $3) "+
 		"RETURNING tid, tflags",
 		[values['did'], values['tkey'], values['tflags']],
@@ -266,10 +350,11 @@ exports.prototype.createTicket = function(values, callback) {
 	}
 }
 
+// TODO Check for SQL injection!
 exports.prototype.readTicket = function(tid, callback) {
-	var table = this.options['namespace']+".tickets";
+	var table = "\""+this.options['namespace']+"\".tickets";
 	this.$client.query("SELECT tid, encode(tkey,'base64') AS tkey, tflags "+
-		"FROM \""+table+"\" "+
+		"FROM "+table+" "+
 		"WHERE tid=$1 ",
 		[tid],
 	afterQuery);
@@ -437,7 +522,7 @@ exports.prototype.unregisterEntities = function(selector, did, callback) {
 // TODO Check for SQL injection!
 exports.prototype.createEntity = function(type, values, callback) {
 	var table, fields, vals, params, field;
-	table = this.options['namespace']+".entity."+type;
+	table = "\""+this.options['namespace']+"\".entity_"+type;
 	fields = new Array();
 	vals = new Array();
 	params = new Array();
@@ -446,7 +531,7 @@ exports.prototype.createEntity = function(type, values, callback) {
 		params.push(values[field]);
 		vals.push("$"+params.length);
 	}
-	this.$client.query("INSERT INTO \""+table+"\" ("+fields.join(",")+") "+
+	this.$client.query("INSERT INTO "+table+" ("+fields.join(",")+") "+
 		"VALUES ("+vals.join(",")+") "+
 		"RETURNING *",
 		params,
@@ -465,9 +550,9 @@ exports.prototype.readEntities = function(types, eids, callback) {
 
 	function readEntitiesForType(type, index) {
 		var table;
-		table = this.options['namespace']+".entity."+type;
+		table = "\""+this.options['namespace']+"\".entity_"+type;
 		count = index;
-		this.$client.query("SELECT * FROM \""+table+"\" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
+		this.$client.query("SELECT * FROM "+table+" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
 
 		function afterQuery(error, result) {
 			if (error)
@@ -488,7 +573,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
 
 	function updateEntitiesForType(type, index) {
 		var table, field, set, fields, params, vals, val, i;
-		table = this.options['namespace']+".entity."+type;
+		table = "\""+this.options['namespace']+"\".entity_"+type;
 		count = index;
 		set = new Array();
 		fields = new Array();
@@ -511,7 +596,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
 			}
 			vals.push("("+val.substr(1)+")");
 		}
-		this.$client.query("UPDATE \""+table+"\" t SET "+set.join(",")+" "+
+		this.$client.query("UPDATE "+table+" t SET "+set.join(",")+" "+
 			"FROM (VALUES "+vals.join(",")+") AS v("+fields.join(",")+") "+
 			"WHERE t.eid = v.eid "+
 			"RETURNING *",
@@ -536,9 +621,9 @@ exports.prototype.deleteEntities = function(types, eids, callback) {
 
 	function deleteEntitiesForType(type, index) {
 		var table;
-		table = this.options['namespace']+".entity."+type;
+		table = "\""+this.options['namespace']+"\".entity_"+type;
 		count = index;
-		this.$client.query("DELETE FROM \""+table+"\" WHERE eid IN ("+eids[index].join(",")+") RETURNING *", afterQuery);
+		this.$client.query("DELETE FROM "+table+" WHERE eid IN ("+eids[index].join(",")+") RETURNING *", afterQuery);
 
 		function afterQuery(error, result) {
 			if (error)
