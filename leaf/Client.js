@@ -355,6 +355,7 @@ Client.prototype.$resolvePath = function(path, callback) {
 Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 	var match, request;
 	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+$/);
+    console.log("createentity: " + path);
 	if (!match)
 		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
 	if (data['did'])
@@ -424,6 +425,7 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
         request.send();
 
 		function onLoad() {
+            console.log("onLoad");
 			if (!request.authorizeTicket())
 				return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
 			count++;
@@ -453,9 +455,11 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
 	function finalize() {
 		var type;
 		if (errors.length)
-			this.$emitEvent("error", errorCallback, errors);
-		for (type in results)
-			this.$emitEvent("load", callback, results[type], type);
+			return this.$emitEvent("error", errorCallback, errors);
+        for (type in results)
+            this.$emitEvent("load", callback, results[type], type);
+        if (!type)
+            this.$emitEvent("load", callback, null, null);
 	}
 }
 
@@ -518,11 +522,13 @@ Client.prototype.updateEntities = function(path, data, callback, errorCallback) 
 	}
 
 	function finalize() {
-		var type;
-		if (errors.length)
-			this.$emitEvent("error", errorCallback, errors);
-		else for (type in results)
-			this.$emitEvent("load", callback, results[type], type);
+        var type;
+        if (errors.length)
+            return this.$emitEvent("error", errorCallback, errors);
+        for (type in results)
+            this.$emitEvent("load", callback, results[type], type);
+        if (!type)
+            this.$emitEvent("load", callback, null, null);
 	}
 }
 
@@ -530,7 +536,7 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
 	var match, results, errors, count;
 	match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
 	if (!match)
-		return this.dispatchEvent("error", new Error("invalid path"));
+		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
 	results = new Object();
 	errors = new Array();
 	count = 0;
@@ -584,11 +590,13 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
 	}
 
 	function finalize() {
-		var type;
-		if (errors.length)
-			this.$emitEvent("error", errorCallback, errors);
-		else for (type in results)
-			this.$emitEvent("load", callback, results[type], type);
+        var type;
+        if (errors.length)
+            return this.$emitEvent("error", errorCallback, errors);
+        for (type in results)
+            this.$emitEvent("load", callback, results[type], type);
+        if (!type)
+            this.$emitEvent("load", callback, null, null);
 	}
 }
 
