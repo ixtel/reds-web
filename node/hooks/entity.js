@@ -98,10 +98,10 @@ exports.HEAD = function(session) {
 			else
 				return session.end(204);
 		}
-		dids = new Array();
+		dids = new Object();
 		for (i=0; i<result.length; i++)
-			dids.push(result[i]['did']);
-		session.write(undefined, "application/x.reds.domain;did="+dids.join(","));
+			dids[result[i]['did']] = true;
+		session.write(undefined, "application/x.reds.domain;did="+Object.keys(dids).join(","));
 		session.end(result.length?200:204);
 	}
 }
