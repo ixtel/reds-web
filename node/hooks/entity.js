@@ -62,6 +62,7 @@ exports.POST = function(session) {
 		rselector = JSON.parse(JSON.stringify(session.selector));
 		rselector.last = rselector[rselector.length-1];
 		rselector.last.value = eid;
+		rselector.hard = !session.selector.last.value || (session.selector.query == "hard")
 		session.storage.registerEntity(rselector, session.type.options['did'], afterRegisterEntity);
 	}
 

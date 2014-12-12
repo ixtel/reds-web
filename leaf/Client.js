@@ -354,8 +354,7 @@ Client.prototype.$resolvePath = function(path, callback) {
 
 Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 	var match, request;
-	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+$/);
-    console.log("createentity: " + path);
+	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+(?:\?hard)?$/);
 	if (!match)
 		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
 	if (data['did'])
@@ -425,7 +424,6 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
         request.send();
 
 		function onLoad() {
-            console.log("onLoad");
 			if (!request.authorizeTicket())
 				return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
 			count++;

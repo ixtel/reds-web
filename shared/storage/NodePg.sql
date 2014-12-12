@@ -48,9 +48,21 @@ CREATE TRIGGER after_delete_entity_trigger AFTER DELETE ON entities
 
 -- INFO Relation triggers
 	
+CREATE OR REPLACE FUNCTION before_insert_relation() RETURNS TRIGGER AS $$
+	if ($_TD->{new}{hard} eq "t") {
+		spi_exec_query("UPDATE relations SET hard=false WHERE hard = true AND child = $_TD->{new}{child}", 1);
+	}
+	return;
+$$ LANGUAGE plperl;
+DROP TRIGGER IF EXISTS before_insert_relation_trigger ON relations;
+CREATE TRIGGER before_insert_relation_trigger BEFORE INSERT ON relations
+  FOR EACH ROW EXECUTE PROCEDURE before_insert_relation();
+
 CREATE OR REPLACE FUNCTION before_delete_relation() RETURNS TRIGGER AS $$
 	if ($_SHARED{simulation_active}) {
-		spi_exec_query("DELETE FROM entities WHERE eid = $_TD->{old}{child}", 1);
+		if ($_TD->{old}{hard} eq "t") {
+			spi_exec_query("DELETE FROM entities WHERE eid = $_TD->{old}{child}", 1);
+		}
 		return "SKIP";
 	}
 	return;
@@ -60,7 +72,9 @@ CREATE TRIGGER before_delete_relation_trigger BEFORE DELETE ON relations
   FOR EACH ROW EXECUTE PROCEDURE before_delete_relation();
 
 CREATE OR REPLACE FUNCTION after_delete_relation() RETURNS TRIGGER AS $$
-	spi_exec_query("DELETE FROM entities WHERE eid = $_TD->{old}{child}", 1);
+	if ($_TD->{old}{hard} eq "t") {
+		spi_exec_query("DELETE FROM entities WHERE eid = $_TD->{old}{child}", 1);
+	}
 	return;
 $$ LANGUAGE plperl;
 DROP TRIGGER IF EXISTS after_delete_relation_trigger ON relations;

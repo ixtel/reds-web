@@ -469,15 +469,20 @@ exports.prototype.registerEntity = function(selector, did, callback) {
 		],
 	afterEntitiesQuery.bind(this));
 
+	// TODO Fail for hard relations tha span over domain boarders
 	function afterEntitiesQuery(error, result) {
 		if (error)
 			return callback(error, null);
 		entity = result.rows[0]||null;
 		if (selector.length > 1) {
-			this.$client.query("INSERT INTO relations (parent, child) "+
-				"VALUES ($1, $2) "+
+			this.$client.query("INSERT INTO relations (parent, child, hard) "+
+				"VALUES ($1, $2, $3) "+
 				"RETURNING parent, child",
-				[selector[selector.length-2].value, selector.last.value],
+				[
+					selector[selector.length-2].value,
+					selector.last.value,
+					selector.hard
+				],
 			afterRelationsQuery);
 		}
 		else {

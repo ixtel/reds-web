@@ -125,16 +125,19 @@ Object.defineProperty(exports.prototype, "requestJson", {
 
 Object.defineProperty(exports.prototype, "selector", {
 	get: function() {
+		var purl;
 		if (this.$selector === undefined) {
+			purl = this.request.url.split('?');
 			this.$selector = new Array();
-			this.$selector.hook = this.request.url.replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
+			this.$selector.hook = purl[0].replace(/([^\/\?!]+)(?:\/([^\/\?!]+))?/g, function(m, p1, p2) {
 				this.$selector.push({
 					'key': p1||null,
 					'value': p2||null
 				});
-				this.$selector.last = this.$selector[this.$selector.length-1];
 				return p1;
 			}.bind(this));
+			this.$selector.last = this.$selector[this.$selector.length-1];
+			this.$selector.query = purl[1];
 		}
 		return this.$selector;
 	}
