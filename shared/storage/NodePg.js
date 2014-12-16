@@ -368,7 +368,10 @@ exports.prototype.readTicket = function(tid, callback) {
 
 // TODO Check for SQL injection!
 // TODO Handle multiple types
-exports.prototype.selectEntities = function(selector, did, callback) {
+// TODO This onlyHard thingy is dirty as hell and just a workaround to prevent
+//      the deletion of soft linked entities on the pod. The whole relation handling
+//      needs a total workover ASAP!!!!!
+exports.prototype.selectEntities = function(selector, did, callback, onlyHard) {
 	var from, where;
 	from = " FROM ";
 	where = " WHERE ";
@@ -383,7 +386,7 @@ exports.prototype.selectEntities = function(selector, did, callback) {
 			where += "t"+r+".name='"+selector[i].key+"' AND e"+r+".eid IN ("+selector[i].value+") ";
 		if (i>0) {
 			from += "JOIN relations r"+r+" ON e"+r+".eid=r"+r+".child ";
-			where += "AND ";
+			where += onlyHard ? "AND r"+r+".hard=true AND " : "AND "
 		}
 	}
 	this.$client.query("SELECT e0.eid,e0.did,e0.root,t0.name AS type"+from+where, afterQuery);
@@ -398,7 +401,7 @@ exports.prototype.selectCascade = function(selector, did, callback) {
 	this.$client.query("SELECT set_cascade_domain($1)", did, afterCascadeQuery.bind(this));
 
 	function afterCascadeQuery() {
-		this.selectEntities(selector, did, afterSelectEntities.bind(this));
+		this.selectEntities(selector, did, afterSelectEntities.bind(this), true);
 	}
 
 	function afterSelectEntities(error, rows) {
@@ -497,7 +500,17 @@ exports.prototype.registerEntity = function(selector, did, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.unregisterEntities = function(selector, did, callback) {
-	this.$client.query("SELECT set_cascade_domain($1)", did, afterCascadeQuery.bind(this));
+	if (selector.length == 1) {
+		this.$client.query("SELECT set_cascade_domain($1)", did, afterCascadeQuery.bind(this));
+	}
+	else {
+		// NOTE I'm pretty sure that this might delete some relations by accident if the selector length
+		// 		is greater than 2 or if there are multiple parents involved...
+		this.$client.query("DELETE FROM relations "+
+			"WHERE child IN ("+selector.last.value+") AND parent IN ("+selector[selector.length-2].value+")"+
+			"RETURNING *",
+		afterEntitiesQuery);
+	}
 
 	// TODO Move this code into entity hook
 	function afterCascadeQuery() {

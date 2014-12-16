@@ -9,7 +9,7 @@ function parseSelection(selection) {
 		'types': new Object(),
 		'path': null
 	};
-	for (i=0; i<selection.length; i++) {
+	for (i=0; selection && i<selection.length; i++) {
 		if (!result.types[selection[i]['type']]) {
 			result.types[selection[i]['type']] = new Array(selection[i]);
 			result.types[selection[i]['type']].estr = selection[i]['eid'];
@@ -24,12 +24,11 @@ function parseSelection(selection) {
 		estr = (estr ? estr+";" : "/")+result.types[type].estr;
 		delete result.types[type].estr;
 	}
-	result.path = tstr+estr;
+	result.path = tstr && estr ? tstr+estr : null;
 	return result;
 }
 
 exports.POST = function(session) {
-    console.log("POST")
 	var route, eid;
 	if (session.selector.last.value) {
         session.selector.hard = (session.selector.query == "hard");
@@ -214,19 +213,24 @@ exports.DELETE = function(session) {
 		var types, eids, i, t;
 		if (error)
 			return session.abort(error);
-		if (!result) {
-			// NOTE Only return an error if the request asked for specific eids
-			if (session.selector.last.value != "*")
-				return session.abort(new HttpError(404, "entities not found"));
-			else
-				return session.end(204);
-		}
 		selection = parseSelection(result);
-		route.method = "DELETE";
-		route.path = selection.path;
-		route.write(session.requestText, session.request.headers['content-type']);
-		route.requestHeaders['authorization'] = session.request.headers['authorization'];
-		route.send();
+		if (selection.path) {
+			if (!result) {
+				// NOTE Only return an error if the request asked for specific eids
+				if (session.selector.last.value != "*")
+					return session.abort(new HttpError(404, "entities not found"));
+				else
+					return session.end(204);
+			}
+			route.method = "DELETE";
+			route.path = selection.path;
+			route.write(session.requestText, session.request.headers['content-type']);
+			route.requestHeaders['authorization'] = session.request.headers['authorization'];
+			route.send();
+		}
+		else {
+			session.storage.unregisterEntities(session.selector, session.type.options['did'], afterUnregisterEntities);
+		}
 	}
 
 	function onRouteResponse() {
