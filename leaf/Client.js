@@ -354,9 +354,10 @@ Client.prototype.$resolvePath = function(path, callback) {
 
 Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 	var match, request;
-	match = path.match(/^((?:\/\w+\/\d+)+)?\/\w+(?:\?hard)?$/);
+	match = path.match(/^((?:\/\w+\/\d+)+?)?\/\w+(?:\/\d+(?:\?hard)?)?$/);
 	if (!match)
 		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
+    console.log(match);
 	if (data['did'])
 		this.$registerLeaf(data['did'], afterResolvePath.bind(this));
 	else if (match[1])
@@ -367,12 +368,8 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 	function afterResolvePath(error, did, index, length) {
 		if (error)
 			return onError.call(this, {'detail':error});
-		if (!did) {
-    		if (length == 0)
-				return finalize.call(this)
-			else
-				return onError.call(this, {'detail':new Error("undefined domain id")});
-		}
+		if (!did)
+			return onError.call(this, {'detail':new Error("undefined domain id")});
 		request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
 		request.open("POST", this.options.url, path);
 		request.writeEncrypted(data);

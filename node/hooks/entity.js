@@ -29,8 +29,10 @@ function parseSelection(selection) {
 }
 
 exports.POST = function(session) {
+    console.log("POST")
 	var route, eid;
 	if (session.selector.last.value) {
+        session.selector.hard = (session.selector.query == "hard");
 		session.storage.registerEntity(session.selector, session.type.options['did'], afterRegisterEntity);
 	}
 	else {
@@ -62,8 +64,8 @@ exports.POST = function(session) {
 		rselector = JSON.parse(JSON.stringify(session.selector));
 		rselector.last = rselector[rselector.length-1];
 		rselector.last.value = eid;
-		rselector.hard = !session.selector.last.value || (session.selector.query == "hard")
-		session.storage.registerEntity(rselector, session.type.options['did'], afterRegisterEntity);
+		rselector.hard = true;
+        session.storage.registerEntity(rselector, session.type.options['did'], afterRegisterEntity);
 	}
 
 	function onRouteError(error) {
