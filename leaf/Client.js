@@ -354,10 +354,10 @@ Client.prototype.$resolvePath = function(path, callback) {
 
 Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 	var match, request;
-	match = path.match(/^((?:\/\w+\/\d+)+?)?\/\w+(?:\/\d+(?:\?hard)?)?$/);
+    console.log(path);
+	match = path.match(/^((?:\/\w+\/\d+)+?)?\/\w+(\/\d+(?:\?hard)?)?$/);
 	if (!match)
 		return this.$emitEvent("error", errorCallback, new Error("invalid path"));
-    console.log(match);
 	if (data['did'])
 		this.$registerLeaf(data['did'], afterResolvePath.bind(this));
 	else if (match[1])
@@ -377,10 +377,15 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 		request.send();
 
 		function onLoad() {
-			if (!request.authorizeTicket())
-				this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
-			else
-				this.$emitEvent("load", callback, request.responseEncrypted);
+            // NOTE If match[2] is set only a relation operation took place on the node
+            if (match[2])
+                this.$emitEvent("load", callback, request.responseJson);
+            else {
+                if (!request.authorizeTicket())
+                    this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
+                else
+                    this.$emitEvent("load", callback, request.responseEncrypted);
+            }
 		}
 
 		function onError(evt) {
@@ -389,7 +394,7 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 					afterResolvePath.call(this, error, did, index, length);
 				}.bind(this));
 			}
-			this.$emitEvent("error", errorCallback, evt.detail);
+            this.$emitEvent("error", errorCallback, evt.detail);
 		}
 	}
 }

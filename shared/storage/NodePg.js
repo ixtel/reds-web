@@ -549,6 +549,11 @@ exports.prototype.createEntity = function(type, values, callback) {
 		params.push(values[field]);
 		vals.push("$"+params.length);
 	}
+    console.log(values);
+    console.log("INSERT INTO "+table+" ("+fields.join(",")+") "+
+    "VALUES ("+vals.join(",")+") "+
+    "RETURNING *");
+    console.log(params);
 	this.$client.query("INSERT INTO "+table+" ("+fields.join(",")+") "+
 		"VALUES ("+vals.join(",")+") "+
 		"RETURNING *",
