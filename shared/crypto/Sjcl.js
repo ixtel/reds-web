@@ -13,108 +13,108 @@ var sjcl = loadSjcl();
 var cache = new Object();
 
 var Sjcl = function() {
-	// NOTE Nothing to here (but maybe in other facilities)
+    // NOTE Nothing to here (but maybe in other facilities)
 }
 
 Sjcl.prototype.name = "sjcl-1";
 
 Sjcl.prototype.generateTimestamp = function() {
-	var now = Date.now();
-	var low = now&0xffffffff;
-	var high = Math.floor(now/0xffffffff);
-	var timeBytes = [high, low];
-	var saltBytes = sjcl.random.randomWords(6, 10);
-	return sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes));
+    var now = Date.now();
+    var low = now&0xffffffff;
+    var high = Math.floor(now/0xffffffff);
+    var timeBytes = [high, low];
+    var saltBytes = sjcl.random.randomWords(6, 10);
+    return sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes));
 }
 
 Sjcl.prototype.compareTimestamps = function(a, b) {
-	var timeA = sjcl.codec.base64.toBits(a);
-	var timeB = sjcl.codec.base64.toBits(b);
-	var nowA = timeA[0]*0x100000000 + timeA[1];
-	var nowB = timeB[0]*0x100000000 + timeB[1];
-	return nowA - nowB;
+    var timeA = sjcl.codec.base64.toBits(a);
+    var timeB = sjcl.codec.base64.toBits(b);
+    var nowA = timeA[0]*0x100000000 + timeA[1];
+    var nowB = timeB[0]*0x100000000 + timeB[1];
+    return nowA - nowB;
 }
 
 // TODO Check if \n exists in arguments
 Sjcl.prototype.concatenateStrings = function() {
-	var values = Array.prototype.slice.apply(arguments);
-	return values.join("\n");
+    var values = Array.prototype.slice.apply(arguments);
+    return values.join("\n");
 }
 
 Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
-	console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
-	var index = this.generateHmac(data, salt);
-	if (!fresh && cache[index])
-		return cache[index];
-	var hashBits = sjcl.misc.pbkdf2(data, salt, 16000, 256);
-	cache[index] = sjcl.codec.base64.fromBits(hashBits);
-	return cache[index];
+    console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
+    var index = this.generateHmac(data, salt);
+    if (!fresh && cache[index])
+        return cache[index];
+    var hashBits = sjcl.misc.pbkdf2(data, salt, 16000, 256);
+    cache[index] = sjcl.codec.base64.fromBits(hashBits);
+    return cache[index];
 }
 
 Sjcl.prototype.generateKey = function() {
-	var keyBits = sjcl.random.randomWords(8, 10);
-	return sjcl.codec.base64.fromBits(keyBits);
+    var keyBits = sjcl.random.randomWords(8, 10);
+    return sjcl.codec.base64.fromBits(keyBits);
 }
 
 Sjcl.prototype.generateKeypair = function(seed) {
     var privateBn = sjcl.bn.random(sjcl.ecc.curves.k256.r, 10);
     var publicBn = sjcl.ecc.curves.k256.G.mult(privateBn);
-	return {
-		'privateKey': sjcl.codec.base64.fromBits(privateBn.toBits()),
-		'publicKey': sjcl.codec.base64.fromBits(publicBn.toBits())
-	}
+    return {
+        'privateKey': sjcl.codec.base64.fromBits(privateBn.toBits()),
+        'publicKey': sjcl.codec.base64.fromBits(publicBn.toBits())
+    }
 }
 
 Sjcl.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
-	var privateBits = sjcl.codec.base64.toBits(privateKey);
-	var publicBits = sjcl.codec.base64.toBits(publicKey);
-	var privateBn = sjcl.bn.fromBits(privateBits);
-	var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
-	var sharedBn = publicBn.mult(privateBn);
-	var keyBits = sjcl.hash.sha256.hash(sharedBn.toBits());
-	if (padKey) {
-		var padBits = sjcl.codec.base64.toBits(padKey);
-		keyBits[0] = keyBits[0]^padBits[0];
-		keyBits[1] = keyBits[1]^padBits[1];
-		keyBits[2] = keyBits[2]^padBits[2];
-		keyBits[3] = keyBits[3]^padBits[3];
-		keyBits[4] = keyBits[4]^padBits[4];
-		keyBits[5] = keyBits[5]^padBits[5];
-		keyBits[6] = keyBits[6]^padBits[6];
-		keyBits[7] = keyBits[7]^padBits[7];
-	}
-	return sjcl.codec.base64.fromBits(keyBits);
+    var privateBits = sjcl.codec.base64.toBits(privateKey);
+    var publicBits = sjcl.codec.base64.toBits(publicKey);
+    var privateBn = sjcl.bn.fromBits(privateBits);
+    var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
+    var sharedBn = publicBn.mult(privateBn);
+    var keyBits = sjcl.hash.sha256.hash(sharedBn.toBits());
+    if (padKey) {
+        var padBits = sjcl.codec.base64.toBits(padKey);
+        keyBits[0] = keyBits[0]^padBits[0];
+        keyBits[1] = keyBits[1]^padBits[1];
+        keyBits[2] = keyBits[2]^padBits[2];
+        keyBits[3] = keyBits[3]^padBits[3];
+        keyBits[4] = keyBits[4]^padBits[4];
+        keyBits[5] = keyBits[5]^padBits[5];
+        keyBits[6] = keyBits[6]^padBits[6];
+        keyBits[7] = keyBits[7]^padBits[7];
+    }
+    return sjcl.codec.base64.fromBits(keyBits);
 }
 
 Sjcl.prototype.generateHmac = function(data, key) {
-	var keyBits = sjcl.codec.base64.toBits(key);
-	var sha256Hmac = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
-	var hmacBits = sha256Hmac.encrypt(data);
-	return sjcl.codec.base64.fromBits(hmacBits);
+    var keyBits = sjcl.codec.base64.toBits(key);
+    var sha256Hmac = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
+    var hmacBits = sha256Hmac.encrypt(data);
+    return sjcl.codec.base64.fromBits(hmacBits);
 }
 
 Sjcl.prototype.encryptData = function(data, key, vector) {
-	// TODO Is one iteration enough to generate a decent key?
-	//      Can/Shall we use just a SHA256 HMAC instead?
-	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
-	var keyBits = derivedBits.slice(0, 4);
-	var ivBits = derivedBits.slice(4, 8);
-	var dataBits = sjcl.codec.utf8String.toBits(data);
-	var aes128Cipher = new sjcl.cipher.aes(keyBits);
+    // TODO Is one iteration enough to generate a decent key?
+    //      Can/Shall we use just a SHA256 HMAC instead?
+    var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
+    var keyBits = derivedBits.slice(0, 4);
+    var ivBits = derivedBits.slice(4, 8);
+    var dataBits = sjcl.codec.utf8String.toBits(data);
+    var aes128Cipher = new sjcl.cipher.aes(keyBits);
     var cdataBits = sjcl.mode.ccm.encrypt(aes128Cipher, dataBits, ivBits);
-	return sjcl.codec.base64.fromBits(cdataBits);
+    return sjcl.codec.base64.fromBits(cdataBits);
 }
 
 Sjcl.prototype.decryptData = function(cdata, key, vector) {
-	// TODO Is one iteration enough to generate a decent key?
-	//      Can/Shall we use just a SHA256 HMAC instead?
-	var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
-	var keyBits = derivedBits.slice(0, 4);
-	var ivBits = derivedBits.slice(4, 8);
-	var cdataBits = sjcl.codec.base64.toBits(cdata);
-	var aes128Cipher = new sjcl.cipher.aes(keyBits);
+    // TODO Is one iteration enough to generate a decent key?
+    //      Can/Shall we use just a SHA256 HMAC instead?
+    var derivedBits = sjcl.misc.pbkdf2(key, vector, 1, 256);
+    var keyBits = derivedBits.slice(0, 4);
+    var ivBits = derivedBits.slice(4, 8);
+    var cdataBits = sjcl.codec.base64.toBits(cdata);
+    var aes128Cipher = new sjcl.cipher.aes(keyBits);
     var dataBits = sjcl.mode.ccm.decrypt(aes128Cipher, cdataBits, ivBits);
-	return sjcl.codec.utf8String.fromBits(dataBits);
+    return sjcl.codec.utf8String.fromBits(dataBits);
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.

@@ -2,16 +2,16 @@
 "use strict";
 
 var HttpError = function(code, message) {
-	Error.call(this);
-	this.name = "REDS_HTTP_ERROR";
-	this.code = code || 500;
-	this.message = message || ""; 
+    Error.call(this);
+    this.name = "REDS_HTTP_ERROR";
+    this.code = code || 500;
+    this.message = message || ""; 
 }
 
 HttpError.prototype = Object.create(Error.prototype);
 
 HttpError.prototype.toString = function() {
-	return this.code+" ("+this.message+")";
+    return this.code+" ("+this.message+")";
 }
 
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.

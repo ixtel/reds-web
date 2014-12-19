@@ -7,24 +7,45 @@
 #      This setting will handle all files NOT found below.
 * text=auto
 
+# INFO Source code
+
+# NOTE The tabspace filter converts every four spaces at the beginnig of a
+#      line into tabs. Details are explained here:
+#      https://stackoverflow.com/questions/2316677/can-git-automatically-switch-between-spaces-and-tabs
+*.htm text filter=tabspace
+*.HTM text filter=tabspace
+*.html text filter=tabspace
+*.HTML text filter=tabspace
+*.php text filter=tabspace
+*.PHP text filter=tabspace
+*.css text filter=tabspace
+*.CSS text filter=tabspace
+*.js text filter=tabspace
+*.JS text filter=tabspace
+*.json text filter=tabspace
+*.JSON text filter=tabspace
+# NOTE Shell scripts always need Unix style line feeds
+*.sh text filter=tabspace eol=lf
+*.SH text filter=tabspace eol=lf
+
 # INFO Documents
 
-*.doc diff=astextplain
-*.DOC diff=astextplain
-*.docx diff=astextplain
-*.DOCX diff=astextplain
-*.dot diff=astextplain
-*.DOT diff=astextplain
-*.pdf diff=astextplain
-*.PDF diff=astextplain
-*.rtf diff=astextplain
-*.RTF diff=astextplain
-*.odt diff=odf
-*.ODT diff=odf
-*.ods diff=odf
-*.ODS diff=odf
-*.odp diff=odf
-*.ODP diff=odf
+*.doc binary diff=astextplain
+*.DOC binary diff=astextplain
+*.docx binary diff=astextplain
+*.DOCX binary diff=astextplain
+*.dot binary diff=astextplain
+*.DOT binary diff=astextplain
+*.pdf binary diff=astextplain
+*.PDF binary diff=astextplain
+*.rtf binary diff=astextplain
+*.RTF binary diff=astextplain
+*.odt binary diff=odf
+*.ODT binary diff=odf
+*.ods binary diff=odf
+*.ODS binary diff=odf
+*.odp binary diff=odf
+*.ODP binary diff=odf
 
 # INFO Graphics
 
@@ -43,8 +64,13 @@
 *.svgz binary
 *.SVGZ binary
 
-# INFO Scripts
-
-# NOTE Shell scripts use Unix style line feeds in any case
-*.sh text eol=lf
-*.SH text eol=lf
+# INFO Fonts
+#
+*.ttf binary
+*.TTF binary
+*.otf binary
+*.OTF binary
+*.eot binary
+*.EOT binary
+*.woff binary
+*.WOFF binary
