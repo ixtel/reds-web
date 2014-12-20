@@ -114,6 +114,14 @@ Request.prototype.signDomain = function() {
     this.$xhr.setRequestHeader("Authorization", "domain:"+this.credentials['did']+":"+time+":"+sig+":"+this.crypto.name);
 }
 
+Request.prototype.signInvitation = function() {
+    var time, msg, sig;
+    time = this.crypto.generateTimestamp();
+    msg = this.crypto.concatenateStrings("invitation", this.credentials['iid'], time, this.crypto.name, this.$method, this.$type, this.$data);
+    sig = this.crypto.generateHmac(msg, this.credentials['ikey']);
+    this.$xhr.setRequestHeader("Authorization", "invitation:"+this.credentials['iid']+":"+time+":"+sig+":"+this.crypto.name);
+}
+
 Request.prototype.signTicket = function() {
     var key, tid, msg, sig;
     key = this.crypto.generateHmac(this.credentials['tkey'], this.credentials['vec']);
@@ -181,6 +189,31 @@ Request.prototype.authorizeDomain = function() {
     return true;
 }
 
+Request.prototype.authorizeInvitation = function() {
+    var msg, sig;
+    if (!this.responseAuthorization)
+        return this.$emitError(new Error("Missing authorization"));
+    // NOTE Note this check won't be needed once the session can handle multiple facilities
+    if (this.responseAuthorization['crypto'] != this.crypto.name)
+        return this.$emitError(new Error("Unsupported crypto facility"));
+    if (this.responseAuthorization['realm'] != "invitation")
+        return this.$emitError(new Error("Invalid realm"));
+    if (!this.credentials['iid'])
+        return this.$emitError(new Error("Missing domain"));
+    msg = this.crypto.concatenateStrings(
+        this.responseAuthorization['realm'],
+        this.responseAuthorization['id'],
+        this.responseAuthorization['vec'],
+        this.responseAuthorization['crypto'],
+        this.$xhr.getResponseHeader("Content-Type"),
+        this.$xhr.responseText||""
+    );
+    sig = this.crypto.generateHmac(msg, this.credentials['ikey']);
+    if (sig != this.responseAuthorization['sig'])
+        return this.$emitError(new Error("Invalid authorization"));
+    return true;
+}
+
 Request.prototype.authorizeTicket = function() {
     var tid, key, msg, sig;
     if (!this.responseAuthorization)
@@ -236,7 +269,7 @@ Object.defineProperty(Request.prototype, "responseAuthorization", {
         if (this.$responseAuthorization === undefined) {
             this.$responseAuthorization = this.$xhr.getResponseHeader("Authorization") || null;
             if (this.$responseAuthorization) {
-                this.$responseAuthorization = this.$responseAuthorization.match(/(account|domain|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+                this.$responseAuthorization = this.$responseAuthorization.match(/(account|domain|invitation|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
                 if (this.$responseAuthorization) {
                     this.$responseAuthorization = {
                         'realm': this.$responseAuthorization[1],

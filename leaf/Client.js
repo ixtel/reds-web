@@ -278,6 +278,133 @@ Client.prototype.createOwnerTicket = function(did, callback, errorCallback) {
     }
 }
 
+Client.prototype.readTickets = function(did, tids, callback, errorCallback) {
+    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+
+    function afterRegisterLeaf(error) {
+        var request;
+        if (error)
+            return this.$emitEvent("error", errorCallback, evt.detail);
+        request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+        request.open("GET", this.options.url, "/!/domain/"+did+"/ticket/"+(tids?tids:"*"));
+        request.writeEncrypted();
+        request.signTicket();
+        request.send();
+
+        function onLoad(result) {
+            if (!request.authorizeTicket())
+                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
+            this.$emitEvent("load", callback, request.responseEncrypted);
+        }
+
+        function onError(evt) {
+            switch (evt.detail.code) {
+                case 401:
+                    delete Vault[this.vid].domain[did];
+                    return this.updateVault(afterRegisterLeaf.bind(this));
+                case 412:
+                    return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
+                default:
+                    this.$emitEvent("error", errorCallback, evt.detail);
+            }
+        }
+    }
+}
+
+Client.prototype.deleteTickets = function(did, tids, callback, errorCallback) {
+    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+
+    function afterRegisterLeaf(error) {
+        var request;
+        if (error)
+            return this.$emitEvent("error", errorCallback, evt.detail);
+        request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+        request.open("DELETE", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
+        request.writeEncrypted();
+        request.signTicket();
+        request.send();
+
+        function onLoad(result) {
+            if (!request.authorizeTicket())
+                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
+            this.$emitEvent("load", callback, request.responseEncrypted);
+        }
+
+        function onError(evt) {
+            if (evt.detail.code == 412)
+                return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
+            this.$emitEvent("error", errorCallback, evt.detail);
+        }
+    }
+}
+
+Client.prototype.createInvitation = function(did, flags, callback, errorCallback) {
+    var iidUrl, invitation;
+    invitation = {
+        'iid': this.crypto.generateKey(),
+        'did': did,
+        'ikey': this.crypto.generateKey(),
+        'iflags': flags
+    };
+    iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+
+    function afterRegisterLeaf(error) {
+        var request;
+        if (error)
+            return this.$emitEvent("error", errorCallback, evt.detail);
+        request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+        request.open("POST", this.options.url, "/!/invitation/"+iidUrl);
+        request.writeEncrypted(invitation);
+        request.signTicket();
+        request.send();
+
+        function onLoad(result) {
+            if (!request.authorizeTicket())
+                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
+            this.$emitEvent("load", callback, invitation);
+        }
+
+        function onError(evt) {
+            if (evt.detail.code == 412)
+                return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
+            this.$emitEvent("error", errorCallback, evt.detail);
+        }
+    }
+}
+
+Client.prototype.acceptInvitation = function(invitation, callback, errorCallback) {
+    var iidUrl, tkeyL, request, domain;
+    iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    tkeyL = this.crypto.generateKeypair();
+    request = this.$createRequest(invitation, callback, errorCallback, onLoad.bind(this));
+    request.open("PUT", this.options.url, "/!/invitation/"+iidUrl);
+    request.writeJson({
+        'tkey_l': tkeyL.publicKey
+    });
+    request.signInvitation();
+    request.send();
+
+    function onLoad(result) {
+        if (!request.authorizeInvitation())
+            return this.$emitEvent("error", errorCallback, new Error("invitation authorization failed"));
+        domain = {
+            'did': request.responseJson['did'],
+            'dkey': this.crypto.decryptData(request.responseJson['dkey'], invitation['ikey'], invitation['iid']),
+            'tid': request.responseJson['tid'],
+            'tkey': this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
+            'tflags': request.responseJson['tflags']
+        };
+        Vault[this.vid].domain[domain['did']] = domain;
+        // TODO Move into conveniance
+        this.updateVault(afterUpdateVault.bind(this));
+    }
+    
+    function afterUpdateVault() {
+        this.$emitEvent("load", callback, {'did':domain['did'],'tid':domain['tid']});
+    }
+}
+
 // INFO Entity operations
 
 // NOTE This function uses the only callback and won't dispatch any events. 
@@ -289,6 +416,7 @@ Client.prototype.$refreshLeaf = function(did, callback) {
     request.writeJson({
         'vec_l': vecL.publicKey
     });
+    // GOON Get rid of the dkey requirement
     request.signDomain();
     request.send();
 
@@ -354,7 +482,6 @@ Client.prototype.$resolvePath = function(path, callback) {
 
 Client.prototype.createEntity = function(path, data, callback, errorCallback) {
     var match, request;
-    console.log(path);
     match = path.match(/^((?:\/\w+\/\d+)+?)?\/\w+(\/\d+(?:\?hard)?)?$/);
     if (!match)
         return this.$emitEvent("error", errorCallback, new Error("invalid path"));
@@ -440,15 +567,24 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
         }
 
         function onError(evt) {
-            if (evt.detail.code == 412) {
-                return this.$refreshLeaf(did, function(error, did) {
-                    afterResolvePath.call(this, error, did, index, length);
-                }.bind(this));
+            switch (evt.detail.code) {
+                case 401:
+                    delete Vault[this.vid].domain[did];
+                    return this.updateVault(function(){
+                        count++;
+                        if (length-count == 0)
+                            finalize.call(this);
+                    }.bind(this));
+                case 412:
+                    return this.$refreshLeaf(did, function(error, did) {
+                        afterResolvePath.call(this, error, did, index, length);
+                    }.bind(this));
+                default:
+                    count++;
+                    errors.push(evt.detail);
+                    if (length-count == 0)
+                        finalize.call(this);
             }
-            count++;
-            errors.push(evt.detail);
-            if (length-count == 0)
-                finalize.call(this);
         }
     }
 
@@ -508,16 +644,23 @@ Client.prototype.updateEntities = function(path, data, callback, errorCallback) 
         }
 
         function onError(evt) {
-            evt.stopImmediatePropagation();
-            if (evt.detail.code == 412) {
-                return this.$refreshLeaf(did, function(error, did) {
-                    afterResolvePath.call(this, error, did, index, length);
-                }.bind(this));
+            switch (evt.detail.code) {
+                case 401:
+                    delete Vault[this.vid].domain[did];
+                    return this.updateVault(function(){
+                        if (length-count == 0)
+                            finalize.call(this);
+                    }.bind(this));
+                case 412:
+                    return this.$refreshLeaf(did, function(error, did) {
+                        afterResolvePath.call(this, error, did, index, length);
+                    }.bind(this));
+                default:
+                    count++;
+                    errors.push(evt.detail);
+                    if (length-count == 0)
+                        finalize.call(this);
             }
-            count++;
-            errors.push(evt.detail);
-            if (length-count == 0)
-                finalize.call(this);
         }
     }
 
@@ -576,16 +719,23 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
         }
 
         function onError(evt) {
-            evt.stopImmediatePropagation();
-            if (evt.detail.code == 412) {
-                return this.$refreshLeaf(did, function(error, did) {
-                    afterResolvePath.call(this, error, did, index, length);
-                }.bind(this));
+            switch (evt.detail.code) {
+                case 401:
+                    delete Vault[this.vid].domain[did];
+                    return this.updateVault(function(){
+                        if (length-count == 0)
+                            finalize.call(this);
+                    }.bind(this));
+                case 412:
+                    return this.$refreshLeaf(did, function(error, did) {
+                        afterResolvePath.call(this, error, did, index, length);
+                    }.bind(this));
+                default:
+                    count++;
+                    errors.push(evt.detail);
+                    if (length-count == 0)
+                        finalize.call(this);
             }
-            count++;
-            errors.push(evt.detail);
-            if (length-count == 0)
-                finalize.call(this);
         }
     }
 

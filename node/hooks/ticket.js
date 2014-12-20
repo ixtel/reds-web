@@ -3,7 +3,7 @@
 var HttpError = require("../../shared/HttpError");
 var Route = require("../Route");
 
-exports.POST = function(session) {
+function passThrough(session) {
     var route;
     route = new Route(session.crypto, session.storage);
     route.addListener("error", onRouteError);
@@ -12,8 +12,8 @@ exports.POST = function(session) {
     route.resolve(session.selector[0].value);
 
     function onRouteReady() {
-        route.method = "POST";
-        route.path = "/!/domain/"+session.selector[0].value+"/ticket";
+        route.method = session.request.method;
+        route.path = session.request.url;
         route.write(session.requestText, session.request.headers['content-type']);
         route.requestHeaders['authorization'] = session.request.headers['authorization'];
         route.send();
@@ -29,3 +29,8 @@ exports.POST = function(session) {
         session.abort(new HttpError(502, error.message));
     }
 }
+
+exports.POST = passThrough;
+exports.GET = passThrough;
+exports.PUT = passThrough;
+exports.DELETE = passThrough;

@@ -2,7 +2,6 @@
 
 var HttpError = require("../../shared/HttpError");
 
-// TODO Create non-owner tickets
 exports.POST = function(session) {
     var tkeyP;
     session.authorizeDomain(afterAuthorization);
@@ -33,8 +32,44 @@ exports.POST = function(session) {
             }
         }
         result['tkey_p'] = tkeyP.publicKey;
+        delete result['dkey'];
         session.writeJson(result);
         session.signDomain();
+        session.end();
+    }
+}
+
+exports.GET = function(session) {
+    session.authorizeTicket(afterAuthorization);
+
+    function afterAuthorization(error) {
+        var tids;
+        if (session.selector.last.value == "*")
+            tids = null;
+        else
+            tids = session.selector.last.value.split(",");
+        session.storage.readTickets(tids, session.authorization.domain['did'], afterCreateTicket);
+    }
+
+    function afterCreateTicket(error, result) {
+        session.writeEncrypted(result);
+        session.signTicket();
+        session.end();
+    }
+}
+
+exports.DELETE = function(session) {
+    session.authorizeTicket(afterAuthorization);
+
+    function afterAuthorization(error) {
+        var tids;
+        tids = session.selector.last.value.split(",");
+        session.storage.deleteTickets(tids, session.authorization.domain['did'], afterCreateTicket);
+    }
+
+    function afterCreateTicket(error, result) {
+        session.writeEncrypted(result);
+        session.signTicket();
         session.end();
     }
 }

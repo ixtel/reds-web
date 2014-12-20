@@ -34,8 +34,11 @@ exports.prototype.init = function(pod) {
     }
 }
 
-exports.prototype.resolve = function(did) {
-    this.storage.resolvePod(did, afterResolvePod.bind(this));
+exports.prototype.resolve = function(did_iid) {
+    if (isNaN(did_iid))
+        this.storage.resolvePodFromInvitation(did_iid, afterResolvePod.bind(this));
+    else
+        this.storage.resolvePodFromDomain(did_iid, afterResolvePod.bind(this));
 
     function afterResolvePod(error, result) {
         if (error)
@@ -95,7 +98,7 @@ exports.prototype.send = function(data, authorization) {
     function onResponse(response) {
         var responseText = "";
         response.setEncoding('utf8');
-    
+
         if (response.statusCode >= 400)
             return this.emit("error", new HttpError(response.statusCode, "pod returned error"));
 

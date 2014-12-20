@@ -14,6 +14,7 @@ exports.POST = function(session) {
     session.storage.createDomain(values, afterCreateDomain);
 
     function afterCreateDomain(error, result) {
+        console.log("afterCreateDomain");
         if (error !== null) {
             // TODO Error type should be returned by storage facility
             switch (error.code) {

@@ -79,11 +79,25 @@ exports.prototype.deletePod = function(pid, callback) {
     }
 }
 
-exports.prototype.resolvePod = function(did, callback) {
+exports.prototype.resolvePodFromDomain = function(did, callback) {
     this.$client.query("SELECT p.pid,p.url,p.nid,encode(p.auth,'base64') AS auth "+
         "FROM pods p JOIN domains d ON p.pid=d.pid "+
         "WHERE did=$1",
         [did],
+    afterQuery);
+
+    function afterQuery(error, result) {
+        if (result && result.rows[0] === undefined)
+            error = new Error("pod not found");
+        callback(error||null, result?result.rows[0]:null);
+    }
+}
+
+exports.prototype.resolvePodFromInvitation = function(iid, callback) {
+    this.$client.query("SELECT p.pid,p.url,p.nid,encode(p.auth,'base64') AS auth "+
+        "FROM pods p JOIN domains d ON p.pid=d.pid JOIN invitations i ON d.did=i.did "+
+        "WHERE i.iid=decode($1,'base64')",
+        [iid],
     afterQuery);
 
     function afterQuery(error, result) {
@@ -143,11 +157,19 @@ exports.prototype.createNamespace = function(name, types, callback) {
         if (error)
             return cleanupAfterError.call(this, error);
         this.$client.query("CREATE TABLE \""+name+"\".tickets "+
-            "(tid SERIAL PRIMARY KEY, did INTEGER NOT NULL, tkey BYTEA NOT NULL, tflags INTEGER NOT NULL)",
+            "(tid SERIAL PRIMARY KEY, did INTEGER NOT NULL, tkey BYTEA NOT NULL, tflags INTEGER NOT NULL, tdata TEXT)",
         afterTicketQuery.bind(this));
     }
 
     function afterTicketQuery(error, result) {
+        if (error)
+            return cleanupAfterError.call(this, error);
+        this.$client.query("CREATE TABLE \""+name+"\".invitations "+
+            "(iid BYTEA PRIMARY KEY, did INTEGER NOT NULL, ikey BYTEA NOT NULL, iflags INTEGER NOT NULL)",
+        afterInvitationQuery.bind(this));
+    }
+
+    function afterInvitationQuery(error, result) {
         if (error)
             return cleanupAfterError.call(this, error);
         this.$client.query("CREATE TABLE \""+name+"\".domains "+
@@ -334,15 +356,28 @@ exports.prototype.deleteDomain = function(did, callback) {
     }
 }
 
-// INFO Ticket operations
+// INFO Invitation operations
 
-// TODO Check for SQL injection!
-exports.prototype.createTicket = function(values, callback) {
-    var table = "\""+this.options['namespace']+"\".tickets";
-    this.$client.query("INSERT INTO "+table+" (did, tkey, tflags) "+
-        "VALUES ($1,decode($2,'base64'), $3) "+
-        "RETURNING tid, tflags",
-        [values['did'], values['tkey'], values['tflags']],
+exports.prototype.registerInvitation = function(values, callback) {
+    this.$client.query("INSERT INTO invitations (iid, did) "+
+        "VALUES (decode($1,'base64'), $2) "+
+        "RETURNING encode(iid,'base64') AS iid, did",
+        [
+            values['iid'],
+            values['did']
+        ],
+    afterQuery);
+
+    function afterQuery(error, result) {
+        callback(error||null, result?result.rows[0]:null);
+    }
+}
+
+exports.prototype.unregisterInvitation = function(iid, callback) {
+    this.$client.query("DELETE FROM invitations	"+
+        "WHERE iid=decode($1,'base64') "+
+        "RETURNING encode(iid,'base64') AS iid, did",
+        [iid],
     afterQuery);
 
     function afterQuery(error, result) {
@@ -351,16 +386,99 @@ exports.prototype.createTicket = function(values, callback) {
 }
 
 // TODO Check for SQL injection!
-exports.prototype.readTicket = function(tid, callback) {
-    var table = "\""+this.options['namespace']+"\".tickets";
-    this.$client.query("SELECT tid, encode(tkey,'base64') AS tkey, tflags "+
-        "FROM "+table+" "+
-        "WHERE tid=$1 ",
-        [tid],
+exports.prototype.createInvitation = function(values, callback) {
+    var table = "\""+this.options['namespace']+"\".invitations";
+    this.$client.query("INSERT INTO "+table+" (iid, did, ikey, iflags) "+
+        "VALUES (decode($1,'base64'), $2, decode($3,'base64'), $4) "+
+        "RETURNING encode(iid,'base64') AS iid, did, encode(ikey,'base64') AS ikey, iflags",
+        [values['iid'], values['did'], values['ikey'], values['iflags']],
     afterQuery);
 
     function afterQuery(error, result) {
         callback(error||null, result?result.rows[0]:null);
+    }
+}
+
+// TODO Check for SQL injection!
+exports.prototype.readInvitation = function(iid, callback) {
+    var table = "\""+this.options['namespace']+"\".invitations";
+    this.$client.query("SELECT encode(iid,'base64') AS iid, did, encode(ikey,'base64') AS ikey, iflags "+
+        "FROM "+table+" "+
+        "WHERE iid=decode($1,'base64') ",
+        [iid],
+    afterQuery);
+
+    function afterQuery(error, result) {
+        callback(error||null, result?result.rows[0]:null);
+    }
+}
+
+// TODO Check for SQL injection!
+exports.prototype.deleteInvitation = function(iid, callback) {
+    var table = "\""+this.options['namespace']+"\".invitations";
+    this.$client.query("DELETE FROM "+table+" "+
+        "WHERE iid=decode($1,'base64') "+
+        "RETURNING encode(iid,'base64') AS iid",
+        [iid],
+    afterQuery);
+
+    function afterQuery(error, result) {
+        callback(error||null, result?result.rows[0]:null);
+    }
+}
+
+// INFO Ticket operations
+
+// TODO Check for SQL injection!
+exports.prototype.createTicket = function(values, callback) {
+    var ticket;
+    var table = "\""+this.options['namespace']+"\".tickets";
+    this.$client.query("INSERT INTO "+table+" (did, tkey, tflags) "+
+        "VALUES ($1,decode($2,'base64'), $3) "+
+        "RETURNING tid, did, tflags",
+        [values['did'], values['tkey'], values['tflags']],
+    afterQuery.bind(this));
+
+    function afterQuery(error, result) {
+        if (error)
+            return callback(error);
+        ticket = result.rows[0];
+        this.readDomain(ticket['did'], afterReadDomain);
+    }
+
+    function afterReadDomain(error, result) {
+        ticket['dkey'] = result['dkey'];
+        callback(error||null, error?null:ticket);
+    }
+}
+
+// TODO Check for SQL injection!
+exports.prototype.readTickets = function(tids, did, callback) {
+    console.log(did);
+    var table = "\""+this.options['namespace']+"\".tickets";
+    this.$client.query("SELECT tid, did, encode(tkey,'base64') AS tkey, tflags, tdata "+
+        "FROM "+table+" "+
+        "WHERE did=$1"+(tids?" AND tid IN ("+tids+")":""),
+        [did],
+    afterQuery);
+
+    function afterQuery(error, result) {
+        callback(error||null, result?result.rows:null);
+    }
+}
+
+// TODO Check for SQL injection!
+exports.prototype.deleteTickets = function(tids, did, callback) {
+    console.log(did);
+    var table = "\""+this.options['namespace']+"\".tickets";
+    this.$client.query("DELETE FROM "+table+" "+
+        "WHERE did=$1 AND tid IN ("+tids+") "+
+        "RETURNING tid",
+        [did],
+    afterQuery);
+
+    function afterQuery(error, result) {
+        callback(error||null, result?result.rows:null);
     }
 }
 
@@ -549,11 +667,6 @@ exports.prototype.createEntity = function(type, values, callback) {
         params.push(values[field]);
         vals.push("$"+params.length);
     }
-    console.log(values);
-    console.log("INSERT INTO "+table+" ("+fields.join(",")+") "+
-    "VALUES ("+vals.join(",")+") "+
-    "RETURNING *");
-    console.log(params);
     this.$client.query("INSERT INTO "+table+" ("+fields.join(",")+") "+
         "VALUES ("+vals.join(",")+") "+
         "RETURNING *",

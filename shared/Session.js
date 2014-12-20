@@ -167,7 +167,7 @@ Object.defineProperty(exports.prototype, "authorization", {
         if (this.$authorization === undefined) {
             this.$authorization = this.request.headers['authorization'] || null;
             if (this.$authorization) {
-                this.$authorization = this.$authorization.match(/(account|node|domain|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+                this.$authorization = this.$authorization.match(/(account|node|domain|invitation|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
                 if (this.$authorization) {
                     this.$authorization = {
                         'realm': this.$authorization[1],

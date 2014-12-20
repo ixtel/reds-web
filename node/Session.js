@@ -12,10 +12,11 @@ exports.prototype = Object.create(Session.prototype);
 exports.prototype.HookHandlers = {
     '/!/account': require("./hooks/account"),
     '/!/pod': require("./hooks/pod"),
+    '/!/invitation': require("./hooks/invitation"),
     '/!/domain': require("./hooks/domain"),
-    '/!/domain/ticket': require("./hooks/ticket.js"),
-    '/!/domain/leaf': require("./hooks/leaf.js"),
-    '*': require("./hooks/entity.js")
+    '/!/domain/ticket': require("./hooks/ticket"),
+    '/!/domain/leaf': require("./hooks/leaf"),
+    '*': require("./hooks/entity")
 }
 
 exports.prototype.authorizeAccount = function(callback) {
