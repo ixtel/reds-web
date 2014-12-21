@@ -310,6 +310,35 @@ Client.prototype.readTickets = function(did, tids, callback, errorCallback) {
         }
     }
 }
+Client.prototype.updateTickets = function(did, data, callback, errorCallback) {
+    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+
+    function afterRegisterLeaf(error) {
+        var request, tids;
+        if (error)
+            return this.$emitEvent("error", errorCallback, evt.detail);
+        tids = new Array();
+        for (var i=0; i<data.length; i++)
+            tids.push(data[i]['tid']);
+        request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+        request.open("PUT", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
+        request.writeEncrypted(data);
+        request.signTicket();
+        request.send();
+
+        function onLoad(result) {
+            if (!request.authorizeTicket())
+                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
+            this.$emitEvent("load", callback, request.responseEncrypted);
+        }
+
+        function onError(evt) {
+            if (evt.detail.code == 412)
+                return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
+            this.$emitEvent("error", errorCallback, evt.detail);
+        }
+    }
+}
 
 Client.prototype.deleteTickets = function(did, tids, callback, errorCallback) {
     this.$registerLeaf(did, afterRegisterLeaf.bind(this));

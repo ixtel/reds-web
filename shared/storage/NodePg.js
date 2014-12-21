@@ -454,7 +454,6 @@ exports.prototype.createTicket = function(values, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.readTickets = function(tids, did, callback) {
-    console.log(did);
     var table = "\""+this.options['namespace']+"\".tickets";
     this.$client.query("SELECT tid, did, encode(tkey,'base64') AS tkey, tflags, tdata "+
         "FROM "+table+" "+
@@ -462,6 +461,40 @@ exports.prototype.readTickets = function(tids, did, callback) {
         [did],
     afterQuery);
 
+    function afterQuery(error, result) {
+        callback(error||null, result?result.rows:null);
+    }
+}
+
+// TODO Check for SQL injection!
+exports.prototype.updateTickets = function(values, did, callback) {
+    var table, field, set, fields, vals, val, i;
+    table = "\""+this.options['namespace']+"\".tickets";
+    set = new Array();
+    fields = new Array();
+    vals = new Array();
+    for (field in values[0]) {
+        set.push(field+"=v."+field);
+        fields.push(field);
+    }
+    for (i = 0; i < values.length; i++) {
+        val = ""
+        for (field in values[i]) {
+            // NOTE NodePG seems to escape numbers as strings when we
+            //      use the parameterized form here.
+            if (typeof values[i][field] == "string")
+                val += ",'"+values[i][field]+"'";
+            else
+                val += ","+values[i][field];
+        }
+        vals.push("("+val.substr(1)+")");
+    }
+    this.$client.query("UPDATE "+table+" t SET "+set.join(",")+" "+
+        "FROM (VALUES "+vals.join(",")+") AS v("+fields.join(",")+") "+
+        "WHERE t.tid = v.tid "+
+        "RETURNING *",
+    afterQuery);
+    
     function afterQuery(error, result) {
         callback(error||null, result?result.rows:null);
     }
@@ -678,6 +711,7 @@ exports.prototype.createEntity = function(type, values, callback) {
     }
 }
 
+// TODO Check for SQL injection!
 exports.prototype.readEntities = function(types, eids, callback) {
     var values, errors, count;
     values = new Object();
@@ -701,6 +735,7 @@ exports.prototype.readEntities = function(types, eids, callback) {
     }
 }
 
+// TODO Check for SQL injection!
 exports.prototype.updateEntities = function(types, values, callback) {
     var rvalues, errors, count;
     rvalues = new Object();
@@ -708,13 +743,12 @@ exports.prototype.updateEntities = function(types, values, callback) {
     types.forEach(updateEntitiesForType.bind(this));
 
     function updateEntitiesForType(type, index) {
-        var table, field, set, fields, params, vals, val, i;
+        var table, field, set, fields, vals, val, i;
         table = "\""+this.options['namespace']+"\".entity_"+type;
         count = index;
         set = new Array();
         fields = new Array();
         vals = new Array();
-        params = new Array();
         for (field in values[type][0]) {
             set.push(field+"=v."+field);
             fields.push(field);
@@ -724,7 +758,6 @@ exports.prototype.updateEntities = function(types, values, callback) {
             for (field in values[type][i]) {
                 // NOTE NodePG seems to escape numbers as strings when we
                 //      use the parameterized form here.
-                // TODO Check for SQL injection!
                 if (typeof values[type][i][field] == "string")
                     val += ",'"+values[type][i][field]+"'";
                 else
@@ -749,6 +782,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
     }
 }
 
+// TODO Check for SQL injection!
 exports.prototype.deleteEntities = function(types, eids, callback) {
     var values, errors, count;
     values = new Object();

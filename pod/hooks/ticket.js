@@ -58,6 +58,20 @@ exports.GET = function(session) {
     }
 }
 
+exports.PUT = function(session) {
+    session.authorizeTicket(afterAuthorization);
+
+    function afterAuthorization(error) {
+        session.storage.updateTickets(session.requestEncrypted, session.authorization.domain['did'], afterCreateTicket);
+    }
+
+    function afterCreateTicket(error, result) {
+        session.writeEncrypted(result);
+        session.signTicket();
+        session.end();
+    }
+}
+
 exports.DELETE = function(session) {
     session.authorizeTicket(afterAuthorization);
 
