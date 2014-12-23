@@ -156,35 +156,35 @@ exports.prototype.createNamespace = function(name, types, callback) {
     function afterCreateQuery(error, result) {
         if (error)
             return cleanupAfterError.call(this, error);
-        this.$client.query("CREATE TABLE \""+name+"\".tickets "+
-            "(tid SERIAL PRIMARY KEY, did INTEGER NOT NULL, tkey BYTEA NOT NULL, tflags INTEGER NOT NULL, tdata TEXT)",
-        afterTicketQuery.bind(this));
+        this.$client.query("CREATE TABLE \""+name+"\".domains "+
+            "(did INTEGER PRIMARY KEY, dkey BYTEA NOT NULL)",
+        afterDomainQuery.bind(this));
     }
 
-    function afterTicketQuery(error, result) {
+    function afterDomainQuery(error, result) {
         if (error)
             return cleanupAfterError.call(this, error);
         this.$client.query("CREATE TABLE \""+name+"\".invitations "+
-            "(iid BYTEA PRIMARY KEY, did INTEGER NOT NULL, ikey BYTEA NOT NULL, iflags INTEGER NOT NULL)",
+            "(iid BYTEA PRIMARY KEY, did INTEGER NOT NULL REFERENCES \""+name+"\".domains ON UPDATE CASCADE ON DELETE CASCADE, ikey BYTEA NOT NULL, iflags INTEGER NOT NULL)",
         afterInvitationQuery.bind(this));
     }
 
     function afterInvitationQuery(error, result) {
         if (error)
             return cleanupAfterError.call(this, error);
-        this.$client.query("CREATE TABLE \""+name+"\".domains "+
-            "(did INTEGER PRIMARY KEY, dkey BYTEA NOT NULL)",
-        afterDomainQuery.bind(this));
+        this.$client.query("CREATE TABLE \""+name+"\".tickets "+
+            "(tid SERIAL PRIMARY KEY, did INTEGER NOT NULL REFERENCES \""+name+"\".domains ON UPDATE CASCADE ON DELETE CASCADE, tkey BYTEA NOT NULL, tflags INTEGER NOT NULL, tdata TEXT)",
+        afterTicketQuery.bind(this));
     }
 
-    function afterDomainQuery(error) {
+    function afterTicketQuery(error) {
         var type, columns, column;
         if (error)
             return cleanupAfterError.call(this, error);
         errors = new Array();
         count = 0;
         for (type in types) {
-            columns = "eid INTEGER PRIMARY KEY, did INTEGER NOT NULL";
+            columns = "eid INTEGER PRIMARY KEY, did INTEGER NOT NULL REFERENCES \""+name+"\".domains ON UPDATE CASCADE ON DELETE CASCADE";
             for (column in types[type])
                 columns += ", "+column+" "+types[type][column];
             this.$client.query("CREATE TABLE \""+name+"\".entity_"+type+" "+
