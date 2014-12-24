@@ -43,7 +43,7 @@ Sjcl.prototype.concatenateStrings = function() {
 
 Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
     console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
-    var index = this.generateHmac(data, salt);
+    var index = sjcl.hash.sha256.hash(this.concatenateStrings(data, salt));
     if (!fresh && cache[index])
         return cache[index];
     var hashBits = sjcl.misc.pbkdf2(data, salt, 16000, 256);
@@ -56,7 +56,7 @@ Sjcl.prototype.generateKey = function() {
     return sjcl.codec.base64.fromBits(keyBits);
 }
 
-Sjcl.prototype.generateKeypair = function(seed) {
+Sjcl.prototype.generateKeypair = function() {
     var privateBn = sjcl.bn.random(sjcl.ecc.curves.k256.r, 10);
     var publicBn = sjcl.ecc.curves.k256.G.mult(privateBn);
     return {
