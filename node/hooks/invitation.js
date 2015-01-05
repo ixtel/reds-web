@@ -36,7 +36,7 @@ exports.POST = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(new HttpError(502, error.message));
+        session.abort(error);
     }
 }
 
@@ -71,6 +71,6 @@ exports.PUT = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(new HttpError(502, error.message));
+        session.abort(error);
     }
 }

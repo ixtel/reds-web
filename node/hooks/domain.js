@@ -38,10 +38,10 @@ exports.POST = function(session) {
     function onRouteError(error) {
         if (domain)
             session.storage.unregisterDomain(domain['did'], function() {
-                session.abort(new HttpError(502, error.message));
+                session.abort(error);
             });
         else
-            session.abort(new HttpError(502, error.message));
+            session.abort(error);
     }
 }
 
@@ -72,6 +72,6 @@ exports.DELETE = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(new HttpError(502, error.message));
+        session.abort(error);
     }
 }

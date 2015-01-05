@@ -26,7 +26,7 @@ function passThrough(session) {
     }
 
     function onRouteError(error) {
-        session.abort(new HttpError(502, error.message));
+        session.abort(error);
     }
 }
 

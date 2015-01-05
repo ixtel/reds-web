@@ -56,9 +56,9 @@ exports.POST = function(session) {
     function onRouteError(error) {
         if (route.pod)
             session.storage.deletePod(route.pod['pid'], function() {
-                session.abort(new HttpError(502, error.message));
+                session.abort(error);
             });
         else
-            session.abort(new HttpError(502, error.message));
+            session.abort(error);
     }
 }

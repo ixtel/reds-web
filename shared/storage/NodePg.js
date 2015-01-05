@@ -48,8 +48,6 @@ exports.prototype.readPod = function(pid_url, callback) {
     afterQuery);
 
     function afterQuery(error, result) {
-        if (result && result.rows[0] === undefined)
-            error = new Error("pod not found");
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -87,8 +85,6 @@ exports.prototype.resolvePodFromDomain = function(did, callback) {
     afterQuery);
 
     function afterQuery(error, result) {
-        if (result && result.rows[0] === undefined)
-            error = new Error("pod not found");
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -101,8 +97,6 @@ exports.prototype.resolvePodFromInvitation = function(iid, callback) {
     afterQuery);
 
     function afterQuery(error, result) {
-        if (result && result.rows[0] === undefined)
-            error = new Error("pod not found");
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -129,8 +123,6 @@ exports.prototype.readNode = function(nid, callback) {
     afterQuery);
 
     function afterQuery(error, result) {
-        if (result && result.rows[0] === undefined)
-            error = new Error("node not found");
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -165,7 +157,7 @@ exports.prototype.createNamespace = function(name, types, callback) {
         if (error)
             return cleanupAfterError.call(this, error);
         this.$client.query("CREATE TABLE \""+name+"\".invitations "+
-            "(iid BYTEA PRIMARY KEY, did INTEGER NOT NULL REFERENCES \""+name+"\".domains ON UPDATE CASCADE ON DELETE CASCADE, ikey BYTEA NOT NULL, iflags INTEGER NOT NULL)",
+            "(iid BYTEA PRIMARY KEY, did INTEGER NOT NULL REFERENCES \""+name+"\".domains ON UPDATE CASCADE ON DELETE CASCADE, ikey BYTEA NOT NULL, iflags INTEGER NOT NULL, timestamp TIMESTAMP NOT NULL)",
         afterInvitationQuery.bind(this));
     }
 
@@ -359,8 +351,8 @@ exports.prototype.deleteDomain = function(did, callback) {
 // INFO Invitation operations
 
 exports.prototype.registerInvitation = function(values, callback) {
-    this.$client.query("INSERT INTO invitations (iid, did) "+
-        "VALUES (decode($1,'base64'), $2) "+
+    this.$client.query("INSERT INTO invitations (iid, did, timestamp) "+
+        "VALUES (decode($1,'base64'), $2, NOW) "+
         "RETURNING encode(iid,'base64') AS iid, did",
         [
             values['iid'],

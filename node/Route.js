@@ -26,9 +26,9 @@ exports.prototype.init = function(pod) {
 
     function afterReadPod(error, result) {
         if (error)
-            return this.emit("error", error)
+            return this.emit("error", error);
         if (!result)
-            return this.emit("error", new Error("unable to read pod"))
+            return this.emit("error", new HttpError(502, "unable to read pod"));
         this.pod = result;
         this.emit("ready");
     }
@@ -42,9 +42,9 @@ exports.prototype.resolve = function(did_iid) {
 
     function afterResolvePod(error, result) {
         if (error)
-            return this.emit("error", error)
+            return this.emit("error", error);
         if (!result)
-            return this.emit("error", new Error("unable to resolve pod"))
+            return this.emit("error", new HttpError(502, "unable to resolve pod"));
         this.pod = result;
         this.emit("ready");
     }
@@ -57,8 +57,7 @@ exports.prototype.writeJson = function(data, type) {
             json = JSON.stringify(data);
         }
         catch (e) {
-            error = new Error("request contains invalid JSON");
-            this.emit("error", error);
+            this.emit("error", e);
             return;
         }
     }
