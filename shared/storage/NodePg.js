@@ -352,7 +352,7 @@ exports.prototype.deleteDomain = function(did, callback) {
 
 exports.prototype.registerInvitation = function(values, callback) {
     this.$client.query("INSERT INTO invitations (iid, did, timestamp) "+
-        "VALUES (decode($1,'base64'), $2, NOW) "+
+        "VALUES (decode($1,'base64'), $2, CURRENT_TIMESTAMP) "+
         "RETURNING encode(iid,'base64') AS iid, did",
         [
             values['iid'],
@@ -380,8 +380,8 @@ exports.prototype.unregisterInvitation = function(iid, callback) {
 // TODO Check for SQL injection!
 exports.prototype.createInvitation = function(values, callback) {
     var table = "\""+this.options['namespace']+"\".invitations";
-    this.$client.query("INSERT INTO "+table+" (iid, did, ikey, iflags) "+
-        "VALUES (decode($1,'base64'), $2, decode($3,'base64'), $4) "+
+    this.$client.query("INSERT INTO "+table+" (iid, did, ikey, iflags, timestamp) "+
+        "VALUES (decode($1,'base64'), $2, decode($3,'base64'), $4, CURRENT_TIMESTAMP) "+
         "RETURNING encode(iid,'base64') AS iid, did, encode(ikey,'base64') AS ikey, iflags",
         [values['iid'], values['did'], values['ikey'], values['iflags']],
     afterQuery);
