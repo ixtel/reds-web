@@ -68,7 +68,7 @@ exports.POST = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(error);
+        session.abort(new HttpError(502, error.message));
     }
 
     function afterRegisterEntity(error, result) {
@@ -148,7 +148,7 @@ exports.GET = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(error);
+        session.abort(new HttpError(502, error.message));
     }
 }
 
@@ -193,7 +193,7 @@ exports.PUT = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(error);
+        session.abort(new HttpError(502, error.message));
     }
 }
 
@@ -238,7 +238,7 @@ exports.DELETE = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(error);
+        session.abort(new HttpError(502, error.message));
     }
 
     function afterUnregisterEntities(error, result) {

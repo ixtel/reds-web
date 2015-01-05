@@ -36,7 +36,7 @@ exports.POST = function(session) {
     }
 
     function onRouteError(error) {
-        session.abort(error);
+        session.abort(new HttpError(502, error.message));
     }
 }
 
