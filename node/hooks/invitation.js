@@ -29,7 +29,7 @@ exports.POST = function(session) {
 
     function afterRegisterInvitation(error, result) {
         if (error)
-            session.abort(error);
+            return session.abort(error);
         session.write(route.responseText, route.responseHeaders['content-type']);
         session.response.setHeader("Authorization", route.responseHeaders['authorization']);
         session.end();
@@ -64,7 +64,7 @@ exports.PUT = function(session) {
 
     function afterUnregisterInvitation(error, result) {
         if (error != null)
-            session.abort(error);
+            return session.abort(error);
         session.write(route.responseText, route.responseHeaders['content-type']);
         session.response.setHeader("Authorization", route.responseHeaders['authorization']);
         session.end();

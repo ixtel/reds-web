@@ -45,7 +45,7 @@ exports.GET = function(session) {
     function afterAuthorization(error) {
         var tids;
         if (error)
-            session.abort(error);
+            return session.abort(error);
         if (session.selector.last.value == "*")
             tids = null;
         else
@@ -65,7 +65,7 @@ exports.PUT = function(session) {
 
     function afterAuthorization(error) {
         if (error)
-            session.abort(error);
+            return session.abort(error);
         session.storage.updateTickets(session.requestEncrypted, session.authorization.domain['did'], afterCreateTicket);
     }
 
@@ -82,7 +82,7 @@ exports.DELETE = function(session) {
     function afterAuthorization(error) {
         var tids;
         if (error)
-            session.abort(error);
+            return session.abort(error);
         tids = session.selector.last.value.split(",");
         session.storage.deleteTickets(tids, session.authorization.domain['did'], afterCreateTicket);
     }
