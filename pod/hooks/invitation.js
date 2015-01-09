@@ -5,7 +5,7 @@ var HttpError = require("../../shared/HttpError");
 exports.POST = function(session) {
     return session.authorizeTicket(afterAuthorization);
 
-    function afterAuthorization(error) { 
+    function afterAuthorization(error) {
         var values;
         if (error)
             return session.abort(error);

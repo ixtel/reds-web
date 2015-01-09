@@ -367,22 +367,17 @@ Client.prototype.deleteTickets = function(did, tids, callback, errorCallback) {
     }
 }
 
-Client.prototype.createInvitation = function(did, flags, callback, errorCallback) {
-    var iidUrl, invitation;
-    invitation = {
-        'iid': this.crypto.generateKey(),
-        'did': did,
-        'ikey': this.crypto.generateKey(),
-        'iflags': flags
-    };
+
+Client.prototype.$storeInvitation = function(invitation, callback) {
+    var iidUrl;
     iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+    this.$registerLeaf(invitation['did'], afterRegisterLeaf.bind(this));
 
     function afterRegisterLeaf(error) {
         var request;
         if (error)
             return this.$emitEvent("error", errorCallback, evt.detail);
-        request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest(Vault[this.vid].domain[invitation['did']], undefined, undefined, onLoad.bind(this), onError.bind(this));
         request.open("POST", this.options.url, "/!/invitation/"+iidUrl);
         request.writeEncrypted(invitation);
         request.signTicket();
@@ -390,19 +385,35 @@ Client.prototype.createInvitation = function(did, flags, callback, errorCallback
 
         function onLoad(result) {
             if (!request.authorizeTicket())
-                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
-            this.$emitEvent("load", callback, invitation);
+                return callback(new Error("ticket authorization failed"));
+            callback(null, invitation);
         }
 
         function onError(evt) {
             if (evt.detail.code == 412)
                 return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
-            this.$emitEvent("error", errorCallback, evt.detail);
+            callback(evt.detail);
         }
     }
 }
 
-Client.prototype.acceptInvitation = function(invitation, callback, errorCallback) {
+Client.prototype.createPrivateInvitation = function(did, tflags, callback, errorCallback) {
+    this.$storeInvitation({
+        'iid': this.crypto.generateKey(),
+        'ikey': this.crypto.generateKey(),
+        'did': did,
+        'iflags': tflags
+    }, afterStoreInvitation.bind(this));
+
+    function afterStoreInvitation(error, invitation) {
+        if (error)
+            this.$emitEvent("error", errorCallback, evt.detail);
+        else
+            this.$emitEvent("load", callback, invitation);
+    }
+}
+
+Client.prototype.createTicket = function(invitation, callback, errorCallback) {
     var iidUrl, tkeyL, request, domain;
     iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     tkeyL = this.crypto.generateKeypair();
