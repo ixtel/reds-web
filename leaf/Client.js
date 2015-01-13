@@ -87,6 +87,11 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
     function onLoad() {
         var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
         var vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
+        // NOTE Fixes for versions <= 0.2.2
+        vault.exchange = vault.exchange||new Object();
+        vault.invitation = vault.invitation||new Object();
+        // NOTE End of fixes.
+        console.log(vault);
         Vault[this.vid] = vault;
         Vault[this.vid].account['asec'] = asec;
         this.$emitEvent("load", callback, {'aid':Vault[this.vid].account['aid']});
@@ -124,7 +129,9 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
                 'akey': auth,
                 'asec' : asec
             },
-            'domain': {}
+            'domain': {},
+            'exchange': {},
+            'invitation': {}
         };
         // TODO Move into conveniance
         this.updateVault(afterUpdateVault.bind(this));
@@ -256,6 +263,8 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
     }
 }
 
+// INFO Ticket operations
+
 Client.prototype.createOwnerTicket = function(did, callback, errorCallback) {
     var tkeyL, request, domain;
     tkeyL = this.crypto.generateKeypair();
@@ -275,6 +284,38 @@ Client.prototype.createOwnerTicket = function(did, callback, errorCallback) {
         domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
         domain['tflags'] = request.responseJson['tflags']
         this.$emitEvent("load", callback, {'did':did,'tid':domain['tid']});
+    }
+}
+
+Client.prototype.createTicket = function(invitation, callback, errorCallback) {
+    var iidUrl, tkeyL, request, domain;
+    iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    tkeyL = this.crypto.generateKeypair();
+    request = this.$createRequest(invitation, callback, errorCallback, onLoad.bind(this));
+    request.open("PUT", this.options.url, "/!/invitation/"+iidUrl);
+    request.writeJson({
+        'tkey_l': tkeyL.publicKey
+    });
+    request.signInvitation();
+    request.send();
+
+    function onLoad(result) {
+        if (!request.authorizeInvitation())
+            return this.$emitEvent("error", errorCallback, new Error("invitation authorization failed"));
+        domain = {
+            'did': request.responseJson['did'],
+            'dkey': this.crypto.decryptData(request.responseJson['dkey'], invitation['ikey'], invitation['iid']),
+            'tid': request.responseJson['tid'],
+            'tkey': this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
+            'tflags': request.responseJson['tflags']
+        };
+        Vault[this.vid].domain[domain['did']] = domain;
+        // TODO Move into conveniance
+        this.updateVault(afterUpdateVault.bind(this));
+    }
+    
+    function afterUpdateVault() {
+        this.$emitEvent("load", callback, {'did':domain['did'],'tid':domain['tid']});
     }
 }
 
@@ -367,9 +408,58 @@ Client.prototype.deleteTickets = function(did, tids, callback, errorCallback) {
     }
 }
 
+// TODO Should be moved to convenience functions as soon as all convfuncs have error callbacks
+Client.prototype.createPendingTickets = function(iids, callback, errorCallback) {
+    var results, errors, iid, count;
+    results = new Array();
+    errors = new Array();
+    count = 0;
+    for (iid in Vault[this.vid].invitation) {
+        if (!iids || (iids.indexOf(iid) != -1)) {
+            count++;
+            createTicketForInvitation.call(this, Vault[this.vid].invitation[iid]);
+        }
+    }
 
+    function createTicketForInvitation(invitation) {
+        this.createTicket(invitation, afterCreateTicket.bind(this), afterCreateTicketError.bind(this));
+        
+        function afterCreateTicket(response) {
+            console.log("afterCreateTicket");
+            results.push(response);
+            delete Vault[this.vid].invitation[invitation['iid']];
+            if (--count <= 0)
+                finalize.call(this);
+            // NOTE Surpress global load event.
+            return false;
+        }
+
+        function afterCreateTicketError(error) {
+            console.log("afterCreateTicketError");
+            errors.push(error);
+            if (--count <= 0)
+                finalize.call(this);
+            // NOTE Surpress global error event.
+            return false;
+        }
+    }
+
+    function finalize() {
+        console.log(errors);
+        console.log(results);
+        if (errors.length)
+            this.$emitEvent("error", errorCallback, errors);
+        if (results.length)
+            this.$emitEvent("load", callback, results);
+    }
+}
+
+// INFO Invitation operations
+
+// NOTE This function uses the only callback and won't dispatch any events. 
 Client.prototype.$storeInvitation = function(invitation, callback) {
     var iidUrl;
+    console.log(invitation);
     iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     this.$registerLeaf(invitation['did'], afterRegisterLeaf.bind(this));
 
@@ -407,41 +497,155 @@ Client.prototype.createPrivateInvitation = function(did, tflags, callback, error
 
     function afterStoreInvitation(error, invitation) {
         if (error)
-            this.$emitEvent("error", errorCallback, evt.detail);
+            this.$emitEvent("error", errorCallback, error);
         else
             this.$emitEvent("load", callback, invitation);
     }
 }
 
-Client.prototype.createTicket = function(invitation, callback, errorCallback) {
-    var iidUrl, tkeyL, request, domain;
-    iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-    tkeyL = this.crypto.generateKeypair();
-    request = this.$createRequest(invitation, callback, errorCallback, onLoad.bind(this));
-    request.open("PUT", this.options.url, "/!/invitation/"+iidUrl);
-    request.writeJson({
-        'tkey_l': tkeyL.publicKey
-    });
-    request.signInvitation();
-    request.send();
+Client.prototype.createPublicInvitation = function(did, tflags, callback, errorCallback) {
+    var xid, xkeyS, xsaltS;
+    xkeyS = this.crypto.generateKeypair();
+    xsaltS = this.crypto.generateKey();
+    storeExchange.call(this);
 
-    function onLoad(result) {
-        if (!request.authorizeInvitation())
-            return this.$emitEvent("error", errorCallback, new Error("invitation authorization failed"));
-        domain = {
-            'did': request.responseJson['did'],
-            'dkey': this.crypto.decryptData(request.responseJson['dkey'], invitation['ikey'], invitation['iid']),
-            'tid': request.responseJson['tid'],
-            'tkey': this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
-            'tflags': request.responseJson['tflags']
+    function storeExchange() {
+        do {
+            xid = Math.floor(Math.random() * 65535);
+        } while (Vault[this.vid].exchange[xid]);
+        Vault[this.vid].exchange[xid] = {
+            'xkeyS': xkeyS.privateKey,
+            'xsaltS': xsaltS,
+            'did': did,
+            'iflags': tflags,
+            'timestamp': Date.now()
         };
-        Vault[this.vid].domain[domain['did']] = domain;
-        // TODO Move into conveniance
-        this.updateVault(afterUpdateVault.bind(this));
+        // TODO Handle xid collision, when another leaf created an
+        //      exchange with the same xid since the last update.
+        this.updateVault(afterUpdateVault.bind(this), errorCallback);
     }
     
     function afterUpdateVault() {
-        this.$emitEvent("load", callback, {'did':domain['did'],'tid':domain['tid']});
+        this.$emitEvent("load", callback, {
+            'xid': xid,
+            'xkeyS': xkeyS.publicKey,
+            'xsaltS': xsaltS
+        });
+    }
+}
+
+Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback, errorCallback) {
+    var xkeyR, xsaltR, xkey, xstr, xsig, iid, ikey;
+    xkeyR = this.crypto.generateKeypair();
+    xsaltR = this.crypto.generateKey();
+    xkey = this.crypto.combineKeypair(xkeyR.privateKey, xkeyS);
+    xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
+    xsig = this.crypto.generateHmac(xstr, xkey);
+    iid = this.crypto.generateHmac(xsaltS, xkey);
+    ikey = this.crypto.generateHmac(xsaltR, xkey);
+    Vault[this.vid].invitation[iid] = {
+        'iid': iid,
+        'ikey': ikey,
+        'xsig': xsig,
+        'timestamp': Date.now()
+    };
+    this.updateVault(afterUpdateVault.bind(this), errorCallback);
+    
+    function afterUpdateVault() {
+        this.$emitEvent("load", callback, {
+            'xid': xid,
+            'xkeyR': xkeyR.publicKey,
+            'xsaltR': xsaltR
+        });
+    }
+}
+
+Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, callback, errorCallback) {
+    var xkeyS, xsaltS, xkey, xstr, xsig, invitation;
+    if (!Vault[this.vid].exchange[xid])
+        return this.$emitEvent("error", errorCallback, new Error("exchange id not found"));
+    xkeyS = Vault[this.vid].exchange[xid]['xkeyS'];
+    xsaltS = Vault[this.vid].exchange[xid]['xsaltS'];
+    xkey = this.crypto.combineKeypair(xkeyS, xkeyR);
+    xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
+    if (xsigR) {
+        xsig = this.crypto.generateHmac(xstr, xkey);
+        if (xsigR(xsig != xsigR))
+            return this.$emitEvent("error", errorCallback, new Error("exchange checksums mismatch"));
+    }
+    else {
+        console.warn("Exchange checksum comparision skipped!");
+    }
+    this.$storeInvitation({
+        'iid': this.crypto.generateHmac(xsaltS, xkey),
+        'ikey': this.crypto.generateHmac(xsaltR, xkey),
+        'did': Vault[this.vid].exchange[xid]['did'],
+        'iflags': Vault[this.vid].exchange[xid]['iflags']
+    }, afterStoreInvitation.bind(this));
+
+    function afterStoreInvitation(error, response) {
+        if (error)
+            return this.$emitEvent("error", errorCallback, error);
+        invitation = response;
+        delete Vault[this.vid].exchange[xid];
+        this.updateVault(afterUpdateVault.bind(this), errorCallback);
+
+    }
+    
+    function afterUpdateVault() {
+        this.$emitEvent("load", callback, invitation);
+    }
+}
+
+// NOTE We're using a callback here with regard to further changes.
+Client.prototype.readPendingInvitations = function(iids, callback, errorCallback) {
+    var invitation, response, iid;
+    response = new Array();
+    for (iid in Vault[this.vid].invitation) {
+        if (!iids || (iids.indexOf(iid) != -1)) {
+            response.push({
+                'iid': iid,
+                'xsig': Vault[this.vid].invitation[iid]['xsig'],
+                'timestamp': Vault[this.vid].invitation[iid]['timestamp']
+            });
+        }
+    }
+    this.$emitEvent("load", callback, response);
+}
+
+Client.prototype.deletePendingInvitations = function(iids, callback, errorCallback) {
+    var invitation, response, iid;
+    response = new Array();
+    for (iid in Vault[this.vid].invitation) {
+        if (!iids || (iids.indexOf(iid) != -1)) {
+            delete Vault[this.vid].invitation[iid];
+            response.push(iid);
+        }
+    }
+    this.updateVault(afterUpdateVault.bind(this), errorCallback);
+    
+    function afterUpdateVault() {
+        this.$emitEvent("load", callback, response);
+    }
+}
+
+Client.prototype.clearPendingInvitations = function(iids, ttl, callback, errorCallback) {
+    var  response, iid, deadline, timestamp;
+    response = new Array();
+    deadline = Date.now();
+    for (iid in Vault[this.vid].invitation) {
+        if (!iids || (iids.indexOf(iid) != -1)) {
+            timestamp = parseInt(Vault[this.vid].invitation[iid]['timestamp']);
+            if (timestamp+ttl < deadline) {
+                delete Vault[this.vid].invitation[iid];
+                response.push(iid);
+            }
+        }
+    }
+    this.updateVault(afterUpdateVault.bind(this), errorCallback);
+    
+    function afterUpdateVault() {
+        this.$emitEvent("load", callback, response);
     }
 }
 
