@@ -422,24 +422,28 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
     }
 
     function createTicketForInvitation(invitation) {
+        // NOTE By removing the invitation from the vault before creating the
+        //      ticket, we save the updateVault call after ticket creration,
+        //      which would otherwise be required to save the vault after the
+        //      invtation has been removed.
+        delete Vault[this.vid].invitation[invitation['iid']];
         this.createTicket(invitation, afterCreateTicket.bind(this), afterCreateTicketError.bind(this));
         
         function afterCreateTicket(response) {
-            console.log("afterCreateTicket");
             results.push(response);
-            delete Vault[this.vid].invitation[invitation['iid']];
             if (--count <= 0)
                 finalize.call(this);
-            // NOTE Surpress global load event.
+            // NOTE Surpress global load event, which will be emitted by finalize().
             return false;
         }
 
         function afterCreateTicketError(error) {
-            console.log("afterCreateTicketError");
             errors.push(error);
+            // NOTE Restore the previously removed invitation.
+            Vault[this.vid].invitation[invitation['iid']] = invitation;
             if (--count <= 0)
                 finalize.call(this);
-            // NOTE Surpress global error event.
+            // NOTE Surpress global error event, which will be emitted by finalize().
             return false;
         }
     }
