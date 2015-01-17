@@ -218,7 +218,7 @@ exports.prototype.deleteNamespace = function(name, types, callback) {
 // INFO Alias operations
 
 exports.prototype.readAlias = function(alias, callback) {
-    this.$client.query("SELECT aid,encode(asalt,'base64') AS asalt,encode(vault,'base64') AS vault,encode(vec,'base64') AS vec "+
+    this.$client.query("SELECT aid,encode(asalt,'base64') AS asalt,encode(vault,'base64') AS vault,encode(vec,'base64') AS vec,modified "+
         "FROM accounts "+
         "WHERE alias=decode($1,'base64')",
         [alias],
@@ -232,10 +232,10 @@ exports.prototype.readAlias = function(alias, callback) {
 // INFO Account operations
 
 exports.prototype.createAccount = function(values, callback) {
-    this.$client.query("INSERT INTO accounts (alias,auth,asalt) "+
-        "VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64')) "+
+    this.$client.query("INSERT INTO accounts (alias,auth,asalt, modified) "+
+        "VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64', $4)) "+
         "RETURNING aid",
-        [values['alias'], values['auth'], values['asalt']],
+        [values['alias'], values['auth'], values['asalt'], values['modified']],
     afterQuery);
 
     function afterQuery(error, result) {
@@ -244,7 +244,7 @@ exports.prototype.createAccount = function(values, callback) {
 }
 
 exports.prototype.readAccount = function(aid, callback) {
-    this.$client.query("SELECT aid,encode(auth,'base64') AS auth "+
+    this.$client.query("SELECT aid,encode(auth,'base64') AS auth,encode(vault,'base64') AS vault,encode(vec,'base64') AS vec,modified "+
         "FROM accounts "+
         "WHERE aid=$1",
         [aid],
@@ -256,12 +256,29 @@ exports.prototype.readAccount = function(aid, callback) {
 }
 
 exports.prototype.updateAccount = function(values, callback) {
-    this.$client.query("UPDATE accounts "+
-        "SET vault=decode($1,'base64'), vec=decode($2,'base64') "+
-        "WHERE aid=$3 "+
-        "RETURNING aid",
-        [values['vault'], values['vec'], values['aid']],
-    afterQuery);
+    var params, set, field;
+    params = [values['aid']];
+    set = [];
+    for (field in values) {
+        switch (field) {
+            case "aid":
+                break;
+            case "alias":
+            case "auth":
+            case "asalt":
+            case "vault":
+            case "vec":
+                params.push(values[field]);
+                set.push(field+"=decode($"+params.length+", 'base64')");
+                break;
+            case "modified":
+                params.push(values[field]);
+                set.push(field+"=$"+params.length);
+                break;
+        }
+    }
+    this.$client.query("UPDATE accounts SET "+set+" WHERE aid=$1 RETURNING aid, modified ",
+    params, afterQuery);
 
     function afterQuery(error, result) {
         callback(error||null, result?result.rows[0]:null);

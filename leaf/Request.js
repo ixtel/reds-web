@@ -59,6 +59,13 @@ Request.prototype.$emitError = function(error) {
     return false;
 }
 
+Request.prototype.addUnmodifiedCheck = function(timestamp) {
+    var date, msec;
+    date = new Date(timestamp);
+    msec = ('000'+date.getUTCMilliseconds()).substr(-3);
+    this.$xhr.setRequestHeader("if-unmodified-since", date.toUTCString().replace(/ GMT$/, "."+msec+" GMT"));
+}
+    
 Request.prototype.open = function(method, node, path) {
     this.$method = method;
     return this.$xhr.open(method, node+path, true);

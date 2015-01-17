@@ -92,9 +92,16 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
     function onLoad() {
         var asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
         var vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
+        vault.modified = parseInt(request.responseJson['modified']); 
         // NOTE Fixes for versions <= 0.2.2
         vault.exchange = vault.exchange||new Object();
         vault.invitation = vault.invitation||new Object();
+        for (var did in vault.domain)
+            vault.domain[did]['modified'] = vault.domain[did]['timestamp']||Date.now(); 
+        for (var xid in vault.exchange)
+            vault.exchange[xid]['modified'] = vault.exchange[xid]['timestamp']||Date.now(); 
+        for (var iid in vault.invitation)
+            vault.invitation[iid]['modified'] = vault.invitation[iid]['timestamp']||Date.now(); 
         // NOTE End of fixes.
         console.log(vault);
         Vault[this.vid] = vault;
@@ -172,33 +179,68 @@ Client.prototype.deleteAccount = function(callback, errorCallback) {
 }
 
 Client.prototype.updateVault = function(callback, errorCallback) {
-    try {
-        var vec = this.crypto.generateTimestamp();
-        // NOTE This JSON dance is necessary to create a real clone.
-        var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
-        delete vault.account['asec'];
-        for (var did in vault.domain) {
-            delete vault.domain[did]['lid'];
-            delete vault.domain[did]['vec'];
+    var request;
+    start.call(this);
+
+    function start() {
+        try {
+            var vec = this.crypto.generateTimestamp();
+            // NOTE This JSON dance is necessary to create a real clone.
+            var vault = JSON.parse(JSON.stringify(Vault[this.vid]));
+            delete vault.account['asec'];
+            for (var did in vault.domain) {
+                delete vault.domain[did]['lid'];
+                delete vault.domain[did]['vec'];
+            }
+            vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
+            request = this.$createRequest(Vault[this.vid].account, callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request.open("PUT", this.options.url, "/!/account/"+Vault[this.vid].account['aid']);
+            request.writeJson({
+                'vault': vault,
+                'vec': vec
+            });
+            request.addUnmodifiedCheck(Vault[this.vid].modified);
+            request.signAccount();
+            request.send();
         }
-        vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account['asec'], vec);
-        var request = this.$createRequest(Vault[this.vid].account, callback, errorCallback, onLoad.bind(this));
-        request.open("PUT", this.options.url, "/!/account/"+Vault[this.vid].account['aid']);
-        request.writeJson({
-            'vault': vault,
-            'vec': vec
-        });
-        request.signAccount();
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
+        catch (e) {
+            this.$emitEvent("error", errorCallback, e);
+        }
     }
 
     function onLoad() {
         if (!request.authorizeAccount())
-            return;
+            return this.$emitEvent("error", errorCallback, new Error("account anthorization failed"));
+        console.log(request.responseJson)
+        Vault[this.vid].modified = parseInt(request.responseJson['modified']); 
         this.$emitEvent("load", callback);
+    }
+
+    function onError(evt) {
+        console.log(evt.detail);
+        if (evt.detail.code != 412)
+            return this.$emitEvent("error", errorCallback, evt.detail);
+        if (!request.authorizeAccount())
+            return this.$emitEvent("error", errorCallback, new Error("account anthorization failed"));
+        console.log(request.responseJson);
+        var newVault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], Vault[this.vid].account['asec'], request.responseJson['vec']));
+        newVault.modified = parseInt(request.responseJson['modified']);
+        newVault.account = Vault[this.vid].account;
+        for (var did in Vault[this.vid].domain) {
+            if (!newVault.domain[did] && (Vault[this.vid].modified < Vault[this.vid].domain[did].modified))
+                newVault.domain[did] = Vault[this.vid].domain[did]; 
+        }
+        for (var xid in Vault[this.vid].exchange) {
+            if (!newVault.exchange[xid] && (Vault[this.vid].modified < Vault[this.vid].exchange[xid].modified))
+                newVault.exchange[xid] = Vault[this.vid].exchange[xid]; 
+        }
+        for (var iid in Vault[this.vid].invitation) {
+            if (!newVault.invitation[iid] && (Vault[this.vid].modified < Vault[this.vid].invitation[iid].modified))
+                newVault.invitation[iid] = Vault[this.vid].invitation[iid]; 
+        }
+        console.log(newVault);
+        Vault[this.vid] = newVault;
+        start.call(this);
     }
 }
 
@@ -245,6 +287,7 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
         domain = {
             'did': request.responseJson['did'],
             'dkey': this.crypto.combineKeypair(dkeyL.privateKey, request.responseJson['dkey_p'], pkey),
+            'modified': Date.now()
         };
         Vault[this.vid].domain[domain['did']] = domain;
         this.$emitEvent("load", callback, {'did':domain['did']});
@@ -320,9 +363,10 @@ Client.prototype.createOwnerTicket = function(did, callback, errorCallback) {
         if (!request.authorizeDomain())
             return this.$emitEvent("error", errorCallback, new Error("domain anthorization failed"));
         var domain = Vault[this.vid].domain[did];
-        domain['tid'] = request.responseJson['tid'],
-        domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
-        domain['tflags'] = request.responseJson['tflags']
+        domain['tid'] = request.responseJson['tid'];
+        domain['tkey'] = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']);
+        domain['tflags'] = request.responseJson['tflags'];
+        domain['modified'] = Date.now();
         this.$emitEvent("load", callback, {'did':did,'tid':domain['tid']});
     }
 }
@@ -352,7 +396,8 @@ Client.prototype.createTicket = function(invitation, callback, errorCallback) {
             'dkey': this.crypto.decryptData(request.responseJson['dkey'], invitation['ikey'], invitation['iid']),
             'tid': request.responseJson['tid'],
             'tkey': this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p']),
-            'tflags': request.responseJson['tflags']
+            'tflags': request.responseJson['tflags'],
+            'modified': Date.now()
         };
         Vault[this.vid].domain[domain['did']] = domain;
         // TODO Move into conveniance
@@ -587,7 +632,7 @@ Client.prototype.createPublicInvitation = function(did, tflags, callback, errorC
             'xsaltS': xsaltS,
             'did': did,
             'iflags': tflags,
-            'timestamp': Date.now()
+            'modified': Date.now()
         };
         // TODO Handle xid collision, when another leaf created an
         //      exchange with the same xid since the last update.
@@ -616,7 +661,7 @@ Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback,
         'iid': iid,
         'ikey': ikey,
         'xsig': xsig,
-        'timestamp': Date.now()
+        'modified': Date.now()
     };
     this.updateVault(afterUpdateVault.bind(this), errorCallback);
     
@@ -675,7 +720,7 @@ Client.prototype.readPendingInvitations = function(iids, callback, errorCallback
             response.push({
                 'iid': iid,
                 'xsig': Vault[this.vid].invitation[iid]['xsig'],
-                'timestamp': Vault[this.vid].invitation[iid]['timestamp']
+                'timestamp': Vault[this.vid].invitation[iid]['modified']
             });
         }
     }
@@ -699,13 +744,13 @@ Client.prototype.deletePendingInvitations = function(iids, callback, errorCallba
 }
 
 Client.prototype.clearPendingInvitations = function(iids, ttl, callback, errorCallback) {
-    var  response, iid, deadline, timestamp;
+    var  response, iid, deadline, modified;
     response = new Array();
     deadline = Date.now();
     for (iid in Vault[this.vid].invitation) {
         if (!iids || (iids.indexOf(iid) != -1)) {
-            timestamp = parseInt(Vault[this.vid].invitation[iid]['timestamp']);
-            if (timestamp+ttl < deadline) {
+            modified = parseInt(Vault[this.vid].invitation[iid]['modified']);
+            if (modified+ttl < deadline) {
                 delete Vault[this.vid].invitation[iid];
                 response.push(iid);
             }

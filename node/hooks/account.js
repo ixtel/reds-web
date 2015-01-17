@@ -24,6 +24,7 @@ exports.POST = function(session) {
     // NOTE We don't want to modify requestJson so we create our own JSON object here
     var values = JSON.parse(session.requestText);
     values['auth'] = auth;
+    values['modified'] = Date.now();
     delete values['auth_l'];
     session.storage.createAccount(values, afterCreateAccount);
 
@@ -51,9 +52,28 @@ exports.PUT = function(session) {
             return session.abort(error);
         if (session.authorization['id'] != session.selector[0].value)
             return session.abort(new HttpError(400, "selector and authorization mismatch"));
+        if (!session.request.headers['if-unmodified-since'])
+            return session.abort(new HttpError(400, "missing if-unmodified-since header"));
+        session.storage.readAccount(session.selector[0].value, afterReadAccount);
+    }
+
+    function afterReadAccount(error, result) {
+        if (error)
+            return session.abort(error);
+        if (!result)
+            return session.abort(new HttpError(404, "aid not found"));
+        // TODO Checking modified here and right when the update query is executed
+        //      in the db might cause a race-condition. Fix this!
+        if (Date.parse(session.request.headers['if-unmodified-since']) < result['modified']) {
+            delete result['auth'];
+            session.writeJson(result);
+            session.signAccount();
+            return session.abort(new HttpError(412, "account has been modified"));
+        }
         // NOTE We don't want to modify requestJson so we create our own JSON object here
         var values = JSON.parse(session.requestText);
         values['aid'] = session.selector[0].value;
+        values['modified'] = Date.now();
         session.storage.updateAccount(values, afterUpdateAccount);
     }
     
