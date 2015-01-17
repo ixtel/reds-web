@@ -674,7 +674,7 @@ Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback,
     }
 }
 
-Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, callback, errorCallback) {
+Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, xsigL, callback, errorCallback) {
     var xkeyS, xsaltS, xkey, xstr, xsig, invitation;
     if (!Vault[this.vid].exchange[xid])
         return this.$emitEvent("error", errorCallback, new Error("exchange id not found"));
@@ -684,7 +684,10 @@ Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, c
     xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
     if (xsigR) {
         xsig = this.crypto.generateHmac(xstr, xkey);
-        if (xsigR(xsig != xsigR))
+        console.log(xsig);
+        console.log(xsigR);
+        console.log(xsig.substr(0, xsigL));
+        if (xsig.substr(0, xsigL) != xsigR)
             return this.$emitEvent("error", errorCallback, new Error("exchange checksums mismatch"));
     }
     else {
