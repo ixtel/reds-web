@@ -25,7 +25,10 @@ exports.prototype.HookHandlers = {
 }
 
 exports.prototype.delegate = function() {
-    this.authorizeNode(afterAuthorizeNode.bind(this));
+    if (this.request.method == "POST" && this.selector.hook == "/!/node")
+        Session.prototype.delegate.call(this);
+    else
+        this.authorizeNode(afterAuthorizeNode.bind(this));
 
     function afterAuthorizeNode(error, result) {
         if (error)
