@@ -233,7 +233,7 @@ exports.prototype.readAlias = function(alias, callback) {
 
 exports.prototype.createAccount = function(values, callback) {
     this.$client.query("INSERT INTO accounts (alias,auth,asalt, modified) "+
-        "VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64', $4)) "+
+        "VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64'), $4) "+
         "RETURNING aid",
         [values['alias'], values['auth'], values['asalt'], values['modified']],
     afterQuery);
