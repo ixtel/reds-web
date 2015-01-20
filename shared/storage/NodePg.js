@@ -15,6 +15,8 @@ exports.prototype.connect = function(callback) {
     pg.end();
 
     function afterConnect(error, client, done) {
+        if (!client)
+            error = new Error("unable to create pg client");
         this.$client = client;
         this.$done = done;
         callback && callback(error);

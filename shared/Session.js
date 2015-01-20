@@ -49,7 +49,9 @@ exports.prototype.run = function() {
         this.requestText += chunk;
     }
 
-    function delegate() {
+    function delegate(error) {
+        if (error)
+            return this.abort(new HttpError(500, error.message));
         if (--lock)
             return;
         console.log("REQUEST "+this.requestText); // DEBUG
