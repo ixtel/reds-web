@@ -754,12 +754,13 @@ exports.prototype.updateEntities = function(types, values, callback) {
     types.forEach(updateEntitiesForType.bind(this));
 
     function updateEntitiesForType(type, index) {
-        var table, field, set, fields, vals, val, i;
+        var table, field, set, fields, vals, val, params, i;
         table = "\""+this.options['namespace']+"\".entity_"+type;
         count = index;
         set = new Array();
         fields = new Array();
         vals = new Array();
+        params = new Array();
         for (field in values[type][0]) {
             set.push(field+"=v."+field);
             fields.push(field);
@@ -769,10 +770,13 @@ exports.prototype.updateEntities = function(types, values, callback) {
             for (field in values[type][i]) {
                 // NOTE NodePG seems to escape numbers as strings when we
                 //      use the parameterized form here.
-                if (typeof values[type][i][field] == "string")
-                    val += ",'"+values[type][i][field]+"'";
-                else
+                if (typeof values[type][i][field] == "string") {
+                    val += ",$"+params.length;
+                    params = values[type][i][field];
+                }
+                else {
                     val += ","+values[type][i][field];
+                }
             }
             vals.push("("+val.substr(1)+")");
         }
@@ -780,6 +784,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
             "FROM (VALUES "+vals.join(",")+") AS v("+fields.join(",")+") "+
             "WHERE t.eid = v.eid "+
             "RETURNING *",
+            params,
         afterQuery);
 
         function afterQuery(error, result) {

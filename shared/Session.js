@@ -51,7 +51,7 @@ exports.prototype.run = function() {
 
     function delegate(error) {
         if (error)
-            return this.abort(new HttpError(500, error.message));
+            return this.abort(error);
         if (--lock)
             return;
         console.log("REQUEST "+this.requestText); // DEBUG
@@ -99,7 +99,8 @@ exports.prototype.abort = function(error) {
             console.error("DIZZY "+ee);
         }
         finally {
-            this.emit("error", e);
+            if (this.listeners('error').length)
+                this.emit("error", e);
         }
     }
 }
