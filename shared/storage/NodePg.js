@@ -768,14 +768,18 @@ exports.prototype.updateEntities = function(types, values, callback) {
         for (i = 0; i < values[type].length; i++) {
             val = ""
             for (field in values[type][i]) {
+                params.push(values[type][i][field]);
                 // NOTE NodePG seems to escape numbers as strings when we
                 //      use the parameterized form here.
-                if (typeof values[type][i][field] == "string") {
-                    val += ",$"+params.length;
-                    params = values[type][i][field];
-                }
-                else {
-                    val += ","+values[type][i][field];
+                switch (typeof values[type][i][field]) {
+                    case "number":
+                        val += ",$"+params.length+"::real";
+                        break;
+                    case "boolean":
+                        val += ",$"+params.length+"::boolean";
+                        break;
+                    default:
+                        val += ",$"+params.length;
                 }
             }
             vals.push("("+val.substr(1)+")");
