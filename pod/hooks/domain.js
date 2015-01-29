@@ -3,18 +3,14 @@
 var HttpError = require("../../shared/HttpError");
 
 exports.POST = function(session) {
-    var pkey, dkeyP, dkey, values;
-    pkey = session.crypto.generateSecureHash(session.config['password'], session.config['salt']);
-    dkeyP = session.crypto.generateKeypair();
-    dkey = session.crypto.combineKeypair(dkeyP.privateKey, session.requestJson['dkey_l'], pkey);
-    // NOTE We don't want to modify requestJson so we create our own JSON object here
-    values = JSON.parse(session.requestText);
-    values['dkey'] = dkey;
-    delete values['dkey_l'];
-    session.storage.createDomain(values, afterCreateDomain);
+    var pkey, ikeyP, ikey_;
+    session.storage.createDomain({
+        'did': session.requestJson['did']
+    }, afterCreateDomain);
 
     function afterCreateDomain(error, result) {
-        console.log("afterCreateDomain");
+        if (error !== null)
+            return session.abort(error);
         if (error !== null) {
             // TODO Error type should be returned by storage facility
             switch (error.code) {
@@ -24,9 +20,29 @@ exports.POST = function(session) {
                     return session.abort(error);
             }
         }
-        result['dkey_p'] = dkeyP.publicKey;
-        result['psalt'] = session.config['salt'];
-        session.writeJson(result);
+        pkey = session.crypto.generateSecureHash(session.config['password'], session.config['salt']);
+        ikeyP = session.crypto.generateKeypair();
+        ikey_ = session.crypto.combineKeypair(ikeyP.privateKey, session.requestJson['ikey_l']);
+        session.storage.createInvitation({
+            'iid': session.requestJson['iid'],
+            'ikey': session.crypto.generateHmac(ikey_, pkey),
+            'tflags': 0xFF, // NOTE 0xFF marks the owner ticket
+            'did': session.requestJson['did'] 
+        }, afterCreateInvitation);
+    }
+
+    function afterCreateInvitation(error, result) {
+        if (error !== null)
+            return session.abort(error);
+        var values = {
+            'iid': result['iid'],
+            'ikey_l': session.requestJson['ikey_l'],
+            'ikey_p': ikeyP.publicKey,
+            'psalt': session.config['salt']
+        };
+        console.log(values);
+        session.writeJson(values);
+        //session.signPod();
         session.end();
     }
 }

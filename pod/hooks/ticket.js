@@ -32,7 +32,6 @@ exports.POST = function(session) {
             }
         }
         result['tkey_p'] = tkeyP.publicKey;
-        delete result['dkey'];
         session.writeJson(result);
         session.signDomain();
         session.end();

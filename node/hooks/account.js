@@ -20,12 +20,12 @@ exports.GET = function(session) {
 
 exports.POST = function(session) {
     var authN = session.crypto.generateKeypair();
-    var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJson['auth_l']);
+    var auth = session.crypto.combineKeypair(authN.privateKey, session.requestJson['akey_l']);
     // NOTE We don't want to modify requestJson so we create our own JSON object here
     var values = JSON.parse(session.requestText);
     values['auth'] = auth;
     values['modified'] = Date.now();
-    delete values['auth_l'];
+    delete values['akey_l'];
     session.storage.createAccount(values, afterCreateAccount);
 
     function afterCreateAccount(error, result) {
@@ -38,7 +38,7 @@ exports.POST = function(session) {
                     return session.abort(error);
             }
         }
-        result['auth_n'] = authN.publicKey;
+        result['akey_n'] = authN.publicKey;
         session.writeJson(result);
         session.end();
     }

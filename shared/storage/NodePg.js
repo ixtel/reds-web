@@ -151,7 +151,7 @@ exports.prototype.createNamespace = function(name, types, callback) {
         if (error)
             return cleanupAfterError.call(this, error);
         this.$client.query("CREATE TABLE \""+name+"\".domains "+
-            "(did INTEGER PRIMARY KEY, dkey BYTEA NOT NULL)",
+            "(did INTEGER PRIMARY KEY)",
         afterDomainQuery.bind(this));
     }
 
@@ -159,7 +159,7 @@ exports.prototype.createNamespace = function(name, types, callback) {
         if (error)
             return cleanupAfterError.call(this, error);
         this.$client.query("CREATE TABLE \""+name+"\".invitations "+
-            "(iid BYTEA PRIMARY KEY, did INTEGER NOT NULL REFERENCES \""+name+"\".domains ON UPDATE CASCADE ON DELETE CASCADE, ikey BYTEA NOT NULL, iflags INTEGER NOT NULL, timestamp TIMESTAMP NOT NULL)",
+            "(iid BYTEA PRIMARY KEY, did INTEGER NOT NULL REFERENCES \""+name+"\".domains ON UPDATE CASCADE ON DELETE CASCADE, ikey BYTEA NOT NULL, tflags INTEGER NOT NULL, timestamp TIMESTAMP NOT NULL)",
         afterInvitationQuery.bind(this));
     }
 
@@ -227,6 +227,10 @@ exports.prototype.readAlias = function(alias, callback) {
     afterQuery);
 
     function afterQuery(error, result) {
+        if (error)
+            return callback(error, null);
+        if (result.rows[0])
+            result.rows[0]['modified'] = parseInt(result.rows[0]['modified']);
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -236,11 +240,15 @@ exports.prototype.readAlias = function(alias, callback) {
 exports.prototype.createAccount = function(values, callback) {
     this.$client.query("INSERT INTO accounts (alias,auth,asalt, modified) "+
         "VALUES (decode($1,'base64'),decode($2,'base64'),decode($3,'base64'), $4) "+
-        "RETURNING aid",
+        "RETURNING aid,encode(asalt,'base64') AS asalt,modified",
         [values['alias'], values['auth'], values['asalt'], values['modified']],
     afterQuery);
 
     function afterQuery(error, result) {
+        if (error)
+            return callback(error, null);
+        if (result.rows[0])
+            result.rows[0]['modified'] = parseInt(result.rows[0]['modified']);
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -253,6 +261,10 @@ exports.prototype.readAccount = function(aid, callback) {
     afterQuery);
 
     function afterQuery(error, result) {
+        if (error)
+            return callback(error, null);
+        if (result.rows[0])
+            result.rows[0]['modified'] = parseInt(result.rows[0]['modified']);
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -279,10 +291,15 @@ exports.prototype.updateAccount = function(values, callback) {
                 break;
         }
     }
-    this.$client.query("UPDATE accounts SET "+set+" WHERE aid=$1 RETURNING aid, modified ",
+    this.$client.query("UPDATE accounts SET "+set+" WHERE aid=$1 "+
+        "RETURNING aid,encode(auth,'base64') AS auth,encode(vault,'base64') AS vault,encode(vec,'base64') AS vec,modified ",
     params, afterQuery);
 
     function afterQuery(error, result) {
+        if (error)
+            return callback(error, null);
+        if (result.rows[0])
+            result.rows[0]['modified'] = parseInt(result.rows[0]['modified']);
         callback(error||null, result?result.rows[0]:null);
     }
 }
@@ -328,10 +345,10 @@ exports.prototype.unregisterDomain = function(did, callback) {
 // TODO Check for SQL injection!
 exports.prototype.createDomain = function(values, callback) {
     var table = "\""+this.options['namespace']+"\".domains";
-    this.$client.query("INSERT INTO "+table+" (did, dkey) "+
-        "VALUES ($1,decode($2,'base64')) "+
+    this.$client.query("INSERT INTO "+table+" (did) "+
+        "VALUES ($1) "+
         "RETURNING did",
-        [values['did'], values['dkey']],
+        [values['did']],
     afterQuery);
 
     function afterQuery(error, result) {
@@ -342,7 +359,7 @@ exports.prototype.createDomain = function(values, callback) {
 // TODO Check for SQL injection!
 exports.prototype.readDomain = function(did, callback) {
     var table = "\""+this.options['namespace']+"\".domains";
-    this.$client.query("SELECT did, encode(dkey,'base64') AS dkey "+
+    this.$client.query("SELECT did "+
         "FROM "+table+" "+
         "WHERE did=$1 ",
         [did],
@@ -398,11 +415,12 @@ exports.prototype.unregisterInvitation = function(iid, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.createInvitation = function(values, callback) {
+    console.log(values);
     var table = "\""+this.options['namespace']+"\".invitations";
-    this.$client.query("INSERT INTO "+table+" (iid, did, ikey, iflags, timestamp) "+
-        "VALUES (decode($1,'base64'), $2, decode($3,'base64'), $4, CURRENT_TIMESTAMP) "+
-        "RETURNING encode(iid,'base64') AS iid, did, encode(ikey,'base64') AS ikey, iflags",
-        [values['iid'], values['did'], values['ikey'], values['iflags']],
+    this.$client.query("INSERT INTO "+table+" (iid, ikey, did, tflags, timestamp) "+
+        "VALUES (decode($1,'base64'), decode($2,'base64'), $3, $4, CURRENT_TIMESTAMP) "+
+        "RETURNING encode(iid,'base64') AS iid, encode(ikey,'base64') AS ikey, did, tflags",
+        [values['iid'], values['ikey'], values['did'], values['tflags']],
     afterQuery);
 
     function afterQuery(error, result) {
@@ -413,7 +431,7 @@ exports.prototype.createInvitation = function(values, callback) {
 // TODO Check for SQL injection!
 exports.prototype.readInvitation = function(iid, callback) {
     var table = "\""+this.options['namespace']+"\".invitations";
-    this.$client.query("SELECT encode(iid,'base64') AS iid, did, encode(ikey,'base64') AS ikey, iflags "+
+    this.$client.query("SELECT encode(iid,'base64') AS iid, did, encode(ikey,'base64') AS ikey, tflags "+
         "FROM "+table+" "+
         "WHERE iid=decode($1,'base64') ",
         [iid],
@@ -442,7 +460,6 @@ exports.prototype.deleteInvitation = function(iid, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.createTicket = function(values, callback) {
-    var ticket;
     var table = "\""+this.options['namespace']+"\".tickets";
     this.$client.query("INSERT INTO "+table+" (did, tkey, tflags) "+
         "VALUES ($1,decode($2,'base64'), $3) "+
@@ -453,13 +470,7 @@ exports.prototype.createTicket = function(values, callback) {
     function afterQuery(error, result) {
         if (error)
             return callback(error);
-        ticket = result.rows[0];
-        this.readDomain(ticket['did'], afterReadDomain);
-    }
-
-    function afterReadDomain(error, result) {
-        ticket['dkey'] = result['dkey'];
-        callback(error||null, error?null:ticket);
+        callback(error||null, error?null:result.rows[0]);
     }
 }
 

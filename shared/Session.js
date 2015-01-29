@@ -99,7 +99,7 @@ exports.prototype.abort = function(error) {
             console.error("DIZZY "+ee);
         }
         finally {
-            if (this.listeners('error').length)
+            //if (this.listeners('error').length)
                 this.emit("error", e);
         }
     }

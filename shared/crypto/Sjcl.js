@@ -45,8 +45,8 @@ Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
     var index = sjcl.hash.sha256.hash(this.concatenateStrings(data, salt));
     if (!fresh && cache[index])
         return cache[index];
-    //console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
-    var hashBits = sjcl.misc.pbkdf2(data, salt, 128000, 256);
+    console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
+    var hashBits = sjcl.misc.pbkdf2(data, salt, 12800, 256);
     cache[index] = sjcl.codec.base64.fromBits(hashBits);
     return cache[index];
 }

@@ -20,13 +20,23 @@ exports.POST = function(session) {
     function afterRegisterDomain(error, result) {
         if (error)
             return session.abort(error);
-        domain = {
-            'did': result['did'],
-            'dkey_l': session.requestJson['dkey_l']
-        };
+        domain = result;
+        session.storage.registerInvitation({
+            'iid': session.requestJson['iid'],
+            'did': domain['did']
+        }, afterRegisterInvitation.bind(this));
+    }
+
+    function afterRegisterInvitation(error, result) {
+        if (error)
+            return session.abort(error);
         route.method = "POST";
         route.path = "/!/domain/"+domain['did'];
-        route.writeJson(domain);
+        route.writeJson({
+            'did': domain['did'],
+            'iid': session.requestJson['iid'],
+            'ikey_l': session.requestJson['ikey_l']
+        });
         route.send();
     }
 

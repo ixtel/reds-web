@@ -3,27 +3,31 @@
 var HttpError = require("../../shared/HttpError");
 
 exports.POST = function(session) {
-    session.authorizeDomain(afterAuthorization);
+    session.authorizeTicket(parseInt(session.selector[0].value), afterAuthorization);
 
     function afterAuthorization(error) { 
-        var vecP, vec, lsalt, lid;
+        var skeyP, skey, ssalt, sid;
         if (error)
             return session.abort(error);
-        vecP = session.crypto.generateKeypair();
-        vec = session.crypto.combineKeypair(vecP.privateKey, session.requestJson['vec_l']);
+        skeyP = session.crypto.generateKeypair();
+        skey = session.crypto.combineKeypair(skeyP.privateKey, session.requestJson['skey_l']);
         do {
-            lsalt = session.crypto.generateKey();
-            lid = session.crypto.generateHmac(vec, lsalt);
-        } while (session.leafs.items[lid]);
-        session.leafs.setItem(lid, {
+            ssalt = session.crypto.generateKey();
+            sid = session.crypto.generateHmac(ssalt, skey);
+        } while (session.leafs.items[sid]);
+        session.leafs.setItem(sid, {
+            'sid': sid,
+            'skey': skey,
             'did': parseInt(session.selector[0].value),
-            'vec': vec
+            'tflags': session.authorization.ticket['tflags']
         });
         session.writeJson({
-            'vec_p': vecP.publicKey,
-            'lsalt': lsalt
+            'skey_p': skeyP.publicKey,
+            'ssalt': ssalt,
+            'did': parseInt(session.selector[0].value),
+            'tflags': session.authorization.ticket['tflags']
         });
-        session.signDomain();
+        session.signTicket();
         session.end();
     }
 }

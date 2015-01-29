@@ -59,7 +59,7 @@ Request.prototype.$emitError = function(error) {
     return false;
 }
 
-Request.prototype.addUnmodifiedCheck = function(timestamp) {
+Request.prototype.setUnmodifiedSince = function(timestamp) {
     var date, msec;
     date = new Date(timestamp);
     msec = ('000'+date.getUTCMilliseconds()).substr(-3);
@@ -97,47 +97,6 @@ Request.prototype.write = function(data, type) {
     this.$data = data||"";
 }
 
-Request.prototype.signAccount = function() {
-    var time, msg, sig;
-    if (!this.credentials)
-        throw new Error("missing credentials");
-    time = this.crypto.generateTimestamp();
-    msg = this.crypto.concatenateStrings("account", this.credentials['aid'], time, this.crypto.name, this.$method, this.$type, this.$data);
-    sig = this.crypto.generateHmac(msg, this.credentials['akey']);
-    this.$xhr.setRequestHeader("Authorization", "account:"+this.credentials['aid']+":"+time+":"+sig+":"+this.crypto.name);
-}
-
-Request.prototype.signDomain = function() {
-    var time, msg, sig;
-    if (!this.credentials)
-        throw new Error("missing credentials");
-    time = this.crypto.generateTimestamp();
-    msg = this.crypto.concatenateStrings("domain", this.credentials['did'], time, this.crypto.name, this.$method, this.$type, this.$data);
-    sig = this.crypto.generateHmac(msg, this.credentials['dkey']);
-    this.$xhr.setRequestHeader("Authorization", "domain:"+this.credentials['did']+":"+time+":"+sig+":"+this.crypto.name);
-}
-
-Request.prototype.signInvitation = function() {
-    var time, msg, sig;
-    if (!this.credentials)
-        throw new Error("missing credentials");
-    time = this.crypto.generateTimestamp();
-    msg = this.crypto.concatenateStrings("invitation", this.credentials['iid'], time, this.crypto.name, this.$method, this.$type, this.$data);
-    sig = this.crypto.generateHmac(msg, this.credentials['ikey']);
-    this.$xhr.setRequestHeader("Authorization", "invitation:"+this.credentials['iid']+":"+time+":"+sig+":"+this.crypto.name);
-}
-
-Request.prototype.signTicket = function() {
-    var key, tid, msg, sig;
-    if (!this.credentials)
-        throw new Error("missing credentials");
-    key = this.crypto.generateHmac(this.credentials['tkey'], this.credentials['vec']);
-    tid = this.crypto.encryptData(this.credentials['tid'], this.credentials['dkey'], this.credentials['vec']);
-    msg = this.crypto.concatenateStrings("ticket", this.credentials['lid'], tid, this.crypto.name, this.$method, this.$type, this.$data);
-    sig = this.crypto.generateHmac(msg, key);
-    this.$xhr.setRequestHeader("Authorization", "ticket:"+this.credentials['lid']+":"+tid+":"+sig+":"+this.crypto.name);
-}
-
 Request.prototype.send = function() {
     this.dispatchEvent(new Event("send"));
     this.$xhr.setRequestHeader("Content-Type", this.$type);
@@ -146,48 +105,34 @@ Request.prototype.send = function() {
     return this.$xhr.send(new Blob([this.$data]));
 }
 
-// TODO Switch from $emitEvent to throw
-Request.prototype.authorizeAccount = function() {
-    var msg, sig;
-    if (!this.credentials)
-        return this.$emitError(new Error("missing credentials"));
-    if (!this.responseAuthorization)
-        return this.$emitError(new Error("missing authorization"));
-    // NOTE Note this check won't be needed once the session can handle multiple facilities
-    if (this.responseAuthorization['crypto'] != this.crypto.name)
-        return this.$emitError(new Error("unsupported crypto facility"));
-    if (this.responseAuthorization['realm'] != "account")
-        return this.$emitError(new Error("invalid realm"));
-    if (!this.credentials['aid'])
-        return this.$emitError(new Error("missing account"));
+Request.prototype.sign = function(realm, credentials) {
+    var vec, msg, sig;
+    vec = this.crypto.generateTimestamp();
     msg = this.crypto.concatenateStrings(
-        this.responseAuthorization['realm'],
-        this.responseAuthorization['id'],
-        this.responseAuthorization['vec'],
-        this.responseAuthorization['crypto'],
-        this.$xhr.getResponseHeader("Content-Type"),
-        this.$xhr.responseText||""
+        realm,
+        credentials[1],
+        vec,
+        this.crypto.name,
+        this.$method,
+        this.$type,
+        this.$data
     );
-    sig = this.crypto.generateHmac(msg, this.credentials['akey']);
-    if (sig != this.responseAuthorization['sig'])
-        return this.$emitError(new Error("invalid authorization"));
-    return true;
+    sig = this.crypto.generateHmac(msg, credentials[2]);
+    // TODO Swap crypto.name and sig
+    this.$xhr.setRequestHeader("Authorization", realm+":"+credentials[1]+":"+vec+":"+sig+":"+this.crypto.name);
 }
 
-// TODO Switch from $emitEvent to throw
-Request.prototype.authorizeDomain = function() {
+Request.prototype.verify = function(realm, credentials) {
     var msg, sig;
-    if (!this.credentials)
-        return this.$emitError(new Error("missing credentials"));
     if (!this.responseAuthorization)
-        return this.$emitError(new Error("missing authorization"));
+        throw new Error("missing authorization");
+    if (this.responseAuthorization['realm'] != realm)
+        return this.$emitError(new Error("invalid realm"));
+    if (this.responseAuthorization['id'] != credentials[1])
+        return this.$emitError(new Error("invalid credentials"));
     // NOTE Note this check won't be needed once the session can handle multiple facilities
     if (this.responseAuthorization['crypto'] != this.crypto.name)
-        return this.$emitError(new Error("unsupported crypto facility"));
-    if (this.responseAuthorization['realm'] != "domain")
-        return this.$emitError(new Error("invalid realm"));
-    if (!this.credentials['did'])
-        return this.$emitError(new Error("missing domain"));
+        throw new Error("unsupported crypto facility");
     msg = this.crypto.concatenateStrings(
         this.responseAuthorization['realm'],
         this.responseAuthorization['id'],
@@ -196,72 +141,9 @@ Request.prototype.authorizeDomain = function() {
         this.$xhr.getResponseHeader("Content-Type"),
         this.$xhr.responseText||""
     );
-    sig = this.crypto.generateHmac(msg, this.credentials['dkey']);
+    sig = this.crypto.generateHmac(msg, credentials[2]);
     if (sig != this.responseAuthorization['sig'])
-        return this.$emitError(new Error("invalid authorization"));
-    return true;
-}
-
-// TODO Switch from $emitEvent to throw
-Request.prototype.authorizeInvitation = function() {
-    var msg, sig;
-    if (!this.credentials)
-        return this.$emitError(new Error("missing credentials"));
-    if (!this.responseAuthorization)
-        return this.$emitError(new Error("missing authorization"));
-    // NOTE Note this check won't be needed once the session can handle multiple facilities
-    if (this.responseAuthorization['crypto'] != this.crypto.name)
-        return this.$emitError(new Error("unsupported crypto facility"));
-    if (this.responseAuthorization['realm'] != "invitation")
-        return this.$emitError(new Error("invalid realm"));
-    if (!this.credentials['iid'])
-        return this.$emitError(new Error("missing domain"));
-    msg = this.crypto.concatenateStrings(
-        this.responseAuthorization['realm'],
-        this.responseAuthorization['id'],
-        this.responseAuthorization['vec'],
-        this.responseAuthorization['crypto'],
-        this.$xhr.getResponseHeader("Content-Type"),
-        this.$xhr.responseText||""
-    );
-    sig = this.crypto.generateHmac(msg, this.credentials['ikey']);
-    if (sig != this.responseAuthorization['sig'])
-        return this.$emitError(new Error("invalid authorization"));
-    return true;
-}
-
-// TODO Switch from $emitEvent to throw
-Request.prototype.authorizeTicket = function() {
-    var tid, key, msg, sig;
-    if (!this.credentials)
-        return this.$emitError(new Error("missing credentials"));
-    if (!this.responseAuthorization)
-        return this.$emitError(new Error("missing authorization"));
-    // NOTE Note this check won't be needed once the session can handle multiple facilities
-    if (this.responseAuthorization['crypto'] != this.crypto.name)
-        return this.$emitError(new Error("unsupported crypto facility"));
-    if (this.responseAuthorization['realm'] != "ticket")
-        return this.$emitError(new Error("invalid realm"));
-    if (!this.credentials['lid'])
-        return this.$emitError(new Error("missing leaf"));
-    if (!this.credentials['did'])
-        return this.$emitError(new Error("missing domain"));
-    if (!this.credentials['tid'])
-        return this.$emitError(new Error("missing ticket"));
-    tid = this.crypto.decryptData(this.responseAuthorization['vec'], this.credentials['dkey'], this.credentials['vec']);
-    key = this.crypto.generateHmac(this.credentials['tkey'], this.credentials['vec']);
-    msg = this.crypto.concatenateStrings(
-        this.responseAuthorization['realm'],
-        this.responseAuthorization['id'],
-        this.responseAuthorization['vec'],
-        this.responseAuthorization['crypto'],
-        this.$xhr.getResponseHeader("Content-Type"),
-        this.$xhr.responseText||""
-    );
-    sig = this.crypto.generateHmac(msg, key);
-    if (sig != this.responseAuthorization['sig'])
-        return this.$emitError(new Error("invalid authorization"));
-    return true;
+        throw new Error("invalid authorization");
 }
 
 Object.defineProperty(Request.prototype, "responseEncrypted", {

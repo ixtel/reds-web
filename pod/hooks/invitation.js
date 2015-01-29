@@ -39,7 +39,7 @@ exports.PUT = function(session) {
         values = JSON.parse(JSON.stringify(session.requestJson));
         values['did'] = session.authorization['invitation']['did'];
         values['tkey'] = tkey;
-        values['tflags'] = session.authorization.invitation['iflags'];
+        values['tflags'] = session.authorization.invitation['tflags'];
         delete values['tkey_l'];
         session.storage.createTicket(values, afterCreateTicket);
     }
@@ -49,7 +49,6 @@ exports.PUT = function(session) {
             return session.abort(error);
         ticket = result;
         ticket['tkey_p'] = tkeyP.publicKey;
-        ticket['dkey'] = session.crypto.encryptData(ticket['dkey'], session.authorization.invitation['ikey'], session.authorization.invitation['iid']);
         session.storage.deleteInvitation(session.authorization.invitation['iid'], afterDeleteInvitation.bind(this));
     }
 
