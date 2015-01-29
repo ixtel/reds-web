@@ -48,9 +48,10 @@ CryptoFacilities.addFactoryToObject("createCryptoFacility", Client.prototype);
 
 Client.prototype.$upgradeVault = function(vault) {
     var id;
-    switch (vault.version.join(".")) {
+    switch (vault.version?vault.version.join("."):null) {
         default:
-            // NOTE Version 0.2.2
+            console.log("upgrading vault (0.2.2)")
+            vault.version = [0,2,2];
             vault.exchange = vault.exchange||new Object();
             vault.invitation = vault.invitation||new Object();
             for (id in vault.domain)
@@ -59,7 +60,9 @@ Client.prototype.$upgradeVault = function(vault) {
                 vault.exchange[id]['modified'] = vault.exchange[id]['timestamp']||Date.now(); 
             for (id in vault.invitation)
                 vault.invitation[id]['modified'] = vault.invitation[id]['timestamp']||Date.now(); 
-            // NOTE Version 0.2.3
+        case "0.2.2":
+            console.log("upgrading vault (0.2.3)");
+            vault.version = [0,2,3];
             vault.tickets = vault.tickets||new Object();
             vault.invitations = vault.invitations||new Object();
             vault.exchanges = vault.exchanges||new Object();
@@ -91,9 +94,8 @@ Client.prototype.$upgradeVault = function(vault) {
             delete vault.invitation;
             delete vault.exchange;
         case "0.2.3":
-            // add upgrades for version 0.2.4 here
+            // NOTE Nothing to be done for the latest version
     }
-    vault.version = "0.2.3";
     return vault;
 }
 
@@ -142,23 +144,20 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
     }
 
     function onLoad() {
-        var akey, asec, vault;
+        var akey, asec;
         try {
-            console.log(request.responseJson);
             asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
-            vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
-            vault = this.$upgradeVaultTo2_2_2(vault);
-            vault.modified = parseInt(request.responseJson['modified']); 
-            vault = this.$upgradeVaultTo2_2_3(vault);
-            vault.streams = new Object();
-            vault.account.push(asec); // NOTE account[2] = account secret 
-            Vault[this.vid] = vault;
-            console.log(Vault[this.vid]);
+            Vault[this.vid] = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
+            Vault[this.vid] = this.$upgradeVault(Vault[this.vid]);
+            Vault[this.vid].modified = parseInt(request.responseJson['modified']); 
+            Vault[this.vid].streams = new Object();
+            Vault[this.vid].account.push(asec); // NOTE account[2] = account secret 
+            console.log(Vault[this.vid]); // DEBUG
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        this.$emitEvent("load", callback, {'aid':Vault[this.vid].account['aid']});
+        this.$emitEvent("load", callback, {'aid':Vault[this.vid].account[1]});
     }
 }
 
@@ -785,55 +784,76 @@ Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, x
     }
 }
 
-// NOTE We're using a callback here with regard to further changes.
-Client.prototype.readPendingInvitations = function(iids, callback, errorCallback) {
-    var invitation, response, iid;
-    response = new Array();
-    for (iid in Vault[this.vid].invitation) {
-        if (!iids || (iids.indexOf(iid) != -1)) {
-            response.push({
-                'iid': iid,
-                'xsig': Vault[this.vid].invitation[iid]['xsig'],
-                'timestamp': Vault[this.vid].invitation[iid]['modified']
-            });
-        }
-    }
-    this.$emitEvent("load", callback, response);
-}
-
-Client.prototype.deletePendingInvitations = function(iids, callback, errorCallback) {
-    var invitation, response, iid;
-    response = new Array();
-    for (iid in Vault[this.vid].invitation) {
-        if (!iids || (iids.indexOf(iid) != -1)) {
-            delete Vault[this.vid].invitation[iid];
-            response.push(iid);
-        }
-    }
-    this.updateVault(afterUpdateVault.bind(this), errorCallback);
-    
-    function afterUpdateVault() {
-        this.$emitEvent("load", callback, response);
-    }
-}
-
-Client.prototype.clearPendingInvitations = function(iids, ttl, callback, errorCallback) {
-    var  response, iid, deadline, modified;
-    response = new Array();
-    deadline = Date.now();
-    for (iid in Vault[this.vid].invitation) {
-        if (!iids || (iids.indexOf(iid) != -1)) {
-            modified = parseInt(Vault[this.vid].invitation[iid]['modified']);
-            if (modified+ttl < deadline) {
-                delete Vault[this.vid].invitation[iid];
-                response.push(iid);
+// NOTE We're using callbacks here with regard to further changes.
+Client.prototype.readPendingInvitations = function(ids, callback, errorCallback) {
+    var result, id;
+    try {
+        result = new Array();
+        for (id in Vault[this.vid].invitations) {
+            if (!ids || (ids.indexOf(id) != -1)) {
+                result.push({
+                    'id': Vault[this.vid].invitations[id][1],
+                    'signature': Vault[this.vid].invitation[id][3],
+                    'modified': Vault[this.vid].invitation[id][0]
+                });
             }
         }
     }
-    this.updateVault(afterUpdateVault.bind(this), errorCallback);
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
+    this.$emitEvent("load", callback, result);
+}
+
+Client.prototype.deletePendingInvitations = function(ids, callback, errorCallback) {
+    var result, id;
+    try {
+        result = new Array();
+        for (id in Vault[this.vid].invitations) {
+            if (!ids || (ids.indexOf(id) != -1)) {
+                delete Vault[this.vid].invitation[id];
+                result.push(id);
+            }
+        }
+    }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
+    if (result.length)
+        this.updateVault(afterUpdateVault.bind(this), errorCallback);
+    else
+        this.$emitEvent("load", callback, result);
     
     function afterUpdateVault() {
-        this.$emitEvent("load", callback, response);
+        this.$emitEvent("load", callback, result);
+    }
+}
+
+Client.prototype.clearPendingInvitations = function(ids, ttl, callback, errorCallback) {
+    var  result, deadline, modified, id;
+    try {
+        result = new Array();
+        deadline = Date.now();
+        for (id in Vault[this.vid].invitations) {
+            if (!ids || (ids.indexOf(id) != -1)) {
+                modified = parseInt(Vault[this.vid].invitations[id][0]);
+                if (modified+ttl < deadline) {
+                    delete Vault[this.vid].invitation[id];
+                    result.push(id);
+                }
+            }
+        }
+    }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
+    if (result.length)
+        this.updateVault(afterUpdateVault.bind(this), errorCallback);
+    else
+        this.$emitEvent("load", callback, result);
+    
+    function afterUpdateVault() {
+        this.$emitEvent("load", callback, result);
     }
 }
 
