@@ -135,35 +135,46 @@ exports.prototype.authorizeTicket = function(did, callback) {
 }
 
 exports.prototype.authorizeStream = function(callback) {
-    var leaf, domain, ticket;
-    if (!this.authorization)
-        return callback(new HttpError(400, "Missing authorization"));
-    // NOTE Note this check won't be needed once the session can handle multiple facilities
-    if (this.authorization['crypto'] != this.crypto.name)
-        return callback(new HttpError(400, "Unsupported crypto facility"));
-    if (this.authorization['realm'] != "ticket")
-        return callback(new HttpError(400, "Invalid realm 'ticket'"));
-    leaf = this.leafs.getItem(this.authorization['id']);
-    if (!leaf)
-        return callback(new HttpError(412, "Unknown leaf"));
-    this.storage.readTickets(leaf['tid'], leaf['did'], afterReadTicket.bind(this));
+    var stream;
+    try {
+        if (!this.authorization)
+            throw new HttpError(400, "missing authorization");
+        // NOTE Note this check won't be needed once the session can handle multiple facilities
+        if (this.authorization['crypto'] != this.crypto.name)
+            throw new HttpError(400, "unsupported crypto facility");
+        if (this.authorization['realm'] != "stream")
+            throw new HttpError(400, "invalid realm");
+        stream = this.leafs.getItem(this.authorization['id']);
+    }
+    catch (e) {
+        callback(e);
+    }
+    afterReadStream.call(this, null, [stream]);
 
-    function afterReadTicket(error, result) {
-        var key;
-        if (error)
-            return callback(error);
-        if (!result || !result[0])
-            return callback(new HttpError(401, "Unknown ticket"));
-        ticket = result[0];
-        key = this.crypto.generateHmac(ticket['tkey'], leaf['vec']);
-        var msg = this.crypto.concatenateStrings(this.authorization['realm'], this.authorization['id'], this.authorization['vec'], this.authorization['crypto'], this.request.method, this.request.headers['content-type'], this.requestText||"");
-        var sig = this.crypto.generateHmac(msg, key);
-        if (sig != this.authorization['sig'])
-            return callback(new HttpError(403, "Invalid authorization"));
-        this.authorization['leaf'] = leaf;
-        this.authorization['domain'] = domain;
-        this.authorization['ticket'] = ticket;
-        callback();
+    function afterReadStream(error, result) {
+        try {
+            if (error)
+                throw error;
+            if (!result && result[0])
+                return callback(new HttpError(412, "unknown leaf"));
+            var msg = this.crypto.concatenateStrings(
+                'stream',
+                this.authorization['id'],
+                this.authorization['vec'],
+                this.authorization['crypto'],
+                this.request.method,
+                this.request.headers['content-type'],
+                this.requestText||""
+            );
+            var sig = this.crypto.generateHmac(msg, result[0]['skey']);
+            if (sig != this.authorization['sig'])
+                throw new HttpError(403, "invalid authorization");
+            this.authorization.stream = result[0];
+        }
+        catch (e) {
+            return callback(e);
+        }
+        callback(null);
     }
 }
 
@@ -175,7 +186,7 @@ exports.prototype.signInvitation = function() {
     this.response.setHeader("Authorization", "invitation:"+this.authorization.invitation['iid']+":"+time+":"+sig+":"+this.crypto.name);
 }
 
-exports.prototype.signTicket = function(credentials) {
+exports.prototype.signTicket = function() {
     var time, msg, sig;
     time = this.crypto.generateTimestamp();
     msg = this.crypto.concatenateStrings("ticket", this.authorization.ticket['tid'], time, this.crypto.name, this.response.getHeader("Content-Type"), this.$responseText);
@@ -183,20 +194,29 @@ exports.prototype.signTicket = function(credentials) {
     this.response.setHeader("Authorization", "ticket:"+this.authorization.ticket['tid']+":"+time+":"+sig+":"+this.crypto.name);
 }
 
+exports.prototype.signStream = function() {
+    var time, msg, sig;
+    time = this.crypto.generateTimestamp();
+    msg = this.crypto.concatenateStrings("stream", this.authorization.stream['sid'], time, this.crypto.name, this.response.getHeader("Content-Type"), this.$responseText);
+    sig = this.crypto.generateHmac(msg, this.authorization.stream['skey']);
+    this.response.setHeader("Authorization", "stream:"+this.authorization.stream['sid']+":"+time+":"+sig+":"+this.crypto.name);
+}
+
 exports.prototype.writeEncrypted = function(data, type) {
-    var msg, cipher;time
+    var msg, vec, cipher;
     if (data!==undefined) {
         msg = JSON.stringify(data);
-        cipher = this.crypto.encryptData(msg, this.authorization.ticket['tkey'], this.authorization.leaf['vec']);
+        vec = this.crypto.generateTimestamp();
+        cipher = this.crypto.encryptData(msg, this.authorization.stream['skey'], vec);
     }
-    this.write(cipher, type||"application/x.reds.encrypted;did="+this.type.options['did']);
+    this.write(cipher, type||"application/x.reds.encrypted;did="+this.type.options['did']+";vec="+vec);
 }
 
 Object.defineProperty(exports.prototype, "requestEncrypted", {
     get: function() {
         var msg;
         if (this.$requestEncrypted === undefined) {
-            msg = this.crypto.decryptData(this.requestText, this.authorization.ticket['tkey'], this.authorization.leaf['vec']);
+            msg = this.crypto.decryptData(this.requestText, this.authorization.stream['skey'], this.type.options['vec']);
             this.$requestEncrypted = msg ? JSON.parse(msg) : null;
         }
         return this.$requestEncrypted;

@@ -149,12 +149,13 @@ Object.defineProperty(exports.prototype, "selector", {
 Object.defineProperty(exports.prototype, "type", {
     get: function() {
         if (this.$type === undefined) {
-            this.$type = {
-                'name': null,
-                'options': {}
-            };
+            this.$type = null;
             if (this.request.headers['content-type']) {
-                this.$type.name = this.request.headers['content-type'].replace(/;\s*([^;=]*)\s*=\s*([^;=]*)\s*/, function(m, p1, p2) {
+                this.$type = {
+                    'name': null,
+                    'options': {}
+                };
+                this.$type.name = this.request.headers['content-type'].replace(/;\s*([^;=]*)\s*=\s*([^;]*)\s*/g, function(m, p1, p2) {
                     if (p1.length)
                         this.$type.options[p1] = p2;
                     return "";
@@ -170,7 +171,7 @@ Object.defineProperty(exports.prototype, "authorization", {
         if (this.$authorization === undefined) {
             this.$authorization = this.request.headers['authorization'] || null;
             if (this.$authorization) {
-                this.$authorization = this.$authorization.match(/(account|node|domain|invitation|ticket):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
+                this.$authorization = this.$authorization.match(/(\w+):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([A-Za-z0-9\+\/]+={0,2}):([\w-]+)/)
                 if (this.$authorization) {
                     this.$authorization = {
                         'realm': this.$authorization[1],

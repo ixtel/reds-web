@@ -9,7 +9,7 @@ exports.POST = function(session) {
         return session.abort(new HttpError(400, "invalid url type"));
     if (session.selector.last.value.match(/[^\d]/))
         return session.abort(new HttpError(400, "invalid url id"));
-    session.authorizeTicket(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         var values;
@@ -33,7 +33,7 @@ exports.POST = function(session) {
             }
         }
         session.writeEncrypted(result);
-        session.signTicket();
+        session.signStream();
         session.end();
     }
 }

@@ -177,7 +177,7 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
         akeyL = this.crypto.generateKeypair();
         request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
         request.open("POST", this.options.url, "/!/account");
-        request.writeJson({
+        request.write({
             'alias': alias,
             'asalt': asalt,
             'akey_l': akeyL.publicKey
@@ -256,7 +256,7 @@ Client.prototype.updateVault = function(retries, callback, errorCallback) {
         vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account[3], vec);
         request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this), onError.bind(this));
         request.open("PUT", this.options.url, "/!/account/"+Vault[this.vid].account[1]);
-        request.writeJson({
+        request.write({
             'vault': vault,
             'vec': vec
         });
@@ -333,7 +333,7 @@ Client.prototype.createPod = function(url, password, callback, errorCallback) {
     try {
         var request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
         request.open("POST", this.options.url, "/!/pod");
-        request.writeJson({
+        request.write({
             'url': url
         });
         request.send();
@@ -356,7 +356,7 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
         ikeyL = this.crypto.generateKeypair();
         request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this), onerror);
         request.open("POST", this.options.url, "/!/domain");
-        request.writeJson({
+        request.write({
             'pod': pod,
             'iid': iid,
             'ikey_l': ikeyL.publicKey
@@ -390,7 +390,9 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
             this.$emitEvent("error", errorCallback, e);
             return;
         }
-        this.$emitEvent("load", callback, request.responseJson['iid']);
+        this.$emitEvent("load", callback, {
+            'iid': request.responseJson['iid']
+        });
     }
 }
 
@@ -454,7 +456,7 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
         tkeyL = this.crypto.generateKeypair();
         request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
         request.open("PUT", this.options.url, "/!/invitation/"+iidUrl);
-        request.writeJson({
+        request.write({
             'tkey_l': tkeyL.publicKey
         });
         request.sign("invitation", Vault[this.vid].invitations[iid]);
@@ -481,7 +483,7 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        this.updateVault(afterUpdateVault.bind(this), errorCallback);
+        this.updateVault(3, afterUpdateVault.bind(this), errorCallback);
     }
     
     function afterUpdateVault() {
@@ -878,12 +880,12 @@ Client.prototype.$refreshLeaf = function(did, callback) {
     var request, skeyL;
     try {
         skeyL = this.crypto.generateKeypair();
-        request = this.$createRequest(Vault[this.vid].domain[did], undefined, undefined, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
         request.open("POST", this.options.url, "/!/domain/"+did+"/leaf");
-        request.writeJson({
+        request.write({
             'skey_l': skeyL.publicKey
         });
-        request.signTicket();
+        request.sign("ticket", Vault[this.vid].tickets[did]);
         request.send();
     }
     catch (e) {
@@ -893,14 +895,16 @@ Client.prototype.$refreshLeaf = function(did, callback) {
     function onLoad(evt) {
         var skey, sid;
         try {
-            request.authorizeTicket();
+            request.verify("ticket", Vault[this.vid].tickets[did]);
             skey = this.crypto.combineKeypair(skeyL.privateKey, request.responseJson['skey_p']);
             sid = this.crypto.generateHmac(request.responseJson['ssalt'], skey);
-            Vault[this.vid].streams[request.responseJson['did']] = {
-                'sid': sid,
-                'skey': skey,
-                'tflags': request.responseJson['tflags'] 
-            };
+            Vault[this.vid].streams[request.responseJson['did']] = [
+                Date.now(),                     // NOTE stream[0] = modified timestamp
+                sid,                            // NOTE stream[1] = stream id
+                skey,                           // NOTE stream[2] = stream key
+                request.responseJson['tflags'], // NOTE stream[3] = ticket flags
+                request.responseJson['did']     // NOTE stream[4] = domain id
+            ];
         }
         catch (e) {
             callback(e, null);
@@ -915,7 +919,7 @@ Client.prototype.$refreshLeaf = function(did, callback) {
 
 // NOTE This function uses the only callback and won't dispatch any events. 
 Client.prototype.$registerLeaf = function(did, callback) {
-    if (Vault[this.vid].domain[did]['vec'])
+    if (Vault[this.vid].streams[did])
         callback(null, did);
     else
         this.$refreshLeaf(did, callback);
@@ -982,10 +986,10 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
         if (!did)
             return onError.call(this, {'detail':new Error("undefined domain id")});
         try {
-            request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, callback, errorCallback, onLoad.bind(this), onError.bind(this));
             request.open("POST", this.options.url, path);
-            request.writeEncrypted(data);
-            request.signTicket();
+            request.write(data, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
@@ -993,15 +997,18 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
         }
 
         function onLoad() {
-            // NOTE If match[2] is set only a relation operation took place on the node
-            if (match[2])
-                this.$emitEvent("load", callback, request.responseJson);
-            else {
-                if (!request.authorizeTicket())
-                    this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
-                else
-                    this.$emitEvent("load", callback, request.responseEncrypted);
+            try {
+                // NOTE If match[2] is set only a relation operation took place on the node
+                // TODO Verify response also on relation operations
+                if (!match[2]) {
+                    request.verify("stream", Vault[this.vid].streams[did]);
+                    request.decrypt(Vault[this.vid].streams[did]);
+                }
             }
+            catch (e) {
+                return this.$emitEvent("error", errorCallback, e); 
+            }
+            this.$emitEvent("load", callback, request.responseJson);
         }
 
         function onError(evt) {
@@ -1295,7 +1302,7 @@ Client.prototype.createEntityAndDomain = function(path, data, url, password, cal
 
     function afterCreateDomain(result) {
         results.invitation = result;
-        this.createTicket(result, afterCreateTicket.bind(this));
+        this.createTicket(result['iid'], afterCreateTicket.bind(this));
     }
 
     function afterCreateDomainError(error) {
@@ -1311,10 +1318,6 @@ Client.prototype.createEntityAndDomain = function(path, data, url, password, cal
 
     function afterCreateTicket(result) {
         results.ticket = result;
-        this.updateVault(afterUpdateVault.bind(this));
-    }
-
-    function afterUpdateVault() {
         data['did'] = results.ticket['did'];
         this.createEntity(path, data, afterCreateEntity);
     }
