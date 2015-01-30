@@ -370,7 +370,6 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
     function onLoad() {
         try {
             var pkey, ikey_, invitation;
-            console.log(request.responseJson);
             if (iid != request.responseJson['iid'])
                 throw new Error("leaf and pod iid mismatch");
             if (ikeyL.publicKey != request.responseJson['ikey_l'])
@@ -402,6 +401,7 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
     errors = new Array();
     if (!dids || dids.length == 0)
         return this.$emitEvent("load", callback, results);
+    count = dids.length;
     dids.forEach(deleteDomain, this);
 
     function deleteDomain(did) {
@@ -414,8 +414,9 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
             request.send();
         }
         catch (e) {
-            if (++count >= dids.length)
-                finalize();
+            errors.push(e);
+            if (--count <= 0)
+                finalize.call(this);
         }
 
         function onLoad() {
@@ -428,14 +429,14 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
             catch (e) {
                 errors.push(e);
             }
-            if (++count >= dids.length)
-                finalize();
+            if (--count <= 0)
+                finalize.call(this);
         }
 
         function onError(evt) {
             errors.push(evt.detail);
-            if (++count >= dids.length)
-                finalize();
+            if (--count <= 0)
+                finalize.call(this);
         }
     }
 
@@ -873,11 +874,12 @@ Client.prototype.clearPendingInvitations = function(iids, ttl, callback, errorCa
     }
 }
 
-// INFO Entity operations
+// INFO Stream operations
 
-// NOTE This function uses the only callback and won't dispatch any events. 
-Client.prototype.$refreshLeaf = function(did, callback) {
+Client.prototype.openStream = function(did, callback, errorCallback) {
     var request, skeyL;
+    if (Vault[this.vid].streams[did])
+        return this.$emitEvent("load", callback, did);
     try {
         skeyL = this.crypto.generateKeypair();
         request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
@@ -889,7 +891,7 @@ Client.prototype.$refreshLeaf = function(did, callback) {
         request.send();
     }
     catch (e) {
-        callback(e, null);
+        this.$emitEvent("error", errorCallback, e);
     }
 
     function onLoad(evt) {
@@ -907,86 +909,81 @@ Client.prototype.$refreshLeaf = function(did, callback) {
             ];
         }
         catch (e) {
-            callback(e, null);
+            return this.$emitEvent("error", errorCallback, e);
         }
-        callback(null, request.responseJson['did']);
+        return this.$emitEvent("load", callback, request.responseJson['did']);
     }
 
     function onError(evt) {
-        callback(evt.detail, null);
+        // TODO delete ticket (via pod request) on 401
+        this.$emitEvent("error", errorCallback, evt.detail);
     }
 }
 
-// NOTE This function uses the only callback and won't dispatch any events. 
-Client.prototype.$registerLeaf = function(did, callback) {
-    if (Vault[this.vid].streams[did])
-        callback(null, did);
-    else
-        this.$refreshLeaf(did, callback);
-}
+// INFO Entity operations
 
-// NOTE This function uses the only callback and won't dispatch any events. 
 // TODO Implement some kind of caching to reduce HEAD requests
-Client.prototype.$resolvePath = function(path, callback) {
+Client.prototype.resolveEntities = function(path, callback, errorCallback) {
+    var dids, request, p;
     try {
-        var request;
-        request = this.$createRequest(null, undefined, undefined, onLoad.bind(this), onError.bind(this));
-        request.open("HEAD", this.options.url, path);
-        request.send();
+        if (!path.match(/\/\w+\/\*/)) {
+            request = this.$createRequest(undefined, undefined, errorCallback, onLoad.bind(this), undefined);
+            request.open("HEAD", this.options.url, path);
+            return request.send();
+        }
+        dids = new Array();
+        for (p in Vault[this.vid].tickets)
+            dids.push(parseInt(p));
     }
     catch (e) {
-        callback(e, null);
+        return this.$emitEvent("error", errorCallback, e);
     }
+    this.$emitEvent("load", callback, dids);
 
-    // TODO Get rid of dids array
     function onLoad(evt) {
-        var dids, i;
-        dids = new Array();
-        if (!request.responseType.options)
-            return callback(null, null, 0, 0);
-        request.responseType.options['did'].replace(/(?:^|,)(\d+)(?=,|$)/g, function(m, p) {
-            var did;
-            did = parseInt(p);
-            if (Vault[this.vid].domain[did])
-                dids.push(did);
-            return false;
-        }.bind(this));
-        if (dids.length)
-            dids.forEach(forEachDids.bind(this));
-        else
-            callback(null, null, 0, 0);
-
-        function forEachDids(did, index, dids) {
-            this.$registerLeaf(did, function(error, did) {
-                callback(error, did, index, dids.length);
-            }.bind(this));
+        try {
+            dids = new Array();
+            if (request.responseType.options && request.responseType.options['did']) {
+                request.responseType.options['did'].replace(/(\d+)(?=,|$)/g, function(m, p) {
+                    p = parseInt(p);
+                    if (Vault[this.vid].tickets[p])
+                        dids.push(p);
+                    return false;
+                }.bind(this));
+            }
         }
-    }
-
-    function onError(evt) {
-        callback(evt.detail, null, 0, 0);
+        catch (e) {
+            return this.$emitEvent("error", errorCallback, e);
+        }
+        this.$emitEvent("load", callback, dids);
     }
 }
 
 Client.prototype.createEntity = function(path, data, callback, errorCallback) {
-    var match, request;
+    var match;
     match = path.match(/^((?:\/\w+\/\d+)+?)?\/\w+(\/\d+(?:\?hard)?)?$/);
     if (!match)
-        return this.$emitEvent("error", errorCallback, new Error("invalid path"));
-    if (data['did'])
-        this.$registerLeaf(data['did'], afterResolvePath.bind(this));
+        this.$emitEvent("error", errorCallback, new Error("invalid path"));
+    else if (data['did'])
+        afterResolveEntities.call(this, [data['did']]);
     else if (match[1])
-        this.$resolvePath(match[1], afterResolvePath.bind(this));
+        this.resolveEntities(match[1], afterResolveEntities.bind(this), errorCallback);
     else
-        return this.$emitEvent("error", errorCallback, new Error("unknown did"));
+        this.$emitEvent("error", errorCallback, new Error("unknown did"));
 
-    function afterResolvePath(error, did, index, length) {
-        if (error)
-            return onError.call(this, {'detail':error});
-        if (!did)
-            return onError.call(this, {'detail':new Error("undefined domain id")});
+    function afterResolveEntities(dids) {
+        var i;
+        if (dids.length == 0)
+            this.$emitEvent("load", callback, null);
+        else for (i=0; i<dids.length; i++)
+            this.openStream(dids[i], afterOpenStream.bind(this), errorCallback);
+        return false; // NOTE Prevent global load event
+    }
+    
+    function afterOpenStream(did) {
+        var request;
         try {
-            request = this.$createRequest(undefined, callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("POST", this.options.url, path);
             request.write(data, Vault[this.vid].streams[did]);
             request.sign("stream", Vault[this.vid].streams[did]);
@@ -995,6 +992,7 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
+        return false; // NOTE Prevent global load event
 
         function onLoad() {
             try {
@@ -1013,9 +1011,9 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 
         function onError(evt) {
             if (evt.detail.code == 412) {
-                return this.$refreshLeaf(did, function(error, did) {
-                    afterResolvePath.call(this, error, did, index, length);
-                }.bind(this));
+                delete Vault[this.vid].streams[did];
+                if (true) // TODO Add retry counter
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
             this.$emitEvent("error", errorCallback, evt.detail);
         }
@@ -1029,70 +1027,69 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
         return this.$emitEvent("error", errorCallback, new Error("invalid path"));
     results = new Object();
     errors = new Array();
-    count = 0;
-    this.$resolvePath(match[0], afterResolvePath.bind(this));
+    this.resolveEntities(match[0], afterResolveEntities.bind(this), errorCallback);
 
-    function afterResolvePath(error, did, index, length) {
-        var request, type;
-        if (error)
-            return onError.call(this, {'detail':error});
-        if (!did) {
-            if (length == 0)
-                return finalize.call(this)
-            else
-                return onError.call(this, {'detail':new Error("undefined domain id")});
-        }
+    function afterResolveEntities(dids) {
+        var i;
+        count = dids.length;
+        if (count == 0)
+            this.$emitEvent("load", callback, null);
+        else for (i=0; i<dids.length; i++)
+            this.openStream(dids[i], afterOpenStream.bind(this), errorCallback);
+        return false; // NOTE Prevent global load event
+    }
+
+    function afterOpenStream(did) {
+        var request;
         try {
-            request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("GET", this.options.url, path);
-            request.writeEncrypted();
-            request.signTicket(Vault[this.vid].domain[did]);
+            request.write(undefined, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
-            this.$emitEvent("error", errorCallback, e);
+            errors.push(e);
+            if (--count <= 0)
+                finalize.call(this);
         }
+        return false; // NOTE Prevent global load event
 
         function onLoad() {
-            if (!request.authorizeTicket())
-                return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
-            count++;
-            for (type in request.responseEncrypted) {
-                if (results[type])
-                    results[type] = results[type].concat(request.responseEncrypted[type]);
-                else
-                    results[type] = request.responseEncrypted[type];
+            var type;
+            try {
+                request.verify("stream", Vault[this.vid].streams[did]);
+                request.decrypt(Vault[this.vid].streams[did]);
+                for (type in request.responseJson) {
+                    if (results[type])
+                        results[type] = results[type].concat(request.responseJson[type]);
+                    else
+                        results[type] = request.responseJson[type];
+                }
             }
-            if (length-count == 0)
+            catch (e) {
+                errors.push(e);
+            }
+            if (--count <= 0)
                 finalize.call(this);
         }
 
         function onError(evt) {
-            switch (evt.detail.code) {
-                case 401:
-                    delete Vault[this.vid].domain[did];
-                    return this.updateVault(function(){
-                        count++;
-                        if (length-count == 0)
-                            finalize.call(this);
-                    }.bind(this));
-                case 412:
-                    return this.$refreshLeaf(did, function(error, did) {
-                        afterResolvePath.call(this, error, did, index, length);
-                    }.bind(this));
-                default:
-                    count++;
-                    errors.push(evt.detail);
-                    if (length-count == 0)
-                        finalize.call(this);
+            if (evt.detail.code == 412) {
+                delete Vault[this.vid].streams[did];
+                if (true) // TODO Add retry counter
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
+            errors.push(evt.detail);
+            if (--count <= 0)
+                finalize.call(this);
         }
     }
 
     function finalize() {
         var type;
         if (errors.length)
-            return this.$emitEvent("error", errorCallback, errors);
+            this.$emitEvent("error", errorCallback, errors);
         for (type in results)
             this.$emitEvent("load", callback, results[type], type);
         if (!type)

@@ -24,6 +24,8 @@ var Request = function(crypto, credentials) {
 }
 
 Request.prototype.$onLoad = function(evt) {
+    // TODO HTTP Error have to handled afyer verification (!) by the client!
+    //      Get the xhr status and pass it via a custom load event.
     var error;
     if (this.$xhr.status >= 400) {
         evt.stopImmediatePropagation();
@@ -44,11 +46,12 @@ Request.prototype.write = function(data, credentials) {
     if (data !== undefined) {
         this.$type = "application/json;charset=UTF-8";
         this.$data = JSON.stringify(data);
-        if (credentials) {
-            vec = this.crypto.generateTimestamp();
-            this.$type = "application/x.reds.encrypted;did="+credentials[4]+";vec="+vec;
+    }
+    if (credentials) {
+        vec = this.crypto.generateTimestamp();
+        this.$type = "application/x.reds.encrypted;did="+credentials[4]+";vec="+vec;
+        if (this.$data.length)
             this.$data = this.crypto.encryptData(this.$data, credentials[2], vec);
-        }
     }
 }
 

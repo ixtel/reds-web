@@ -45,7 +45,7 @@ exports.GET = function(session) {
         return session.abort(new HttpError(400, "invalid url types"));
     if (session.selector.last.value.match(/[^\d,;]|,,|;;/))
         return session.abort(new HttpError(400, "invalid url ids"));
-    session.authorizeTicket(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         var types, eids, i;
@@ -66,7 +66,7 @@ exports.GET = function(session) {
         if (result.length == 0)
             return session.abort(new HttpError(404, "entities not found"));
         session.writeEncrypted(result);
-        session.signTicket();
+        session.signStream();
         session.end();
     }
 }
@@ -78,7 +78,7 @@ exports.PUT = function(session) {
         return session.abort(new HttpError(400, "invalid url types"));
     if (session.selector.last.value.match(/[^\d,;]|,,|;;/))
         return session.abort(new HttpError(400, "invalid url ids"));
-    session.authorizeTicket(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         var types, eids, values, i, j;
@@ -110,7 +110,7 @@ exports.PUT = function(session) {
         if (result.length == 0)
             return session.abort(new HttpError(404, "entities not found"));
         session.writeEncrypted(result);
-        session.signTicket();
+        session.signStream();
         session.end();
     }
 }
@@ -122,7 +122,7 @@ exports.DELETE = function(session) {
         return session.abort(new HttpError(400, "invalid url types"));
     if (session.selector.last.value.match(/[^\d,;]|,,|;;/))
         return session.abort(new HttpError(400, "invalid url ids"));
-    session.authorizeTicket(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         var types, eids, values, i, j;
@@ -144,7 +144,7 @@ exports.DELETE = function(session) {
             return session.abort(new HttpError(404, "entities not found"));
         session.writeEncrypted(result);
         // TODO Support multiple MIME types
-        //session.signTicket();
+        //session.signStream();
         session.end();
     }
 }

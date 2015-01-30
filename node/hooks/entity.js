@@ -93,6 +93,7 @@ exports.HEAD = function(session) {
         var dids, i;
         if (error)
             return session.abort(error);
+        console.log(result);
         if (!result) {
             // NOTE Only return an error if the request asked for specific eids
             if (session.selector.last.value != "*")
