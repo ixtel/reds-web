@@ -212,7 +212,7 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
             return this.$emitEvent("error", errorCallback, e);
         }
         // TODO Move updateVault call into conveniance function
-        this.updateVault(3, afterUpdateVault.bind(this), errorCallback);
+        this.updateVault(afterUpdateVault.bind(this), errorCallback);
     
         function afterUpdateVault() {
             this.$emitEvent("load", callback, {'aid':Vault[this.vid].account[1]});
@@ -244,9 +244,10 @@ Client.prototype.deleteAccount = function(callback, errorCallback) {
     }
 }
 
-Client.prototype.updateVault = function(retries, callback, errorCallback) {
-    var vec, vault, request;
+Client.prototype.updateVault = function(callback, errorCallback) {
+    var retries, vec, vault, request;
     try {
+        retries = 3;
         vec = this.crypto.generateTimestamp();
         // NOTE This JSON dance is necessary to create a real clone.
         vault = JSON.parse(JSON.stringify(Vault[this.vid]));
@@ -407,9 +408,9 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
     function deleteDomain(did) {
         try {
             var request;
-            request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("DELETE", this.options.url, "/!/domain/"+did);
-            request.writeEncrypted(undefined);
+            request.write(undefined, Vault[this.vid].streams[did]);
             request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
@@ -422,7 +423,7 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
         function onLoad() {
             try {
                 request.verify("stream", Vault[this.vid].streams[did]);
-                results.push(request.responseJson['did']);
+                results.push(request.responseJson);
                 delete Vault[this.vid].tickets[request.responseJson['did']];
                 delete Vault[this.vid].streams[request.responseJson['did']];
             }
@@ -484,7 +485,7 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        this.updateVault(3, afterUpdateVault.bind(this), errorCallback);
+        this.updateVault(afterUpdateVault.bind(this), errorCallback);
     }
     
     function afterUpdateVault() {
@@ -921,6 +922,8 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
 }
 
 // INFO Entity operations
+// TODO Move shared code (afterResolveEntities, afterOpenStream)
+//      in one generic method
 
 // TODO Implement some kind of caching to reduce HEAD requests
 Client.prototype.resolveEntities = function(path, callback, errorCallback) {
@@ -960,7 +963,8 @@ Client.prototype.resolveEntities = function(path, callback, errorCallback) {
 }
 
 Client.prototype.createEntity = function(path, data, callback, errorCallback) {
-    var match;
+    var retries, match;
+    retries = 3;
     match = path.match(/^((?:\/\w+\/\d+)+?)?\/\w+(\/\d+(?:\?hard)?)?$/);
     if (!match)
         this.$emitEvent("error", errorCallback, new Error("invalid path"));
@@ -1012,7 +1016,7 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
         function onError(evt) {
             if (evt.detail.code == 412) {
                 delete Vault[this.vid].streams[did];
-                if (true) // TODO Add retry counter
+                if (--retries <= 0)
                     return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
             this.$emitEvent("error", errorCallback, evt.detail);
@@ -1021,7 +1025,8 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
 }
 
 Client.prototype.readEntities = function(path, callback, errorCallback) {
-    var match, results, errors, count;
+    var retries, match, results, errors, count;
+    retries = 3;
     match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
     if (!match)
         return this.$emitEvent("error", errorCallback, new Error("invalid path"));
@@ -1077,7 +1082,7 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
         function onError(evt) {
             if (evt.detail.code == 412) {
                 delete Vault[this.vid].streams[did];
-                if (true) // TODO Add retry counter
+                if (--retries <= 0)
                     return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
             errors.push(evt.detail);
@@ -1098,7 +1103,8 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
 }
 
 Client.prototype.updateEntities = function(path, data, callback, errorCallback) {
-    var match, results, errors, count;
+    var retries, match, results, errors, count;
+    retries = 3;
     match = path.match(/^(?:\/(\w+)\/[\d,]+)+$/);
     if (!match)
         return this.$emitEvent("error", errorCallback, new Error("invalid path"));
@@ -1108,69 +1114,69 @@ Client.prototype.updateEntities = function(path, data, callback, errorCallback) 
     data[match[1]] = results;
     results = new Object();
     errors = new Array();
-    count = 0;
-    this.$resolvePath(match[0], afterResolvePath.bind(this));
+    this.resolveEntities(match[0], afterResolveEntities.bind(this), errorCallback);
 
-    function afterResolvePath(error, did, index, length) {
-        var request, type;
-        if (error)
-            return onError.call(this, {'detail':error});
-        if (!did) {
-            if (length == 0)
-                return finalize.call(this)
-            else
-                return onError.call(this, {'detail':new Error("undefined domain id")});
-        }
+    function afterResolveEntities(dids) {
+        var i;
+        count = dids.length;
+        if (count == 0)
+            this.$emitEvent("load", callback, null);
+        else for (i=0; i<dids.length; i++)
+            this.openStream(dids[i], afterOpenStream.bind(this), errorCallback);
+        return false; // NOTE Prevent global load event
+    }
+
+    function afterOpenStream(did) {
+        var request;
         try {
-            request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("PUT", this.options.url, path);
-            request.writeEncrypted(data);
-            request.signTicket();
+            request.write(data, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
-            this.$emitEvent("error", errorCallback, e);
+            errors.push(e);
+            if (--count <= 0)
+                finalize.call(this);
         }
+        return false; // NOTE Prevent global load event
 
         function onLoad() {
-            if (!request.authorizeTicket())
-                return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
-            count++;
-            for (type in request.responseEncrypted) {
-                if (results[type])
-                    results[type] = results[type].concat(request.responseEncrypted[type]);
-                else
-                    results[type] = request.responseEncrypted[type];
+            var type;
+            try {
+                request.verify("stream", Vault[this.vid].streams[did]);
+                request.decrypt(Vault[this.vid].streams[did]);
+                for (type in request.responseJson) {
+                    if (results[type])
+                        results[type] = results[type].concat(request.responseJson[type]);
+                    else
+                        results[type] = request.responseJson[type];
+                }
             }
-            if (length-count == 0)
+            catch (e) {
+                errors.push(e);
+            }
+            if (--count <= 0)
                 finalize.call(this);
         }
 
         function onError(evt) {
-            switch (evt.detail.code) {
-                case 401:
-                    delete Vault[this.vid].domain[did];
-                    return this.updateVault(function(){
-                        if (length-count == 0)
-                            finalize.call(this);
-                    }.bind(this));
-                case 412:
-                    return this.$refreshLeaf(did, function(error, did) {
-                        afterResolvePath.call(this, error, did, index, length);
-                    }.bind(this));
-                default:
-                    count++;
-                    errors.push(evt.detail);
-                    if (length-count == 0)
-                        finalize.call(this);
+            if (evt.detail.code == 412) {
+                delete Vault[this.vid].streams[did];
+                if (--retries <= 0)
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
+            errors.push(evt.detail);
+            if (--count <= 0)
+                finalize.call(this);
         }
     }
 
     function finalize() {
         var type;
         if (errors.length)
-            return this.$emitEvent("error", errorCallback, errors);
+            this.$emitEvent("error", errorCallback, errors);
         for (type in results)
             this.$emitEvent("load", callback, results[type], type);
         if (!type)
@@ -1179,78 +1185,77 @@ Client.prototype.updateEntities = function(path, data, callback, errorCallback) 
 }
 
 Client.prototype.deleteEntities = function(path, callback, errorCallback) {
-    var match, results, errors, count;
+    var retries, match, results, errors, count;
+    retries = 3;
     match = path.match(/^((?:\/\w+\/[\d,]+)*)?(?:\/\w+\/\*)?$/);
     if (!match)
         return this.$emitEvent("error", errorCallback, new Error("invalid path"));
     results = new Object();
     errors = new Array();
-    count = 0;
-    this.$resolvePath(match[0], afterResolvePath.bind(this));
+    this.resolveEntities(match[0], afterResolveEntities.bind(this), errorCallback);
 
-    function afterResolvePath(error, did, index, length) {
-        var request, type;
-        if (error)
-            return onError.call(this, {'detail':error});
-        if (!did) {
-            if (length == 0)
-                return finalize.call(this)
-            else
-                return onError.call(this, {'detail':new Error("undefined domain id")});
-        }
+    function afterResolveEntities(dids) {
+        var i;
+        count = dids.length;
+        if (count == 0)
+            this.$emitEvent("load", callback, null);
+        else for (i=0; i<dids.length; i++)
+            this.openStream(dids[i], afterOpenStream.bind(this), errorCallback);
+        return false; // NOTE Prevent global load event
+    }
+
+    function afterOpenStream(did) {
+        var request;
         try {
-            request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("DELETE", this.options.url, path);
-            request.writeEncrypted(undefined);
-            request.signTicket();
+            request.write(undefined, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
-            this.$emitEvent("error", errorCallback, e);
+            errors.push(e);
+            if (--count <= 0)
+                finalize.call(this);
         }
+        return false; // NOTE Prevent global load event
 
         function onLoad() {
-            // TODO Support multiple MIME types
-            //if (!request.authorizeTicket())
-            //	return this.$emitEvent("error", errorCallback, new Error("anthorization failed"));
-            count++;
-            for (type in request.responseJson) {
-                if (results[type])
-                    //results[type] = results[type].concat(request.responseEncrypted[type]);
-                    results[type] = results[type].concat(request.responseJson[type]);
-                else
-                    //results[type] = request.responseEncrypted[type];
-                    results[type] = request.responseJson[type];
+            var type;
+            try {
+                // TODO Verfy delete response from pod
+                //request.verify("stream", Vault[this.vid].streams[did]);
+                //request.decrypt(Vault[this.vid].streams[did]);
+                for (type in request.responseJson) {
+                    if (results[type])
+                        results[type] = results[type].concat(request.responseJson[type]);
+                    else
+                        results[type] = request.responseJson[type];
+                }
             }
-            if (length-count == 0)
+            catch (e) {
+                errors.push(e);
+            }
+            if (--count <= 0)
                 finalize.call(this);
         }
 
         function onError(evt) {
-            switch (evt.detail.code) {
-                case 401:
-                    delete Vault[this.vid].domain[did];
-                    return this.updateVault(function(){
-                        if (length-count == 0)
-                            finalize.call(this);
-                    }.bind(this));
-                case 412:
-                    return this.$refreshLeaf(did, function(error, did) {
-                        afterResolvePath.call(this, error, did, index, length);
-                    }.bind(this));
-                default:
-                    count++;
-                    errors.push(evt.detail);
-                    if (length-count == 0)
-                        finalize.call(this);
+            if (evt.detail.code == 412) {
+                delete Vault[this.vid].streams[did];
+                if (--retries <= 0)
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
+            errors.push(evt.detail);
+            if (--count <= 0)
+                finalize.call(this);
         }
     }
 
     function finalize() {
         var type;
         if (errors.length)
-            return this.$emitEvent("error", errorCallback, errors);
+            this.$emitEvent("error", errorCallback, errors);
         for (type in results)
             this.$emitEvent("load", callback, results[type], type);
         if (!type)

@@ -143,8 +143,7 @@ exports.DELETE = function(session) {
         if (result.length == 0)
             return session.abort(new HttpError(404, "entities not found"));
         session.writeEncrypted(result);
-        // TODO Support multiple MIME types
-        //session.signStream();
+        session.signStream();
         session.end();
     }
 }

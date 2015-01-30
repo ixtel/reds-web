@@ -48,7 +48,7 @@ exports.POST = function(session) {
 }
 
 exports.DELETE = function(session) {
-    session.authorizeDomain(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) { 
         if (error)
@@ -60,7 +60,7 @@ exports.DELETE = function(session) {
         if (error !== null)
             return session.abort(error);
         session.writeJson(result, "application/x.reds.domain");
-        session.signDomain();
+        session.signStream();
         session.end();
     }
 }
