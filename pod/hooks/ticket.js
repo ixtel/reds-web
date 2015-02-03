@@ -39,7 +39,7 @@ exports.POST = function(session) {
 }
 
 exports.GET = function(session) {
-    session.authorizeTicket(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         var tids;
@@ -49,46 +49,46 @@ exports.GET = function(session) {
             tids = null;
         else
             tids = session.selector.last.value.split(",");
-        session.storage.readTickets(tids, session.authorization.domain['did'], afterCreateTicket);
+        session.storage.readTickets(tids, session.authorization.stream['did'], afterCreateTicket);
     }
 
     function afterCreateTicket(error, result) {
         session.writeEncrypted(result);
-        session.signTicket();
+        session.signStream();
         session.end();
     }
 }
 
 exports.PUT = function(session) {
-    session.authorizeTicket(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         if (error)
             return session.abort(error);
-        session.storage.updateTickets(session.requestEncrypted, session.authorization.domain['did'], afterCreateTicket);
+        session.storage.updateTickets(session.requestEncrypted, session.authorization.stream['did'], afterCreateTicket);
     }
 
     function afterCreateTicket(error, result) {
         session.writeEncrypted(result);
-        session.signTicket();
+        session.signStream();
         session.end();
     }
 }
 
 exports.DELETE = function(session) {
-    session.authorizeTicket(afterAuthorization);
+    session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         var tids;
         if (error)
             return session.abort(error);
         tids = session.selector.last.value.split(",");
-        session.storage.deleteTickets(tids, session.authorization.domain['did'], afterCreateTicket);
+        session.storage.deleteTickets(tids, session.authorization.stream['did'], afterCreateTicket);
     }
 
     function afterCreateTicket(error, result) {
         session.writeEncrypted(result);
-        session.signTicket();
+        session.signStream();
         session.end();
     }
 }

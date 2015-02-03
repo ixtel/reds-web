@@ -206,9 +206,9 @@ exports.prototype.signStream = function() {
 
 exports.prototype.writeEncrypted = function(data, type) {
     var msg, vec, cipher;
-    if (data!==undefined) {
+    vec = this.crypto.generateTimestamp();
+    if (data !== undefined) {
         msg = JSON.stringify(data);
-        vec = this.crypto.generateTimestamp();
         cipher = this.crypto.encryptData(msg, this.authorization.stream['skey'], vec);
     }
     this.write(cipher, type||"application/x.reds.encrypted;did="+this.type.options['did']+";vec="+vec);

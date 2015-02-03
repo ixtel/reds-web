@@ -82,7 +82,7 @@ exports.POST = function(session) {
         else {
             session.writeJson(result);
         }
-        session.end();
+        session.end(route.responseStatus);
     }
 }
 
@@ -94,7 +94,7 @@ exports.HEAD = function(session) {
         if (error)
             return session.abort(error);
         console.log(result);
-        if (!result) {
+        if (!result || (result.length == 0)) {
             // NOTE Only return an error if the request asked for specific eids
             if (session.selector.last.value != "*")
                 return session.abort(new HttpError(404, "entities not found"));
@@ -125,27 +125,23 @@ exports.GET = function(session) {
         var types, eids, i, type;
         if (error)
             return session.abort(error);
-        if (!result) {
+        if (!result || (result.length == 0)) {
             // NOTE Only return an error if the request asked for specific eids
             if (session.selector.last.value != "*")
                 return session.abort(new HttpError(404, "entities not found"));
-            else
-                return session.end(204);
         }
         selection = parseSelection(result);
         route.method = "GET";
-        route.path = selection.path;
+        route.path = selection.path||"/"+session.selector.last.key;
         route.write(session.requestText, session.request.headers['content-type']);
         route.requestHeaders['authorization'] = session.request.headers['authorization'];
         route.send();
     }
 
     function onRouteResponse() {
-        // TODO Support multiple MIME types
-        //session.writeJson(selection.types);
         session.write(route.responseText, route.responseHeaders['content-type']);
         session.response.setHeader("Authorization", route.responseHeaders['authorization']);
-        session.end();
+        session.end(route.responseStatus);
     }
 
     function onRouteError(error) {
@@ -169,12 +165,10 @@ exports.PUT = function(session) {
         var types, eids, i, type;
         if (error)
             return session.abort(error);
-        if (!result) {
+        if (!result || (result.length == 0)) {
             // NOTE Only return an error if the request asked for specific eids
             if (session.selector.last.value != "*")
                 return session.abort(new HttpError(404, "entities not found"));
-            else
-                return session.end(204);
         }
         selection = parseSelection(result);
         route.method = "PUT";
@@ -185,12 +179,10 @@ exports.PUT = function(session) {
     }
 
     function onRouteResponse() {
-        // TODO Support multiple MIME types
-        //session.writeJson(selection.types);
         session.write(route.responseText, route.responseHeaders['content-type']);
         session.response.setHeader("Authorization", route.responseHeaders['authorization']);
         session.response.setHeader("X-REDS-Authorization", route.responseHeaders['authorization']);
-        session.end();
+        session.end(route.responseStatus);
     }
 
     function onRouteError(error) {
@@ -249,6 +241,6 @@ exports.DELETE = function(session) {
         //session.write(route.responseText, route.responseHeaders['content-type']);
         //session.response.setHeader("Authorization", route.responseHeaders['authorization']);
         session.writeJson(selection.types);
-        session.end();
+        session.end(route.responseStatus);
     }
 }

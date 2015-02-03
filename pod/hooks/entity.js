@@ -39,11 +39,13 @@ exports.POST = function(session) {
 }
 
 exports.GET = function(session) {
+    if (session.selector.last.key == null)
+        return 
     if (session.selector.length != 1)
         return session.abort(new HttpError(400, "invalid url depth"));
     if (session.selector.last.key.match(/[^\w,]|,,/))
         return session.abort(new HttpError(400, "invalid url types"));
-    if (session.selector.last.value.match(/[^\d,;]|,,|;;/))
+    if (session.selector.last.value && session.selector.last.value.match(/[^\d,;]|,,|;;/))
         return session.abort(new HttpError(400, "invalid url ids"));
     session.authorizeStream(afterAuthorization);
 
@@ -51,6 +53,8 @@ exports.GET = function(session) {
         var types, eids, i;
         if (error)
             return session.abort(error);
+        if (session.selector.last.value == null)
+            return afterReadEntities(null, undefined);
         types = session.selector.last.key.split(",");
         eids = session.selector.last.value.split(";");
         if (types.length != eids.length)
@@ -63,11 +67,11 @@ exports.GET = function(session) {
     function afterReadEntities(errors, result) {
         if (errors !== null)
             return session.abort(errors[0]);
-        if (result.length == 0)
+        if (result && result.length == 0)
             return session.abort(new HttpError(404, "entities not found"));
         session.writeEncrypted(result);
         session.signStream();
-        session.end();
+        session.end(result?200:204);
     }
 }
 

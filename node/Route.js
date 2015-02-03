@@ -17,6 +17,7 @@ module.exports = exports = function(crypto, storage) {
     this.responseHeaders = null;
     this.responseText = null;
     this.responseType = null;
+    this.responseStatus = null;
 }
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
@@ -98,7 +99,8 @@ exports.prototype.send = function(data, authorization) {
         var responseText = "";
         response.setEncoding('utf8');
 
-        if (response.statusCode >= 400)
+        this.responseStatus = response.statusCode;
+        if (this.responseStatus >= 400)
             return this.emit("error", new HttpError(response.statusCode, "pod returned error"));
 
         response.addListener("error", function(error) {
