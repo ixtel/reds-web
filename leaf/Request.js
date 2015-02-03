@@ -105,7 +105,8 @@ Request.prototype.verify = function(realm, credentials) {
 }
 
 Request.prototype.decrypt = function(credentials) {
-    this.$responseText = this.crypto.decryptData(this.$xhr.responseText, credentials[2], this.responseType.options['vec']);
+    if (this.$xhr.responseText.length)
+        this.$responseText = this.crypto.decryptData(this.$xhr.responseText, credentials[2], this.responseType.options['vec']);
 }
 
 Request.prototype.setUnmodifiedSince = function(timestamp) {
