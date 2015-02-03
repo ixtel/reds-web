@@ -3,7 +3,7 @@
 var HttpError = require("../../shared/HttpError");
 
 exports.POST = function(session) {
-    return session.authorizeTicket(afterAuthorization);
+    return session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
         var values;
@@ -20,7 +20,7 @@ exports.POST = function(session) {
         if (error !== null)
                 return session.abort(error);
         session.writeEncrypted(result);
-        session.signTicket();
+        session.signStream();
         session.end();
     }
 }

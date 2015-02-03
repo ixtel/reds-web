@@ -450,6 +450,7 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
 }
 
 // INFO Ticket operations
+// TODO Move shared code (afterOpenStream) in one generic method
 
 Client.prototype.createTicket = function(iid, callback, errorCallback) {
     try {
@@ -498,104 +499,127 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
 }
 
 Client.prototype.readTickets = function(did, tids, callback, errorCallback) {
-    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+    var retries;
+    retries = 3;
+    if (!tids)
+        tids = "*";
+    this.openStream(did, afterOpenStream.bind(this), errorCallback);
 
-    function afterRegisterLeaf(error) {
+    function afterOpenStream() {
         try {
             var request;
-            if (error)
-                return this.$emitEvent("error", errorCallback, evt.detail);
-            request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
-            request.open("GET", this.options.url, "/!/domain/"+did+"/ticket/"+(tids?tids:"*"));
-            request.writeEncrypted();
-            request.signTicket();
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
+            request.open("GET", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
+            request.write(undefined, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
+        return false; // NOTE Prevent global load event
 
-        function onLoad(result) {
-            if (!request.authorizeTicket())
-                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
-            this.$emitEvent("load", callback, request.responseEncrypted);
+        function onLoad(evt) {
+            try {
+                request.verify("stream", Vault[this.vid].streams[did]);
+                request.decrypt(Vault[this.vid].streams[did]);
+            }
+            catch (e) {
+                return this.$emitEvent("error", errorCallback, e);
+            }
+            this.$emitEvent("load", callback, request.responseJson);
         }
 
         function onError(evt) {
-            switch (evt.detail.code) {
-                case 401:
-                    delete Vault[this.vid].domain[did];
-                    return this.updateVault(afterRegisterLeaf.bind(this));
-                case 412:
-                    return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
-                default:
-                    this.$emitEvent("error", errorCallback, evt.detail);
+            if (evt.detail.code == 412) {
+                delete Vault[this.vid].streams[did];
+                if (--retries >= 0)
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
+            this.$emitEvent("error", errorCallback, evt.detail);
         }
     }
 }
 Client.prototype.updateTickets = function(did, data, callback, errorCallback) {
-    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+    var retries, tids;
+    retries = 3;
+    tids = new Array();
+    for (var i=0; i<data.length; i++)
+        tids.push(data[i]['tid']);
+    this.openStream(did, afterOpenStream.bind(this), errorCallback);
 
-    function afterRegisterLeaf(error) {
+    function afterOpenStream() {
         try {
-            var request, tids;
-            if (error)
-                return this.$emitEvent("error", errorCallback, evt.detail);
-            tids = new Array();
-            for (var i=0; i<data.length; i++)
-                tids.push(data[i]['tid']);
-            request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            var request;
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("PUT", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.writeEncrypted(data);
-            request.signTicket();
+            request.write(data, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
+        return false; // NOTE Prevent global load event
 
-        function onLoad(result) {
-            if (!request.authorizeTicket())
-                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
-            this.$emitEvent("load", callback, request.responseEncrypted);
+        function onLoad(evt) {
+            try {
+                request.verify("stream", Vault[this.vid].streams[did]);
+                request.decrypt(Vault[this.vid].streams[did]);
+            }
+            catch (e) {
+                return this.$emitEvent("error", errorCallback, e);
+            }
+            this.$emitEvent("load", callback, request.responseJson);
         }
 
         function onError(evt) {
-            if (evt.detail.code == 412)
-                return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
+            if (evt.detail.code == 412) {
+                delete Vault[this.vid].streams[did];
+                if (--retries >= 0)
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
+            }
             this.$emitEvent("error", errorCallback, evt.detail);
         }
     }
 }
 
 Client.prototype.deleteTickets = function(did, tids, callback, errorCallback) {
-    this.$registerLeaf(did, afterRegisterLeaf.bind(this));
+    var retries;
+    retries = 3;
+    this.openStream(did, afterOpenStream.bind(this), errorCallback);
 
-    function afterRegisterLeaf(error) {
+    function afterOpenStream() {
         try {
             var request;
-            if (error)
-                return this.$emitEvent("error", errorCallback, evt.detail);
-            request = this.$createRequest(Vault[this.vid].domain[did], callback, errorCallback, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("DELETE", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.writeEncrypted();
-            request.signTicket();
+            request.write(undefined, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
+        return false; // NOTE Prevent global load event
 
-        function onLoad(result) {
-            if (!request.authorizeTicket())
-                return this.$emitEvent("error", errorCallback, new Error("ticket authorization failed"));
-            this.$emitEvent("load", callback, request.responseEncrypted);
+        function onLoad(evt) {
+            try {
+                request.verify("stream", Vault[this.vid].streams[did]);
+                request.decrypt(Vault[this.vid].streams[did]);
+            }
+            catch (e) {
+                return this.$emitEvent("error", errorCallback, e);
+            }
+            this.$emitEvent("load", callback, request.responseJson);
         }
 
         function onError(evt) {
-            if (evt.detail.code == 412)
-                return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
+            if (evt.detail.code == 412) {
+                delete Vault[this.vid].streams[did];
+                if (--retries >= 0)
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
+            }
             this.$emitEvent("error", errorCallback, evt.detail);
         }
     }
@@ -642,8 +666,6 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
     }
 
     function finalize() {
-        console.log(errors);
-        console.log(results);
         if (errors.length)
             this.$emitEvent("error", errorCallback, errors);
         if (results.length)
@@ -654,21 +676,20 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
 // INFO Invitation operations
 
 // NOTE This function uses the only callback and won't dispatch any events. 
-Client.prototype.$storeInvitation = function(invitation, callback) {
-    var iidUrl;
-    console.log(invitation);
+Client.prototype.$storeInvitation = function(invitation, callback, errorCallback) {
+    var iidUrl, did, retries;
+    retries = 3;
+    did = invitation['did'];
     iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-    this.$registerLeaf(invitation['did'], afterRegisterLeaf.bind(this));
+    this.openStream(did, afterOpenStream.bind(this), errorCallback);
 
-    function afterRegisterLeaf(error) {
+    function afterOpenStream() {
         try {
             var request;
-            if (error)
-                return this.$emitEvent("error", errorCallback, evt.detail);
-            request = this.$createRequest(Vault[this.vid].domain[invitation['did']], undefined, undefined, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("POST", this.options.url, "/!/invitation/"+iidUrl);
-            request.writeEncrypted(invitation);
-            request.signTicket();
+            request.write(invitation, Vault[this.vid].streams[did]);
+            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
@@ -676,15 +697,23 @@ Client.prototype.$storeInvitation = function(invitation, callback) {
         }
 
         function onLoad(result) {
-            if (!request.authorizeTicket())
-                return callback(new Error("ticket authorization failed"));
-            callback(null, invitation);
+            try {
+                request.verify("stream", Vault[this.vid].streams[did]);
+                request.decrypt(Vault[this.vid].streams[did]);
+            }
+            catch (e) {
+                return this.$emitEvent("error", errorCallback, e);
+            }
+            this.$emitEvent("load", callback, request.responseJson);
         }
 
         function onError(evt) {
-            if (evt.detail.code == 412)
-                return this.$refreshLeaf(did, afterRegisterLeaf.bind(this));
-            callback(evt.detail);
+            if (evt.detail.code == 412) {
+                delete Vault[this.vid].streams[did];
+                if (--retries >= 0)
+                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
+            }
+            this.$emitEvent("error", errorCallback, evt.detail);
         }
     }
 }
@@ -694,15 +723,8 @@ Client.prototype.createPrivateInvitation = function(did, tflags, callback, error
         'iid': this.crypto.generateKey(),
         'ikey': this.crypto.generateKey(),
         'did': did,
-        'flags': tflags
-    }, afterStoreInvitation.bind(this));
-
-    function afterStoreInvitation(error, invitation) {
-        if (error)
-            this.$emitEvent("error", errorCallback, error);
-        else
-            this.$emitEvent("load", callback, invitation);
-    }
+        'tflags': tflags
+    }, callback, errorCallback);
 }
 
 Client.prototype.createPublicInvitation = function(did, tflags, callback, errorCallback) {
@@ -772,9 +794,6 @@ Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, x
     xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
     if (xsigR) {
         xsig = this.crypto.generateHmac(xstr, xkey);
-        console.log(xsig);
-        console.log(xsigR);
-        console.log(xsig.substr(0, xsigL));
         if (xsig.substr(0, xsigL) != xsigR)
             return this.$emitEvent("error", errorCallback, new Error("exchange checksums mismatch"));
     }
@@ -1016,7 +1035,7 @@ Client.prototype.createEntity = function(path, data, callback, errorCallback) {
         function onError(evt) {
             if (evt.detail.code == 412) {
                 delete Vault[this.vid].streams[did];
-                if (--retries <= 0)
+                if (--retries >= 0)
                     return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
             this.$emitEvent("error", errorCallback, evt.detail);
@@ -1082,7 +1101,7 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
         function onError(evt) {
             if (evt.detail.code == 412) {
                 delete Vault[this.vid].streams[did];
-                if (--retries <= 0)
+                if (--retries >= 0)
                     return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
             errors.push(evt.detail);
@@ -1164,7 +1183,7 @@ Client.prototype.updateEntities = function(path, data, callback, errorCallback) 
         function onError(evt) {
             if (evt.detail.code == 412) {
                 delete Vault[this.vid].streams[did];
-                if (--retries <= 0)
+                if (--retries >= 0)
                     return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
             errors.push(evt.detail);
@@ -1243,7 +1262,7 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
         function onError(evt) {
             if (evt.detail.code == 412) {
                 delete Vault[this.vid].streams[did];
-                if (--retries <= 0)
+                if (--retries >= 0)
                     return this.openStream(did, afterOpenStream.bind(this), errorCallback);
             }
             errors.push(evt.detail);
