@@ -50,7 +50,7 @@ Client.prototype.$upgradeVault = function(vault) {
     var id;
     switch (vault.version?vault.version.join("."):null) {
         default:
-            console.log("upgrading vault (0.2.2)")
+            console.info("upgrading vault (0.2.2)")
             vault.version = [0,2,2];
             vault.exchange = vault.exchange||new Object();
             vault.invitation = vault.invitation||new Object();
@@ -61,7 +61,7 @@ Client.prototype.$upgradeVault = function(vault) {
             for (id in vault.invitation)
                 vault.invitation[id]['modified'] = vault.invitation[id]['timestamp']||Date.now(); 
         case "0.2.2":
-            console.log("upgrading vault (0.2.3)");
+            console.info("upgrading vault (0.2.3)");
             vault.version = [0,2,3];
             vault.tickets = vault.tickets||new Object();
             vault.invitations = vault.invitations||new Object();
@@ -453,8 +453,8 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
 // TODO Move shared code (afterOpenStream) in one generic method
 
 Client.prototype.createTicket = function(iid, callback, errorCallback) {
+    var iidUrl, tkeyL, request;
     try {
-        var iidUrl, tkeyL, request;
         iidUrl = iid.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
         tkeyL = this.crypto.generateKeypair();
         request = this.$createRequest(null, callback, errorCallback, onLoad.bind(this));
@@ -631,37 +631,28 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
     results = new Array();
     errors = new Array();
     count = 0;
-    for (iid in Vault[this.vid].invitation) {
+    for (iid in Vault[this.vid].invitations) {
         if (!iids || (iids.indexOf(iid) != -1)) {
             count++;
-            createTicketForInvitation.call(this, Vault[this.vid].invitation[iid]);
+            createTicketForIid.call(this, iid);
         }
     }
 
-    function createTicketForInvitation(invitation) {
-        // NOTE By removing the invitation from the vault before creating the
-        //      ticket, we save the updateVault call after ticket creration,
-        //      which would otherwise be required to save the vault after the
-        //      invtation has been removed.
-        delete Vault[this.vid].invitation[invitation['iid']];
-        this.createTicket(invitation, afterCreateTicket.bind(this), afterCreateTicketError.bind(this));
+    function createTicketForIid(iid) {
+        this.createTicket(iid, afterCreateTicket.bind(this), afterCreateTicketError.bind(this));
         
         function afterCreateTicket(response) {
             results.push(response);
             if (--count <= 0)
                 finalize.call(this);
-            // NOTE Surpress global load event, which will be emitted by finalize().
-            return false;
+            return false; // NOTE Prevent global load event
         }
 
         function afterCreateTicketError(error) {
             errors.push(error);
-            // NOTE Restore the previously removed invitation.
-            Vault[this.vid].invitation[invitation['iid']] = invitation;
             if (--count <= 0)
                 finalize.call(this);
-            // NOTE Surpress global error event, which will be emitted by finalize().
-            return false;
+            return false; // NOTE Prevent global error event
         }
     }
 
@@ -725,6 +716,16 @@ Client.prototype.createPrivateInvitation = function(did, tflags, callback, error
         'did': did,
         'tflags': tflags
     }, callback, errorCallback);
+}
+
+Client.prototype.acceptPrivateInvitation = function(iid, ikey, callback, errorCallback) {
+    Vault[this.vid].invitations[iid] = [ 
+        Date.now(), // NOTE invitation[0] = modified timestamp
+        iid,        // NOTE invitation[1] = invitation id
+        ikey,       // NOTE invitation[2] = invitation key
+        null        // NOTE invitation[1] = invitation signature
+    ];
+    this.$emitEvent("load", callback, iid);
 }
 
 Client.prototype.createPublicInvitation = function(did, tflags, callback, errorCallback) {
@@ -830,8 +831,8 @@ Client.prototype.readPendingInvitations = function(iids, callback, errorCallback
             if (!iids || (iids.indexOf(iid) != -1)) {
                 results.push({
                     'iid': Vault[this.vid].invitations[iid][1],
-                    'signature': Vault[this.vid].invitation[iid][3],
-                    'modified': Vault[this.vid].invitation[iid][0]
+                    'signature': Vault[this.vid].invitations[iid][3],
+                    'modified': Vault[this.vid].invitations[iid][0]
                 });
             }
         }
@@ -848,7 +849,7 @@ Client.prototype.deletePendingInvitations = function(iids, callback, errorCallba
         results = new Array();
         for (iid in Vault[this.vid].invitations) {
             if (!iids || (iids.indexOf(iid) != -1)) {
-                delete Vault[this.vid].invitation[iid];
+                delete Vault[this.vid].invitations[iid];
                 results.push(iid);
             }
         }
@@ -875,7 +876,7 @@ Client.prototype.clearPendingInvitations = function(iids, ttl, callback, errorCa
             if (!iids || (iids.indexOf(iid) != -1)) {
                 modified = parseInt(Vault[this.vid].invitations[iid][0]);
                 if (modified+ttl < deadline) {
-                    delete Vault[this.vid].invitation[iid];
+                    delete Vault[this.vid].invitations[iid];
                     results.push(iid);
                 }
             }
@@ -935,8 +936,18 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     }
 
     function onError(evt) {
-        // TODO delete ticket (via pod request) on 401
-        this.$emitEvent("error", errorCallback, evt.detail);
+        if (evt.detail.code == 401) {
+            // TODO Check pod signature
+            delete Vault[this.vid].tickets[did];
+            this.updateVault(afterUpdateVault.bind(this), errorCallback);
+        }
+        else {
+            this.$emitEvent("error", errorCallback, evt.detail);
+        }
+
+        function afterUpdateVault() {
+            return this.$emitEvent("load", callback, null);
+        }
     }
 }
 
