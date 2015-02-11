@@ -181,7 +181,6 @@ exports.PUT = function(session) {
     function onRouteResponse() {
         session.write(route.responseText, route.responseHeaders['content-type']);
         session.response.setHeader("Authorization", route.responseHeaders['authorization']);
-        session.response.setHeader("X-REDS-Authorization", route.responseHeaders['authorization']);
         session.end(route.responseStatus);
     }
 
@@ -212,8 +211,6 @@ exports.DELETE = function(session) {
                 // NOTE Only return an error if the request asked for specific eids
                 if (session.selector.last.value != "*")
                     return session.abort(new HttpError(404, "entities not found"));
-                else
-                    return session.end(204);
             }
             route.method = "DELETE";
             route.path = selection.path;
@@ -237,10 +234,8 @@ exports.DELETE = function(session) {
     function afterUnregisterEntities(error, result) {
         if (error)
             return session.abort(error);
-        // TODO Support multiple MIME types
-        //session.write(route.responseText, route.responseHeaders['content-type']);
-        //session.response.setHeader("Authorization", route.responseHeaders['authorization']);
-        session.writeJson(selection.types);
+        session.write(route.responseText, route.responseHeaders['content-type']);
+        session.response.setHeader("Authorization", route.responseHeaders['authorization']);
         session.end(route.responseStatus);
     }
 }

@@ -562,7 +562,7 @@ exports.prototype.selectEntities = function(selector, did, callback, onlyHard) {
             where += onlyHard ? "AND r"+r+".hard=true AND " : "AND "
         }
     }
-    this.$client.query("SELECT e0.eid,e0.did,e0.root,t0.name AS type"+from+where, afterQuery);
+    this.$client.query("SELECT e0.eid,e0.did,t0.name AS type"+from+where, afterQuery);
 
     function afterQuery(error, result) {
         callback(error||null, result?result.rows:null);
@@ -592,7 +592,7 @@ exports.prototype.selectCascade = function(selector, did, callback) {
     function afterSimulateQuery(error, result) {
         if (error)
             return callback(error);
-        this.$client.query("SELECT e.eid,e.did,e.root,t.name AS type "+
+        this.$client.query("SELECT e.eid,e.did,t.name AS type "+
             "FROM entities e JOIN types t ON t.tid=e.tid "+
             "WHERE eid IN ("+result.rows[0]['simulate']+")",
         afterEntitiesQuery);
@@ -621,8 +621,6 @@ exports.prototype.reserveEntity = function(selector, did, callback) {
     function afterDomainQuery(error, result) {
         if (error)
             return callback(error, null);
-        if (result.rows[0]['count'] > 0)
-            return callback(new Error("root entity already exists"), null);
         this.$client.query("SELECT nextval('entities_eid_seq')", afterQuery);
     }
 
@@ -633,15 +631,14 @@ exports.prototype.reserveEntity = function(selector, did, callback) {
 
 exports.prototype.registerEntity = function(selector, did, callback) {
     var entity;
-    this.$client.query("INSERT INTO entities (eid, tid, did, root) "+
-        "SELECT	$1, (SELECT tid FROM types WHERE name=$2), $3, $4 "+
+    this.$client.query("INSERT INTO entities (eid, tid, did) "+
+        "SELECT	$1, (SELECT tid FROM types WHERE name=$2), $3 "+
         "WHERE NOT EXISTS (SELECT eid FROM entities WHERE eid = $1) "+
         "RETURNING *",
         [
             selector.last.value,
             selector.last.key,
-            did,
-            selector.length==1
+            did
         ],
     afterEntitiesQuery.bind(this));
 
@@ -681,8 +678,8 @@ exports.prototype.unregisterEntities = function(selector, did, callback) {
         // 		is greater than 2 or if there are multiple parents involved...
         this.$client.query("DELETE FROM relations "+
             "WHERE child IN ("+selector.last.value+") AND parent IN ("+selector[selector.length-2].value+")"+
-            "RETURNING *",
-        afterEntitiesQuery);
+            "RETURNING child AS eid",
+        afterEntitiesQuery.bind(this));
     }
 
     // TODO Move this code into entity hook
@@ -701,12 +698,12 @@ exports.prototype.unregisterEntities = function(selector, did, callback) {
             eids.push(rows[i]['eid']);
         this.$client.query("DELETE FROM entities "+
             "WHERE eid IN ("+eids.join(",")+") "+
-            "RETURNING *",
-        afterEntitiesQuery);
+            "RETURNING eid",
+        afterEntitiesQuery.bind(this));
     }
 
     function afterEntitiesQuery(error, result) {
-        callback(error||null, result?result.rows:null);
+        callback(error||null, error?null:result.rows);
     }
 }
 

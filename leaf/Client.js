@@ -1270,9 +1270,8 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
         function onLoad() {
             var type;
             try {
-                // TODO Verfy delete response from pod
-                //request.verify("stream", Vault[this.vid].streams[did]);
-                //request.decrypt(Vault[this.vid].streams[did]);
+                request.verify("stream", Vault[this.vid].streams[did]);
+                request.decrypt(Vault[this.vid].streams[did]);
                 for (type in request.responseJson) {
                     if (results[type])
                         results[type] = results[type].concat(request.responseJson[type]);
@@ -1300,13 +1299,9 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
     }
 
     function finalize() {
-        var type;
         if (errors.length)
             this.$emitEvent("error", errorCallback, errors);
-        for (type in results)
-            this.$emitEvent("load", callback, results[type], type);
-        if (!type)
-            this.$emitEvent("load", callback, null, null);
+        this.$emitEvent("load", callback, results);
     }
 }
 
@@ -1316,13 +1311,15 @@ Client.prototype.deleteEntitiesAndDomains = function(path, callback) {
     this.deleteEntities(path, afterDeleteEntities.bind(this));
 
     function afterDeleteEntities(result, type, last) {
-        var dids, results, i;
+        var dids, results, t, i;
         results = new Object();
         results.entities = result;
         dids = new Array();
-        for (i=0; i<result.length; i++) {
-            if (result[i]['root'])
-                dids.push(result[i]['did']);
+        for (t in result) {
+            for (i=0; i<result[t].length; i++) {
+                if (dids.indexOf(result[t][i]['did']) == -1)
+                    dids.push(result[t][i]['did']);
+            }
         }
         this.deleteDomains(dids, afterDeleteDomains.bind(this));
 
