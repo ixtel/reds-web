@@ -86,8 +86,11 @@ Client.prototype.$upgradeVault = function(vault) {
             for (var id in vault.exchange) {
                 vault.exchanges[id] = [
                     vault.exchange[id]['modified'],
-                    vault.exchange[id]['xid'],
-                    vault.exchange[id]['xkey']
+                    id,
+                    vault.exchange[id]['xkeyS'],
+                    vault.exchange[id]['xsaltS'],
+                    vault.exchange[id]['did'],
+                    vault.exchange[id]['tflags']
                 ];
             }
             delete vault.domain;
@@ -669,9 +672,14 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
 // NOTE This function uses the only callback and won't dispatch any events. 
 Client.prototype.$storeInvitation = function(invitation, callback, errorCallback) {
     var iidUrl, did, retries;
-    retries = 3;
-    did = invitation['did'];
-    iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    try {
+        retries = 3;
+        did = invitation['did'];
+        iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
     this.openStream(did, afterOpenStream.bind(this), errorCallback);
 
     function afterOpenStream() {
@@ -730,25 +738,27 @@ Client.prototype.acceptPrivateInvitation = function(iid, ikey, callback, errorCa
 
 Client.prototype.createPublicInvitation = function(did, tflags, callback, errorCallback) {
     var xid, xkeyS, xsaltS;
-    xkeyS = this.crypto.generateKeypair();
-    xsaltS = this.crypto.generateKey();
-    storeExchange.call(this);
-
-    function storeExchange() {
+    try {
+        xkeyS = this.crypto.generateKeypair();
+        xsaltS = this.crypto.generateKey();
         do {
             xid = Math.floor(Math.random() * 65535);
-        } while (Vault[this.vid].exchange[xid]);
-        Vault[this.vid].exchange[xid] = {
-            'xkeyS': xkeyS.privateKey,
-            'xsaltS': xsaltS,
-            'did': did,
-            'tflags': tflags,
-            'modified': Date.now()
-        };
+        } while (Vault[this.vid].exchanges[xid]);
+        Vault[this.vid].exchanges[xid] = [
+            Date.now(),       // NOTE exchange[0] = modified timestamp
+            xid,              // NOTE exchange[1] = exchange id
+            xkeyS.privateKey, // NOTE exchange[2] = exchange private sender key
+            xsaltS,           // NOTE exchange[3] = exchange sender salt
+            did,              // NOTE exchange[4] = domain id
+            tflags            // NOTE exchange[5] = ticket flags
+        ];
         // TODO Handle xid collision, when another leaf created an
         //      exchange with the same xid since the last update.
-        this.updateVault(afterUpdateVault.bind(this), errorCallback);
     }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
+    this.updateVault(afterUpdateVault.bind(this), errorCallback);
     
     function afterUpdateVault() {
         this.$emitEvent("load", callback, {
@@ -761,64 +771,71 @@ Client.prototype.createPublicInvitation = function(did, tflags, callback, errorC
 
 Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback, errorCallback) {
     var xkeyR, xsaltR, xkey, xstr, xsig, iid, ikey;
-    xkeyR = this.crypto.generateKeypair();
-    xsaltR = this.crypto.generateKey();
-    xkey = this.crypto.combineKeypair(xkeyR.privateKey, xkeyS);
-    xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
-    xsig = this.crypto.generateHmac(xstr, xkey);
-    iid = this.crypto.generateHmac(xsaltS, xkey);
-    ikey = this.crypto.generateHmac(xsaltR, xkey);
-    Vault[this.vid].invitation[iid] = {
-        'iid': iid,
-        'ikey': ikey,
-        'xsig': xsig,
-        'modified': Date.now()
-    };
+    try {
+        xkeyR = this.crypto.generateKeypair();
+        xsaltR = this.crypto.generateKey();
+        xkey = this.crypto.combineKeypair(xkeyR.privateKey, xkeyS);
+        xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
+        xsig = this.crypto.generateHmac(xstr, xkey);
+        iid = this.crypto.generateHmac(xsaltS, xkey);
+        ikey = this.crypto.generateHmac(xsaltR, xkey);
+        Vault[this.vid].invitations[iid] = [ 
+            Date.now(), // NOTE invitation[0] = modified timestamp
+            iid,        // NOTE invitation[1] = invitation id
+            ikey,       // NOTE invitation[2] = invitation key
+            xsig        // NOTE invitation[1] = invitation signature
+        ];
+    }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
     this.updateVault(afterUpdateVault.bind(this), errorCallback);
     
     function afterUpdateVault() {
         this.$emitEvent("load", callback, {
             'xid': xid,
             'xkeyR': xkeyR.publicKey,
-            'xsaltR': xsaltR
+            'xsaltR': xsaltR,
+            'xsig': xsig
         });
     }
 }
 
 Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, xsigL, callback, errorCallback) {
-    var xkeyS, xsaltS, xkey, xstr, xsig, invitation;
-    if (!Vault[this.vid].exchange[xid])
-        return this.$emitEvent("error", errorCallback, new Error("exchange id not found"));
-    xkeyS = Vault[this.vid].exchange[xid]['xkeyS'];
-    xsaltS = Vault[this.vid].exchange[xid]['xsaltS'];
-    xkey = this.crypto.combineKeypair(xkeyS, xkeyR);
-    xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
-    if (xsigR) {
-        xsig = this.crypto.generateHmac(xstr, xkey);
-        if (xsig.substr(0, xsigL) != xsigR)
-            return this.$emitEvent("error", errorCallback, new Error("exchange checksums mismatch"));
+    var xkeyS, xsaltS, xkey, xstr, xsig;
+    try {
+        if (!Vault[this.vid].exchanges[xid])
+            throw new Error("exchange id not found");
+        xkeyS = Vault[this.vid].exchanges[xid][2];
+        xsaltS = Vault[this.vid].exchanges[xid][3];
+        xkey = this.crypto.combineKeypair(xkeyS, xkeyR);
+        if (xsigR) {
+            xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
+            xsig = this.crypto.generateHmac(xstr, xkey);
+            if (xsig.substr(0, xsigL) != xsigR)
+                throw new Error("exchange checksums mismatch");
+        }
+        else {
+            console.warn("Exchange checksum comparision skipped!");
+        }
     }
-    else {
-        console.warn("Exchange checksum comparision skipped!");
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
     }
     this.$storeInvitation({
         'iid': this.crypto.generateHmac(xsaltS, xkey),
         'ikey': this.crypto.generateHmac(xsaltR, xkey),
-        'did': Vault[this.vid].exchange[xid]['did'],
-        'tflags': Vault[this.vid].exchange[xid]['tflags']
-    }, afterStoreInvitation.bind(this));
+        'did': Vault[this.vid].exchanges[xid][4],
+        'tflags': Vault[this.vid].exchanges[xid][5]
+    }, afterStoreInvitation.bind(this), errorCallback);
 
-    function afterStoreInvitation(error, response) {
-        if (error)
-            return this.$emitEvent("error", errorCallback, error);
-        invitation = response;
-        delete Vault[this.vid].exchange[xid];
+    function afterStoreInvitation(response) {
+        delete Vault[this.vid].exchanges[xid];
         this.updateVault(afterUpdateVault.bind(this), errorCallback);
-
-    }
-    
-    function afterUpdateVault() {
-        this.$emitEvent("load", callback, invitation);
+        
+        function afterUpdateVault() {
+            this.$emitEvent("load", callback, response);
+        }
     }
 }
 
