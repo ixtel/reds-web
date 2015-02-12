@@ -1139,13 +1139,9 @@ Client.prototype.readEntities = function(path, callback, errorCallback) {
     }
 
     function finalize() {
-        var type;
         if (errors.length)
             this.$emitEvent("error", errorCallback, errors);
-        for (type in results)
-            this.$emitEvent("load", callback, results[type], type);
-        if (!type)
-            this.$emitEvent("load", callback, null, null);
+        this.$emitEvent("load", callback, results);
     }
 }
 
@@ -1221,13 +1217,9 @@ Client.prototype.updateEntities = function(path, data, callback, errorCallback) 
     }
 
     function finalize() {
-        var type;
         if (errors.length)
             this.$emitEvent("error", errorCallback, errors);
-        for (type in results)
-            this.$emitEvent("load", callback, results[type], type);
-        if (!type)
-            this.$emitEvent("load", callback, null, null);
+        this.$emitEvent("load", callback, results);
     }
 }
 
