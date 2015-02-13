@@ -399,18 +399,13 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
     }
 }
 
-Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
-    var results, errors, count, i;
-    results = new Array();
-    errors = new Array();
-    if (!dids || dids.length == 0)
-        return this.$emitEvent("load", callback, results);
-    count = dids.length;
-    dids.forEach(deleteDomain, this);
-
-    function deleteDomain(did) {
+Client.prototype.deleteDomain = function(did, callback, errorCallback) {
+    var retries, request;
+    retries = 3;
+    this.openStream(did, afterOpenStream.bind(this), errorCallback);
+    
+    function afterOpenStream(did) {
         try {
-            var request;
             request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("DELETE", this.options.url, "/!/domain/"+did);
             request.write(undefined, Vault[this.vid].streams[did]);
@@ -418,37 +413,30 @@ Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
             request.send();
         }
         catch (e) {
-            errors.push(e);
-            if (--count <= 0)
-                finalize.call(this);
+            this.$emitEvent("error", errorCallback, e);
         }
-
-        function onLoad() {
-            try {
-                request.verify("stream", Vault[this.vid].streams[did]);
-                results.push(request.responseJson);
-                delete Vault[this.vid].tickets[request.responseJson['did']];
-                delete Vault[this.vid].streams[request.responseJson['did']];
-            }
-            catch (e) {
-                errors.push(e);
-            }
-            if (--count <= 0)
-                finalize.call(this);
-        }
-
-        function onError(evt) {
-            errors.push(evt.detail);
-            if (--count <= 0)
-                finalize.call(this);
-        }
+        return false; // NOTE Prevent load event
     }
 
-    function finalize() {
-        if (errors.length)
-            this.$emitEvent("error", errorCallback, errors);
-        if (results.length)
-            this.$emitEvent("load", callback, results);
+    function onLoad(evt) {
+        try {
+            request.verify("stream", Vault[this.vid].streams[did]);
+            delete Vault[this.vid].tickets[request.responseJson['did']];
+            delete Vault[this.vid].streams[request.responseJson['did']];
+        }
+        catch (e) {
+            return this.$emitEvent("error", errorCallback, e);
+        }
+        this.$emitEvent("load", callback, request.responseJson);
+    }
+    
+    function onError(evt) {
+        if (evt.detail.code == 412) {
+            delete Vault[this.vid].streams[did];
+            if (--retries >= 0)
+                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
+        }
+        this.$emitEvent("error", errorCallback, evt.detail);
     }
 }
 
@@ -1276,32 +1264,56 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
 
 // INFO Convenience functions
 
-Client.prototype.deleteEntitiesAndDomains = function(path, callback) {
-    this.deleteEntities(path, afterDeleteEntities.bind(this));
+Client.prototype.deleteResolvedDomains = function(path, callback, errorCallback) {
+    var responses, errors, count;
+    this.resolveEntities(path, afterResolveEntities.bind(this), errorCallback);
 
-    function afterDeleteEntities(result, type, last) {
-        var dids, results, t, i;
-        results = new Object();
-        results.entities = result;
-        dids = new Array();
-        for (t in result) {
-            for (i=0; i<result[t].length; i++) {
-                if (dids.indexOf(result[t][i]['did']) == -1)
-                    dids.push(result[t][i]['did']);
-            }
-        }
-        this.deleteDomains(dids, afterDeleteDomains.bind(this));
+    function afterResolveEntities(dids) {
+        var i;
+        if (dids.length == 0)
+            return this.$emitEvent("load", callback, null);
+        count = dids.length;
+        responses = new Array();
+        errors = new Array();
+        for (i = 0; i < dids.length; i++)
+            this.deleteDomain(dids[i], afterDeleteDomain.bind(this), afterDeleteDomainError.bind(this));
+        return false; // NOTE Prevent load event
+    }
 
-        function afterDeleteDomains(result) {
-            results.domains = result;
-            if (result)
-                this.updateVault(afterUpdateVault);
-            else
-                callback(results, type, last);
-        }
+    function afterDeleteDomain(response) {
+        responses.push(response);
+        if (--count <= 0)
+            finalize.call(this);
+        return false; // NOTE Prevent load event
+    }	
 
-        function afterUpdateVault() {
-            callback(results, type, last);
+    function afterDeleteDomainError(error) {
+        errors.push(error);
+        if (--count <= 0)
+            finalize.call(this);
+        return false; // NOTE Prevent load event
+    }	
+
+    function finalize() {
+        if (errors.length > 0)
+            this.$emitEvent("error", errorCallback, errors);
+        if (responses.length > 0)
+            this.$emitEvent("load", callback, responses);
+    }
+}
+
+Client.prototype.deleteAndSyncResolvedDomains = function(path, callback, errorCallback) {
+    this.deleteResolvedDomains(path, afterDeleteResolvedDomains.bind(this), errorCallback);
+
+    function afterDeleteResolvedDomains(responses) {
+    console.log("afterDeleteResolvedDomains");
+        this.updateVault(afterUpdateVault.bind(this), errorCallback);
+        return false; // NOTE Prevent load event
+
+        function afterUpdateVault(response) {
+    console.log("afterUpdateVault");
+            this.$emitEvent("load", callback, responses);
+            return false; // NOTE Prevent load event
         }
     }
 }
