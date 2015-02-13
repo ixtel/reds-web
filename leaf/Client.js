@@ -1264,32 +1264,38 @@ Client.prototype.deleteEntities = function(path, callback, errorCallback) {
 
 // INFO Convenience functions
 
-Client.prototype.deleteResolvedDomains = function(path, callback, errorCallback) {
-    var responses, errors, count;
+Client.prototype.$resolvePathAndCallMethod = function(path, method, args, callback, errorCallback) {
+    var responses, errors, lock;
     this.resolveEntities(path, afterResolveEntities.bind(this), errorCallback);
 
     function afterResolveEntities(dids) {
-        var i;
+        var l, i;
         if (dids.length == 0)
             return this.$emitEvent("load", callback, null);
-        count = dids.length;
+        lock = dids.length;
         responses = new Array();
         errors = new Array();
-        for (i = 0; i < dids.length; i++)
-            this.deleteDomain(dids[i], afterDeleteDomain.bind(this), afterDeleteDomainError.bind(this));
+        l = args.length;
+        args.push(null);
+        args.push(afterDeleteDomain.bind(this));
+        args.push(afterDeleteDomainError.bind(this));
+        for (i = 0; i < dids.length; i++) {
+            args[l] = dids[i];
+            method.apply(this, args);
+        }
         return false; // NOTE Prevent load event
     }
 
     function afterDeleteDomain(response) {
         responses.push(response);
-        if (--count <= 0)
+        if (--lock == 0)
             finalize.call(this);
         return false; // NOTE Prevent load event
     }	
 
     function afterDeleteDomainError(error) {
         errors.push(error);
-        if (--count <= 0)
+        if (--lock == 0)
             finalize.call(this);
         return false; // NOTE Prevent load event
     }	
@@ -1302,20 +1308,32 @@ Client.prototype.deleteResolvedDomains = function(path, callback, errorCallback)
     }
 }
 
-Client.prototype.deleteAndSyncResolvedDomains = function(path, callback, errorCallback) {
-    this.deleteResolvedDomains(path, afterDeleteResolvedDomains.bind(this), errorCallback);
+Client.prototype.$callMethodAndSyncVault = function(method, args, callback, errorCallback) {
+    args.push(afterMethodApply.bind(this));
+    args.push(errorCallback);
+    method.apply(this, args);
 
-    function afterDeleteResolvedDomains(responses) {
-    console.log("afterDeleteResolvedDomains");
+    function afterMethodApply(responses) {
         this.updateVault(afterUpdateVault.bind(this), errorCallback);
         return false; // NOTE Prevent load event
 
         function afterUpdateVault(response) {
-    console.log("afterUpdateVault");
             this.$emitEvent("load", callback, responses);
             return false; // NOTE Prevent load event
         }
     }
+}
+
+Client.prototype.deleteAndSyncDomain = function(pid, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.deleteDomain, [did], callback, errorCallback);
+}
+
+Client.prototype.deleteResolvedDomains = function(path, callback, errorCallback) {
+    this.$resolvePathAndCallMethod(path, this.deleteDomain, [], callback, errorCallback);
+}
+
+Client.prototype.deleteAndSyncResolvedDomains = function(path, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.deleteResolvedDomains, [path], callback, errorCallback);
 }
 
 Client.prototype.createEntityAndDomain = function(path, data, url, password, callback) {
