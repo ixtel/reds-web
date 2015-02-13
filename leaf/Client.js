@@ -543,6 +543,7 @@ Client.prototype.readTickets = function(did, tids, callback, errorCallback) {
         }
     }
 }
+
 Client.prototype.updateTickets = function(did, data, callback, errorCallback) {
     var retries, tids;
     retries = 3;
@@ -860,31 +861,7 @@ Client.prototype.readPendingInvitations = function(iids, callback, errorCallback
     this.$emitEvent("load", callback, results);
 }
 
-Client.prototype.deletePendingInvitations = function(iids, callback, errorCallback) {
-    var results, iid;
-    try {
-        results = new Array();
-        for (iid in Vault[this.vid].invitations) {
-            if (!iids || (iids.indexOf(iid) != -1)) {
-                delete Vault[this.vid].invitations[iid];
-                results.push(iid);
-            }
-        }
-    }
-    catch (e) {
-        return this.$emitEvent("error", errorCallback, e);
-    }
-    if (results.length)
-        this.updateVault(afterUpdateVault.bind(this), errorCallback);
-    else
-        this.$emitEvent("load", callback, results);
-    
-    function afterUpdateVault() {
-        this.$emitEvent("load", callback, results);
-    }
-}
-
-Client.prototype.clearPendingInvitations = function(iids, ttl, callback, errorCallback) {
+Client.prototype.deletePendingInvitations = function(iids, ttl, callback, errorCallback) {
     var  results, deadline, modified, iid;
     try {
         results = new Array();
@@ -892,7 +869,7 @@ Client.prototype.clearPendingInvitations = function(iids, ttl, callback, errorCa
         for (iid in Vault[this.vid].invitations) {
             if (!iids || (iids.indexOf(iid) != -1)) {
                 modified = parseInt(Vault[this.vid].invitations[iid][0]);
-                if (modified+ttl < deadline) {
+                if (!ttl || modified+ttl < deadline) {
                     delete Vault[this.vid].invitations[iid];
                     results.push(iid);
                 }
