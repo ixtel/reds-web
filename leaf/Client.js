@@ -415,7 +415,7 @@ Client.prototype.deleteDomain = function(did, callback, errorCallback) {
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }
 
     function onLoad(evt) {
@@ -658,22 +658,16 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
 
 // INFO Invitation operations
 
-// NOTE This function uses the only callback and won't dispatch any events. 
-Client.prototype.$storeInvitation = function(invitation, callback, errorCallback) {
-    var iidUrl, did, retries;
-    try {
-        retries = 3;
-        did = invitation['did'];
-        iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-    }
-    catch (e) {
-        return this.$emitEvent("error", errorCallback, e);
-    }
+// TODO Use /!/domain/did/invitation/iid as URL
+Client.prototype.createInvitation = function(invitation, did, callback, errorCallback) {
+    var retries, request;
+    retries = 3;
     this.openStream(did, afterOpenStream.bind(this), errorCallback);
-
-    function afterOpenStream() {
+    
+    function afterOpenStream(did) {
+        var iidUrl;
         try {
-            var request;
+            iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
             request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
             request.open("POST", this.options.url, "/!/invitation/"+iidUrl);
             request.write(invitation, Vault[this.vid].streams[did]);
@@ -683,36 +677,45 @@ Client.prototype.$storeInvitation = function(invitation, callback, errorCallback
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
+        return false; // NOTE Prevent event
+    }
 
-        function onLoad(result) {
-            try {
-                request.verify("stream", Vault[this.vid].streams[did]);
-                request.decrypt(Vault[this.vid].streams[did]);
-            }
-            catch (e) {
-                return this.$emitEvent("error", errorCallback, e);
-            }
-            this.$emitEvent("load", callback, request.responseJson);
+    function onLoad(evt) {
+        try {
+            request.verify("stream", Vault[this.vid].streams[did]);
+            request.decrypt(Vault[this.vid].streams[did]);
         }
-
-        function onError(evt) {
-            if (evt.detail.code == 412) {
-                delete Vault[this.vid].streams[did];
-                if (--retries >= 0)
-                    return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-            }
-            this.$emitEvent("error", errorCallback, evt.detail);
+        catch (e) {
+            return this.$emitEvent("error", errorCallback, e);
         }
+        this.$emitEvent("load", callback, request.responseJson);
+    }
+    
+    function onError(evt) {
+        if (evt.detail.code == 412) {
+            delete Vault[this.vid].streams[did];
+            if (--retries >= 0)
+                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
+        }
+        this.$emitEvent("error", errorCallback, evt.detail);
     }
 }
 
-Client.prototype.createPrivateInvitation = function(did, tflags, callback, errorCallback) {
-    this.$storeInvitation({
+Client.prototype.createPrivateInvitation = function(tflags, did, callback, errorCallback) {
+    this.createInvitation({
         'iid': this.crypto.generateKey(),
         'ikey': this.crypto.generateKey(),
         'did': did,
         'tflags': tflags
-    }, callback, errorCallback);
+    }, did, callback, afterCreateInvitationError.bind(this));
+    
+    function afterCreateInvitationError(error) {
+        if (error.code == 409)
+            this.createPrivateInvitation(tflags, did, callback, errorCallback);
+        else
+            this.$emitEvent("error", errorCallback, error);
+        return false; // NOTE Prevent event
+    }
 }
 
 Client.prototype.acceptPrivateInvitation = function(iid, ikey, callback, errorCallback) {
@@ -722,10 +725,12 @@ Client.prototype.acceptPrivateInvitation = function(iid, ikey, callback, errorCa
         ikey,       // NOTE invitation[2] = invitation key
         null        // NOTE invitation[1] = invitation signature
     ];
-    this.$emitEvent("load", callback, iid);
+    this.$emitEvent("load", callback, {
+        'iid': iid
+    });
 }
 
-Client.prototype.createPublicInvitation = function(did, tflags, callback, errorCallback) {
+Client.prototype.createPublicInvitation = function(tflags, did, callback, errorCallback) {
     var xid, xkeyS, xsaltS;
     try {
         xkeyS = this.crypto.generateKeypair();
@@ -741,33 +746,29 @@ Client.prototype.createPublicInvitation = function(did, tflags, callback, errorC
             did,              // NOTE exchange[4] = domain id
             tflags            // NOTE exchange[5] = ticket flags
         ];
-        // TODO Handle xid collision, when another leaf created an
-        //      exchange with the same xid since the last update.
     }
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.updateVault(afterUpdateVault.bind(this), errorCallback);
-    
-    function afterUpdateVault() {
-        this.$emitEvent("load", callback, {
-            'xid': xid,
-            'xkeyS': xkeyS.publicKey,
-            'xsaltS': xsaltS
-        });
-    }
+    this.$emitEvent("load", callback, {
+        'xid': xid,
+        'xkeyS': xkeyS.publicKey,
+        'xsaltS': xsaltS
+    });
 }
 
 Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback, errorCallback) {
     var xkeyR, xsaltR, xkey, xstr, xsig, iid, ikey;
     try {
         xkeyR = this.crypto.generateKeypair();
-        xsaltR = this.crypto.generateKey();
         xkey = this.crypto.combineKeypair(xkeyR.privateKey, xkeyS);
+        do {
+            xsaltR = this.crypto.generateKey();
+            iid = this.crypto.generateHmac(xsaltR, xkey);
+        } while (Vault[this.vid].invitations[iid]);
+        ikey = this.crypto.generateHmac(xsaltS, xkey);
         xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
         xsig = this.crypto.generateHmac(xstr, xkey);
-        iid = this.crypto.generateHmac(xsaltS, xkey);
-        ikey = this.crypto.generateHmac(xsaltR, xkey);
         Vault[this.vid].invitations[iid] = [ 
             Date.now(), // NOTE invitation[0] = modified timestamp
             iid,        // NOTE invitation[1] = invitation id
@@ -778,16 +779,13 @@ Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback,
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.updateVault(afterUpdateVault.bind(this), errorCallback);
-    
-    function afterUpdateVault() {
-        this.$emitEvent("load", callback, {
-            'xid': xid,
-            'xkeyR': xkeyR.publicKey,
-            'xsaltR': xsaltR,
-            'xsig': xsig
-        });
-    }
+    this.$emitEvent("load", callback, {
+        'iid': iid,
+        'xid': xid,
+        'xkeyR': xkeyR.publicKey,
+        'xsaltR': xsaltR,
+        'xsig': xsig
+    });
 }
 
 Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, xsigL, callback, errorCallback) {
@@ -802,29 +800,26 @@ Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, x
             xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
             xsig = this.crypto.generateHmac(xstr, xkey);
             if (xsig.substr(0, xsigL) != xsigR)
-                throw new Error("exchange checksums mismatch");
+                throw new Error("exchange signatures mismatch");
         }
         else {
-            console.warn("Exchange checksum comparision skipped!");
+            console.warn("Exchange signature check skipped!");
         }
     }
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.$storeInvitation({
-        'iid': this.crypto.generateHmac(xsaltS, xkey),
-        'ikey': this.crypto.generateHmac(xsaltR, xkey),
+    this.createInvitation({
+        'iid': this.crypto.generateHmac(xsaltR, xkey),
+        'ikey': this.crypto.generateHmac(xsaltS, xkey),
         'did': Vault[this.vid].exchanges[xid][4],
         'tflags': Vault[this.vid].exchanges[xid][5]
-    }, afterStoreInvitation.bind(this), errorCallback);
-
-    function afterStoreInvitation(response) {
+    }, Vault[this.vid].exchanges[xid][4], afterCreateInvitation.bind(this), errorCallback);
+    
+    function afterCreateInvitation(response) {
         delete Vault[this.vid].exchanges[xid];
-        this.updateVault(afterUpdateVault.bind(this), errorCallback);
-        
-        function afterUpdateVault() {
-            this.$emitEvent("load", callback, response);
-        }
+        this.$emitEvent("load", callback, response);
+        return false; // NOTE Prevent event
     }
 }
 
@@ -846,7 +841,7 @@ Client.prototype.readPendingInvitations = function(iids, callback, errorCallback
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.$emitEvent("load", callback, results);
+    this.$emitEvent("load", callback, results.length?results:null);
 }
 
 Client.prototype.deletePendingInvitations = function(iids, ttl, callback, errorCallback) {
@@ -867,14 +862,7 @@ Client.prototype.deletePendingInvitations = function(iids, ttl, callback, errorC
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    if (results.length)
-        this.updateVault(afterUpdateVault.bind(this), errorCallback);
-    else
-        this.$emitEvent("load", callback, results);
-    
-    function afterUpdateVault() {
-        this.$emitEvent("load", callback, results);
-    }
+    this.$emitEvent("load", callback, results.length?results:null);
 }
 
 // INFO Stream operations
@@ -990,7 +978,7 @@ Client.prototype.createEntity = function(path, data, did, callback, errorCallbac
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }
 
     function onLoad(evt) {
@@ -1005,7 +993,6 @@ Client.prototype.createEntity = function(path, data, did, callback, errorCallbac
     }
     
     function onError(evt) {
-        console.log("onError");
         if (evt.detail.code == 412) {
             delete Vault[this.vid].streams[did];
             if (--retries >= 0)
@@ -1031,7 +1018,7 @@ Client.prototype.readEntities = function(path, did, callback, errorCallback) {
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }
 
     function onLoad(evt) {
@@ -1071,7 +1058,7 @@ Client.prototype.updateEntities = function(path, data, did, callback, errorCallb
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }
 
     function onLoad(evt) {
@@ -1111,7 +1098,7 @@ Client.prototype.deleteEntities = function(path, did, callback, errorCallback) {
         catch (e) {
             this.$emitEvent("error", errorCallback, e);
         }
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }
 
     function onLoad(evt) {
@@ -1156,7 +1143,7 @@ Client.prototype.$resolvePathAndCallMethod = function(path, method, args, callba
             args[pointer] = dids[i];
             method.apply(this, args);
         }
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }
 
     function afterDeleteDomain(response) {
@@ -1164,14 +1151,14 @@ Client.prototype.$resolvePathAndCallMethod = function(path, method, args, callba
             responses.push(response);
         if (--lock == 0)
             finalize.call(this);
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }	
 
     function afterDeleteDomainError(error) {
         errors.push(error);
         if (--lock == 0)
             finalize.call(this);
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
     }	
 
     function finalize() {
@@ -1191,11 +1178,11 @@ Client.prototype.$callMethodAndSyncVault = function(method, args, callback, erro
 
     function afterMethodApply(responses) {
         this.updateVault(afterUpdateVault.bind(this), errorCallback);
-        return false; // NOTE Prevent load event
+        return false; // NOTE Prevent event
 
         function afterUpdateVault(response) {
             this.$emitEvent("load", callback, responses);
-            return false; // NOTE Prevent load event
+            return false; // NOTE Prevent event
         }
     }
 }
@@ -1212,6 +1199,26 @@ Client.prototype.resolveAndDeleteDomains = function(path, callback, errorCallbac
 
 Client.prototype.resolveDeleteAndSyncDomains = function(path, callback, errorCallback) {
     this.$callMethodAndSyncVault(this.resolveAndDeleteDomains, [path], callback, errorCallback);
+}
+
+// Invitation convenience functions
+
+// TODO Handle collision, if an exchange with the same xid has been created since the last update.
+Client.prototype.createAndSyncPublicInvitation = function(tflags, did, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.createPublicInvitation, [tflags, did], callback, errorCallback);
+}
+
+// TODO Handle collision, if an invitation with the same iid has been created since the last update.
+Client.prototype.acceptAndSyncPublicInvitation = function(xid, xkeyS, xsaltS, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.acceptPublicInvitation, [xid, xkeyS, xsaltS], callback, errorCallback);
+}
+
+Client.prototype.confirmAndSyncPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, xsigL, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.confirmPublicInvitation, [xid, xkeyR, xsaltR, xsigR, xsigL], callback, errorCallback);
+}
+
+Client.prototype.deleteAndSyncPendingInvitations = function(iids, ttl, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.deletePendingInvitations, [iids, ttl], callback, errorCallback);
 }
 
 // Entity convenience functions
