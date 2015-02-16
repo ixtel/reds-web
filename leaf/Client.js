@@ -248,7 +248,6 @@ Client.prototype.deleteAccount = function(callback, errorCallback) {
 }
 
 Client.prototype.updateVault = function(callback, errorCallback) {
-    console.log("updateVault");
     var retries, vec, vault, request;
     try {
         retries = 3;
@@ -274,7 +273,6 @@ Client.prototype.updateVault = function(callback, errorCallback) {
     }
 
     function onLoad() {
-        console.log("updateVault onLoad");
         try {
             request.verify("account", Vault[this.vid].account);
             Vault[this.vid].modified = parseInt(request.responseJson['modified']);
@@ -287,7 +285,6 @@ Client.prototype.updateVault = function(callback, errorCallback) {
     }
 
     function onError(evt) {
-        console.log("updateVault onError");
         var id;
         if ((retries <= 0) || (evt.detail.code != 412))
             return this.$emitEvent("error", errorCallback, evt.detail);
@@ -330,7 +327,8 @@ Client.prototype.updateVault = function(callback, errorCallback) {
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        this.updateVault(retries--, callback, errorCallback);
+        if (--retries >= 0)
+            this.updateVault(callback, errorCallback);
     }
 }
 
@@ -446,7 +444,6 @@ Client.prototype.deleteDomain = function(did, callback, errorCallback) {
 // INFO Ticket operations
 
 Client.prototype.createTicket = function(iid, callback, errorCallback) {
-    console.log("createTicket");
     var iidUrl, tkeyL, request;
     try {
         iidUrl = iid.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
@@ -464,7 +461,6 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        console.log("createTicket onLoad");
         var tkey;
         try {
             request.verify("invitation", Vault[this.vid].invitations[iid]);
@@ -826,7 +822,10 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     var request, skeyL;
     if (Vault[this.vid].streams[did])
         return this.$emitEvent("load", callback, did);
+    if (Vault[this.vid].streams[did] === null)
+        return setTimeout(waitForCompletion.bind(this), 100, Date.now());
     try {
+        Vault[this.vid].streams[did] = null;
         skeyL = this.crypto.generateKeypair();
         request = this.$createRequest(undefined, undefined, undefined, onLoad.bind(this), onError.bind(this));
         request.open("POST", this.options.url, "/!/domain/"+did+"/leaf");
@@ -838,6 +837,15 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     }
     catch (e) {
         this.$emitEvent("error", errorCallback, e);
+    }
+
+    function waitForCompletion(start) {
+        if (Vault[this.vid].streams[did])
+            this.$emitEvent("load", callback, did);
+        else if (start+Date.now() > start+60000)
+            this.$emitEvent("error", errorCallback, new Error("stream creation timed out"));
+        else
+            setTimeout(waitForCompletion.bind(this), 100, start);
     }
 
     function onLoad(evt) {
@@ -1082,15 +1090,22 @@ Client.prototype.$callMethodForEachId = function(method, args, ids, callback, er
     var responses, errors, lock, pointer, i;
     if (ids.length == 0)
         return this.$emitEvent("load", callback, null);
-    lock = ids.length;
     responses = new Array();
     errors = new Array();
     pointer = args.length;
     args.push(null);
     args.push(afterMethod.bind(this));
     args.push(afterMethodError.bind(this));
-    for (i = 0; i < ids.length; i++) {
-        args[pointer] = ids[i];
+    if (Array.isArray(ids)) {
+        lock = ids.length;
+        for (i = 0; i < ids.length; i++) {
+            args[pointer] = ids[i];
+            method.apply(this, args);
+        }
+    }
+    else {
+        lock = 1;
+        args[pointer] = ids;
         method.apply(this, args);
     }
 
@@ -1134,12 +1149,18 @@ Client.prototype.$callMethodAndSyncVault = function(method, args, callback, erro
     args.push(errorCallback);
     method.apply(this, args);
 
-    function afterMethodApply(responses) {
-        this.updateVault(afterUpdateVault.bind(this), errorCallback);
+    function afterMethodApply(response) {
+        this.updateVault(afterUpdateVault.bind(this), afterUpdateVaultError);
         return false; // NOTE Prevent event
 
-        function afterUpdateVault(response) {
-            this.$emitEvent("load", callback, responses);
+        function afterUpdateVault() {
+            this.$emitEvent("load", callback, response);
+            return false; // NOTE Prevent event
+        }
+
+        function afterUpdateVaultError(error) {
+            console.warn("TODO Revert changes made by method (vault out of sync!)");
+            this.$emitEvent("error", errorCallback, error);
             return false; // NOTE Prevent event
         }
     }
@@ -1147,12 +1168,12 @@ Client.prototype.$callMethodAndSyncVault = function(method, args, callback, erro
 
 // INFO Domain convenience functions
 
-Client.prototype.deleteAndSyncDomain = function(did, callback, errorCallback) {
-    this.$callMethodAndSyncVault(this.deleteDomain, [did], callback, errorCallback);
-}
-
 Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
     this.$callMethodForEachId(this.deleteDomain, [], dids, callback, errorCallback);
+}
+
+Client.prototype.deleteAndSyncDomain = function(did, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.deleteDomain, [did], callback, errorCallback);
 }
 
 Client.prototype.deleteAndSyncDomains = function(dids, callback, errorCallback) {
@@ -1169,13 +1190,13 @@ Client.prototype.resolveDeleteAndSyncDomains = function(path, callback, errorCal
 
 // INFO Ticket convenience functions
 
-Client.prototype.createAndSyncTicket = function(iid, callback, errorCallback) {
-    this.$callMethodAndSyncVault(this.createTicket, [iid], callback, errorCallback);
-}
-
 Client.prototype.createTickets = function(iids, callback, errorCallback) {
     iids = iids||Object.keys(Vault[this.vid].invitations);
     this.$callMethodForEachId(this.createTicket, [], iids, callback, errorCallback);
+}
+
+Client.prototype.createAndSyncTicket = function(iid, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.createTicket, [iid], callback, errorCallback);
 }
 
 Client.prototype.createAndSyncTickets = function(iids, callback, errorCallback) {
@@ -1236,7 +1257,6 @@ Client.prototype.acceptCreateAndSyncPrivateInvitationAndTicket = function(xid, x
     this.acceptPrivateInvitation(xid, xkey, afterAcceptPrivateInvitation.bind(this), errorCallback);
 
     function afterAcceptPrivateInvitation(response) {
-        console.log("afterAcceptPrivateInvitation");
         this.createAndSyncTicket(response['iid'], callback, errorCallback);
         return false; // NOTE Prevent event
     }

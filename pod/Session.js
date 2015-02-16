@@ -166,8 +166,6 @@ exports.prototype.authorizeStream = function(callback) {
                 this.request.headers['content-type'],
                 this.requestText||""
             );
-            console.log(msg);
-            console.log(result[0]['skey']);
             var sig = this.crypto.generateHmac(msg, result[0]['skey']);
             if (sig != this.authorization['sig'])
                 throw new HttpError(403, "invalid authorization");
