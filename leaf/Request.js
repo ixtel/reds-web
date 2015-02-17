@@ -5,7 +5,7 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 
 // INFO Leaf client module
 
-var Request = function(crypto, credentials) {
+var Request = function(crypto, realm, credentials) {
     this.$method = "";
     this.$type = "application/octet-stream";
     this.$data = "";
@@ -17,6 +17,8 @@ var Request = function(crypto, credentials) {
     this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
     // TODO store client instead
     this.crypto = crypto;
+    this.realm = realm;
+    this.credentials = credentials;
     // NOTE Pass event handling to XMLHttpRequest
     this.addEventListener = this.$xhr.addEventListener.bind(this.$xhr);
     this.removeEventListener = this.$xhr.removeEventListener.bind(this.$xhr);
@@ -31,7 +33,12 @@ Request.prototype.$onLoad = function(evt) {
         evt.stopImmediatePropagation();
         error = new HttpError(this.$xhr.status, this.$xhr.statusText);
         this.dispatchEvent(new CustomEvent("error", {'detail':error}));
+        return false;
     }
+    if (this.responseAuthorization != null)
+        this.verify(this.realm, this.credentials);
+    if (this.responseType['name'] == "application/x.reds.encrypted")
+        this.decrypt(this.credentials);
 }
     
 Request.prototype.open = function(method, node, path) {
@@ -39,54 +46,39 @@ Request.prototype.open = function(method, node, path) {
     return this.$xhr.open(method, node+path, true);
 }
 
-Request.prototype.write = function(data, credentials) {
-    var vec;
+Request.prototype.write = function(data) {
     if (this.$data.length)
         throw new Error("Multiple Request.write calls are not supported yet (TODO)");
     if (data !== undefined) {
         this.$type = "application/json;charset=UTF-8";
         this.$data = JSON.stringify(data);
     }
-    if (credentials) {
-        vec = this.crypto.generateTimestamp();
-        this.$type = "application/x.reds.encrypted;did="+credentials[4]+";vec="+vec;
-        if (this.$data.length)
-            this.$data = this.crypto.encryptData(this.$data, credentials[2], vec);
-    }
 }
 
-Request.prototype.send = function() {
-    this.dispatchEvent(new Event("send"));
-    this.$xhr.setRequestHeader("Content-Type", this.$type);
-    // NOTE Sending the data as a blob prevents Firefox (and maybe other browsers)
-    //      from adding a charset value to the content-type header.
-    return this.$xhr.send(new Blob([this.$data]));
-}
-
-Request.prototype.sign = function(realm, credentials) {
+Request.prototype.sign = function() {
     var vec, msg, sig;
     vec = this.crypto.generateTimestamp();
     msg = this.crypto.concatenateStrings(
-        realm,
-        credentials[1],
+        this.realm,
+        this.credentials[1],
         vec,
         this.crypto.name,
         this.$method,
         this.$type,
         this.$data
     );
-    sig = this.crypto.generateHmac(msg, credentials[2]);
-    // TODO Swap crypto.name and sig
-    this.$xhr.setRequestHeader("Authorization", realm+":"+credentials[1]+":"+vec+":"+sig+":"+this.crypto.name);
+    sig = this.crypto.generateHmac(msg, this.credentials[2]);
+    // TODO Set crypto name to front
+    this.$xhr.setRequestHeader("Authorization", this.realm+":"+this.credentials[1]+":"+vec+":"+sig+":"+this.crypto.name);
 }
 
-Request.prototype.verify = function(realm, credentials) {
+Request.prototype.verify = function() {
     var msg, sig;
     if (!this.responseAuthorization)
         throw new Error("missing authorization");
-    if (this.responseAuthorization['realm'] != realm)
+    if (this.responseAuthorization['realm'] != this.realm)
         throw new Error("invalid realm");
-    if (this.responseAuthorization['id'] != credentials[1])
+    if (this.responseAuthorization['id'] != this.credentials[1])
         throw new Error("invalid credentials");
     // NOTE Note this check won't be needed once the session can handle multiple facilities
     if (this.responseAuthorization['crypto'] != this.crypto.name)
@@ -99,16 +91,38 @@ Request.prototype.verify = function(realm, credentials) {
         this.$xhr.getResponseHeader("Content-Type"),
         this.$xhr.responseText||""
     );
-    sig = this.crypto.generateHmac(msg, credentials[2]);
+    sig = this.crypto.generateHmac(msg, this.credentials[2]);
     if (sig != this.responseAuthorization['sig'])
         throw new Error("invalid authorization");
 }
 
-Request.prototype.decrypt = function(credentials) {
-    if (this.$xhr.responseText.length)
-        this.$responseText = this.crypto.decryptData(this.$xhr.responseText, credentials[2], this.responseType.options['vec']);
+Request.prototype.encrypt = function() {
+    var vec;
+    vec = this.crypto.generateTimestamp();
+    this.$type = "application/x.reds.encrypted;did="+this.credentials[4]+";vec="+vec;
+    if (this.$data.length)
+        this.$data = this.crypto.encryptData(this.$data, this.credentials[2], vec);
 }
 
+Request.prototype.decrypt = function() {
+    if (this.$xhr.responseText.length)
+        this.$responseText = this.crypto.decryptData(this.$xhr.responseText, this.credentials[2], this.responseType.options['vec']);
+}
+
+Request.prototype.send = function() {
+    this.dispatchEvent(new Event("send"));
+    if (this.realm && this.credentials) {
+        if (this.realm == "stream")
+            this.encrypt();
+        this.sign();
+    }
+    this.$xhr.setRequestHeader("Content-Type", this.$type);
+    // NOTE Sending the data as a blob prevents Firefox (and maybe other browsers)
+    //      from adding a charset value to the content-type header.
+    return this.$xhr.send(new Blob([this.$data]));
+}
+
+// TODO Dont use this header! Move modified in body
 Request.prototype.setUnmodifiedSince = function(timestamp) {
     var date, msec;
     date = new Date(timestamp);

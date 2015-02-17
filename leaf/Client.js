@@ -108,8 +108,8 @@ Client.prototype.$emitEvent = function(name, callback, detail) {
     return false; // NOTE To use "return this.$emitEvent" to prevent the callback event
 }
 
-Client.prototype.$createRequest = function(credentials, onLoad, onError) {
-    var request = new Request(this.crypto, credentials);
+Client.prototype.$createRequest = function(realm, credentials, onLoad, onError) {
+    var request = new Request(this.crypto, realm, credentials);
     request.addEventListener("send", onSend.bind(this));
     request.addEventListener("load", onLoad);
     request.addEventListener("error", onError);
@@ -125,7 +125,7 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
     try {
         alias = this.crypto.generateSecureHash(name, password);
         aliasUrl = alias.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-        request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
         request.open("GET", this.options.url, "/!/account/"+aliasUrl);
         request.send();
     }
@@ -142,7 +142,6 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
             Vault[this.vid].modified = parseInt(request.responseJson['modified']); 
             Vault[this.vid].streams = new Object();
             Vault[this.vid].account.push(asec); // NOTE account[2] = account secret 
-            console.log(Vault[this.vid]); // DEBUG
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
@@ -169,7 +168,7 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
         alias = this.crypto.generateSecureHash(name, password);
         asalt = this.crypto.generateKey();
         akeyL = this.crypto.generateKeypair();
-        request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
         request.open("POST", this.options.url, "/!/account");
         request.write({
             'alias': alias,
@@ -221,9 +220,8 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
 Client.prototype.deleteAccount = function(callback, errorCallback) {
     var request;
     try {
-        request = this.$createRequest(null, onLoad.bind(this));
+        request = this.$createRequest("account", Vault[this.vid].account, onLoad.bind(this), onError.bind(this));
         request.open("DELETE", this.options.url, "/!/account/"+Vault[this.vid].account['aid']);
-        request.sign("account", Vault[this.vid].account);
         request.send();
     }
     catch (e) {
@@ -232,7 +230,6 @@ Client.prototype.deleteAccount = function(callback, errorCallback) {
 
     function onLoad(evt) {
         try {
-            request.authorize("account", Vault[this.vid].account);
             Vault.resetClient(this.vid);
         }
         catch (e) {
@@ -251,20 +248,20 @@ Client.prototype.updateVault = function(callback, errorCallback) {
     try {
         retries = 3;
         vec = this.crypto.generateTimestamp();
+        //console.log("Current vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
         // NOTE This JSON dance is necessary to create a real clone.
         vault = JSON.parse(JSON.stringify(Vault[this.vid]));
         vault.account.pop(); // NOTE Remove the account secret at account[3] 
         delete vault.streams;
         delete vault.modified;
         vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account[3], vec);
-        request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest("account", Vault[this.vid].account, onLoad.bind(this), onError.bind(this));
         request.open("PUT", this.options.url, "/!/account/"+Vault[this.vid].account[1]);
         request.write({
             'vault': vault,
             'vec': vec
         });
         request.setUnmodifiedSince(Vault[this.vid].modified);
-        request.sign("account", Vault[this.vid].account);
         request.send();
     }
     catch (e) {
@@ -273,9 +270,8 @@ Client.prototype.updateVault = function(callback, errorCallback) {
 
     function onLoad(evt) {
         try {
-            request.verify("account", Vault[this.vid].account);
             Vault[this.vid].modified = parseInt(request.responseJson['modified']);
-            console.log(Vault[this.vid]); // DEBUG
+            //console.log("Updated vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
@@ -285,49 +281,50 @@ Client.prototype.updateVault = function(callback, errorCallback) {
 
     function onError(evt) {
         var id;
-        if ((retries <= 0) || (evt.detail.code != 412))
+        if ((evt.detail.code != 412) || (--retries <= 0))
             return this.$emitEvent("error", errorCallback, evt.detail);
         try {
-            request.verify("account", Vault[this.vid].account);
             if (request.responseJson['vault'] && request.responseJson['vec']) {
-                // NOTE If decrupting fails, most probably the account credentials have been changed.
+                console.info("vault has benn updated by a forgein leaf, merging vaults");
+                // NOTE If decrypting fails, most probably the account credentials have been changed.
                 // TODO Ask for password and generate new account credentials.
                 vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], Vault[this.vid].account[3], request.responseJson['vec']));
                 vault = this.$upgradeVault(vault);
+                //console.log("Newer vault: "+JSON.stringify(vault)); // DEBUG
                 // NOTE Add and update items
                 for (id in vault.tickets) {
-                    if ((!Vault[this.vid].tickets[id]) || (vault.tickets[id][0] > Vault[this.vid].tickets[id][0]))
+                    if (vault.tickets[id][0] > Vault[this.vid].modified)
                         Vault[this.vid].tickets[id] = vault.tickets[id]; 
                 }
                 for (id in vault.invitations) {
-                    if ((!Vault[this.vid].invitations[id]) || (vault.invitations[id][0] > Vault[this.vid].invitations[id][0]))
+                    if (vault.invitations[id][0] > Vault[this.vid].modified)
                         Vault[this.vid].invitations[id] = vault.invitations[id]; 
                 }
                 for (id in vault.exchanges) {
-                    if ((!Vault[this.vid].exchanges[id]) || (vault.exchanges[id][0] > Vault[this.vid].exchanges[id][0]))
+                    if (vault.exchanges[id][0] > Vault[this.vid].modified)
                         Vault[this.vid].exchanges[id] = vault.exchanges[id]; 
                 }
                 // NOTE Remove items
                 for (id in Vault[this.vid].tickets) {
-                    if (!vault.tickets[id] && (Vault[this.vid].tickets[id][0] > Vault[this.vid].modified))
+                    if (!vault.tickets[id] && (Vault[this.vid].tickets[id][0] < Vault[this.vid].modified))
                         delete Vault[this.vid].tickets[id];
                 }
                 for (id in Vault[this.vid].invitations) {
-                    if (!vault.invitations[id] && (Vault[this.vid].invitations[id][0] > Vault[this.vid].modified))
+                    if (!vault.invitations[id] && (Vault[this.vid].invitations[id][0] < Vault[this.vid].modified))
                         delete Vault[this.vid].invitations[id];
                 }
                 for (id in Vault[this.vid].exchanges) {
-                    if (!vault.exchanges[id] && (Vault[this.vid].exchanges[id][0] > Vault[this.vid].modified))
+                    if (!vault.exchanges[id] && (Vault[this.vid].exchanges[id][0] < Vault[this.vid].modified))
                         delete Vault[this.vid].exchanges[id];
                 }
+                //console.log("Merged vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
             }
             Vault[this.vid].modified = parseInt(request.responseJson['modified']);
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        if (--retries >= 0)
-            this.updateVault(callback, errorCallback);
+        this.updateVault(callback, errorCallback);
     }
 }
 
@@ -335,7 +332,7 @@ Client.prototype.updateVault = function(callback, errorCallback) {
 
 Client.prototype.createPod = function(url, password, callback, errorCallback) {
     try {
-        var request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+        var request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
         request.open("POST", this.options.url, "/!/pod");
         request.write({
             'url': url
@@ -346,7 +343,7 @@ Client.prototype.createPod = function(url, password, callback, errorCallback) {
         this.$emitEvent("error", errorCallback, e);
     }
 
-    function onLoad() {
+    function onLoad(evt) {
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -362,7 +359,7 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
         var iid, ikeyL, request;
         iid = this.crypto.generateTimestamp();
         ikeyL = this.crypto.generateKeypair();
-        request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
         request.open("POST", this.options.url, "/!/domain");
         request.write({
             'pod': pod,
@@ -375,7 +372,7 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
         this.$emitEvent("error", errorCallback, e);
     }
 
-    function onLoad() {
+    function onLoad(evt) {
         try {
             var pkey, ikey_, invitation;
             if (iid != request.responseJson['iid'])
@@ -383,8 +380,7 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
             if (ikeyL.publicKey != request.responseJson['ikey_l'])
                 throw new Error("leaf and pod ikeyL mismatch");
             pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
-            // TODO Activate pod authorization
-            // request.authorize("pod", [null,null,pkey,null]);
+            // TODO Verify pod signature!
             ikey_ = this.crypto.combineKeypair(ikeyL.privateKey, request.responseJson['ikey_p']);
             Vault[this.vid].invitations[request.responseJson['iid']] = [
                 Date.now(),                            // NOTE invitation[0] = modified timestamp
@@ -414,10 +410,8 @@ Client.prototype.deleteDomain = function(did, callback, errorCallback) {
     
     function afterOpenStream(did) {
         try {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("DELETE", this.options.url, "/!/domain/"+did);
-            request.write(undefined, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
@@ -428,7 +422,6 @@ Client.prototype.deleteDomain = function(did, callback, errorCallback) {
 
     function onLoad(evt) {
         try {
-            request.verify("stream", Vault[this.vid].streams[did]);
             delete Vault[this.vid].tickets[request.responseJson['did']];
             delete Vault[this.vid].streams[request.responseJson['did']];
         }
@@ -455,12 +448,11 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
     try {
         iidUrl = iid.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
         tkeyL = this.crypto.generateKeypair();
-        request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest("invitation", Vault[this.vid].invitations[iid], onLoad.bind(this), onError.bind(this));
         request.open("PUT", this.options.url, "/!/invitation/"+iidUrl);
         request.write({
             'tkey_l': tkeyL.publicKey
         });
-        request.sign("invitation", Vault[this.vid].invitations[iid]);
         request.send();
     }
     catch (e) {
@@ -470,7 +462,6 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
     function onLoad(evt) {
         var tkey;
         try {
-            request.verify("invitation", Vault[this.vid].invitations[iid]);
             tkey = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p'])
             Vault[this.vid].tickets[request.responseJson['did']] = [
                 Date.now(),                     // NOTE ticket[0] = modified timestamp
@@ -504,10 +495,8 @@ Client.prototype.readTickets = function(tids, did, callback, errorCallback) {
     function afterOpenStream(did) {
         try {
             tids = tids||"*";
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("GET", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.write(undefined, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
@@ -517,13 +506,6 @@ Client.prototype.readTickets = function(tids, did, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -545,10 +527,9 @@ Client.prototype.updateTickets = function(tids, data, did, callback, errorCallba
     function afterOpenStream(did) {
         var iidUrl;
         try {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("PUT", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.write(data, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
+            request.write(data);
             request.send();
         }
         catch (e) {
@@ -558,13 +539,6 @@ Client.prototype.updateTickets = function(tids, data, did, callback, errorCallba
     }
 
     function onLoad(evt) {
-        try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -586,10 +560,8 @@ Client.prototype.deleteTickets = function(tids, did, callback, errorCallback) {
     function afterOpenStream(did) {
         var iidUrl;
         try {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("DELETE", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.write(undefined, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
@@ -601,8 +573,6 @@ Client.prototype.deleteTickets = function(tids, did, callback, errorCallback) {
     function onLoad(evt) {
         var i;
         try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
             for (i=0; i<request.responseJson.length; i++)
                 if (Vault[this.vid].tickets[did][1] == request.responseJson[i]['tid'])
                     delete Vault[this.vid].tickets[did];
@@ -635,10 +605,9 @@ Client.prototype.createInvitation = function(invitation, did, callback, errorCal
         var iidUrl;
         try {
             iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("POST", this.options.url, "/!/invitation/"+iidUrl);
-            request.write(invitation, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
+            request.write(invitation);
             request.send();
         }
         catch (e) {
@@ -648,13 +617,6 @@ Client.prototype.createInvitation = function(invitation, did, callback, errorCal
     }
 
     function onLoad(evt) {
-        try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -838,12 +800,11 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     try {
         Vault[this.vid].streams[did] = null;
         skeyL = this.crypto.generateKeypair();
-        request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+        request = this.$createRequest("ticket", Vault[this.vid].tickets[did], onLoad.bind(this), onError.bind(this));
         request.open("POST", this.options.url, "/!/domain/"+did+"/leaf");
         request.write({
             'skey_l': skeyL.publicKey
         });
-        request.sign("ticket", Vault[this.vid].tickets[did]);
         request.send();
     }
     catch (e) {
@@ -862,7 +823,6 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     function onLoad(evt) {
         var skey, sid;
         try {
-            request.verify("ticket", Vault[this.vid].tickets[did]);
             skey = this.crypto.combineKeypair(skeyL.privateKey, request.responseJson['skey_p']);
             sid = this.crypto.generateHmac(request.responseJson['ssalt'], skey);
             Vault[this.vid].streams[request.responseJson['did']] = [
@@ -880,9 +840,12 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     }
 
     function onError(evt) {
-        if (evt.detail.code == 401) {
-            // TODO Check pod signature
+        // TODO Return a 404 if the domain cannot be found and verify the
+        //      deletion certificate of the domain (which is also a TODO)
+        if (evt.detail.code==502 || evt.detail.code==401) {
+            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault")
             delete Vault[this.vid].tickets[did];
+            delete Vault[this.vid].streams[did];
             this.updateVault(afterUpdateVault.bind(this), errorCallback);
         }
         else {
@@ -902,7 +865,7 @@ Client.prototype.resolveEntities = function(path, callback, errorCallback) {
     var dids, request, did;
     try {
         if (!path.match(/\/\w+\/\*/)) {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
             request.open("HEAD", this.options.url, path);
             return request.send();
         }
@@ -946,10 +909,9 @@ Client.prototype.createEntity = function(path, data, did, callback, errorCallbac
     
     function afterOpenStream(did) {
         try {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("POST", this.options.url, path);
-            request.write(data, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
+            request.write(data);
             request.send();
         }
         catch (e) {
@@ -959,13 +921,6 @@ Client.prototype.createEntity = function(path, data, did, callback, errorCallbac
     }
 
     function onLoad(evt) {
-        try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -986,10 +941,10 @@ Client.prototype.readEntities = function(path, did, callback, errorCallback) {
     
     function afterOpenStream(did) {
         try {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            if (!did)
+                this.$emitEvent("load", callback, null);
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("GET", this.options.url, path);
-            request.write(undefined, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
@@ -999,13 +954,6 @@ Client.prototype.readEntities = function(path, did, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -1026,10 +974,9 @@ Client.prototype.updateEntities = function(path, data, did, callback, errorCallb
     
     function afterOpenStream(did) {
         try {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("PUT", this.options.url, path);
-            request.write(data, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
+            request.write(data);
             request.send();
         }
         catch (e) {
@@ -1039,13 +986,6 @@ Client.prototype.updateEntities = function(path, data, did, callback, errorCallb
     }
 
     function onLoad(evt) {
-        try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -1066,10 +1006,8 @@ Client.prototype.deleteEntities = function(path, did, callback, errorCallback) {
     
     function afterOpenStream(did) {
         try {
-            request = this.$createRequest(null, onLoad.bind(this), onError.bind(this));
+            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
             request.open("DELETE", this.options.url, path);
-            request.write(undefined, Vault[this.vid].streams[did]);
-            request.sign("stream", Vault[this.vid].streams[did]);
             request.send();
         }
         catch (e) {
@@ -1079,13 +1017,6 @@ Client.prototype.deleteEntities = function(path, did, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        try {
-            request.verify("stream", Vault[this.vid].streams[did]);
-            request.decrypt(Vault[this.vid].streams[did]);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
         this.$emitEvent("load", callback, request.responseJson);
     }
     
@@ -1165,7 +1096,7 @@ Client.prototype.$callMethodAndSyncVault = function(method, args, callback, erro
     method.apply(this, args);
 
     function afterMethodApply(response) {
-        this.updateVault(afterUpdateVault.bind(this), afterUpdateVaultError);
+        this.updateVault(afterUpdateVault.bind(this), afterUpdateVaultError.bind(this));
         return false; // NOTE Prevent event
 
         function afterUpdateVault() {
