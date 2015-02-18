@@ -1,11 +1,12 @@
 (function(){
 "use strict";
 
-var HttpError = function(code, message) {
+var HttpError = function(code, message, data) {
     Error.call(this);
     this.name = "REDS_HTTP_ERROR";
-    this.code = code || 500;
-    this.message = message || ""; 
+    this.code = code||500;
+    this.message = message||"";
+    this.data = data||null;
 }
 
 HttpError.prototype = Object.create(Error.prototype);

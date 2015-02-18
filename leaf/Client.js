@@ -136,10 +136,10 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
     function onLoad(evt) {
         var akey, asec;
         try {
-            asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), request.responseJson['asalt']);
-            Vault[this.vid] = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], asec, request.responseJson['vec']));
+            asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), evt.detail.data['asalt']);
+            Vault[this.vid] = JSON.parse(this.crypto.decryptData(evt.detail.data['vault'], asec, evt.detail.data['vec']));
             Vault[this.vid] = this.$upgradeVault(Vault[this.vid]);
-            Vault[this.vid].modified = parseInt(request.responseJson['modified']); 
+            Vault[this.vid].modified = parseInt(evt.detail.data['modified']); 
             Vault[this.vid].streams = new Object();
             Vault[this.vid].account.push(asec); // NOTE account[2] = account secret 
         }
@@ -184,12 +184,12 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
     function onLoad() {
         var akey, asec;
         try {
-            akey = this.crypto.combineKeypair(akeyL.privateKey, request.responseJson['akey_n']);
+            akey = this.crypto.combineKeypair(akeyL.privateKey, evt.detail.data['akey_n']);
             asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
             Vault[this.vid] = {
                 'account': [
                     Date.now(),                  // NOTE account[0] = modified timestamp
-                    request.responseJson['aid'], // NOTE account[1] = account id
+                    evt.detail.data['aid'], // NOTE account[1] = account id
                     akey,                        // NOTE account[2] = account key
                     asec                         // NOTE account[3] = account secret
                 ],
@@ -198,7 +198,7 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
                 'invitations': {},
                 'exchanges': {},
                 'version': [0,2,3],
-                'modified': request.responseJson['modified']
+                'modified': evt.detail.data['modified']
             };
         }
         catch(e) {
@@ -270,7 +270,7 @@ Client.prototype.updateVault = function(callback, errorCallback) {
 
     function onLoad(evt) {
         try {
-            Vault[this.vid].modified = parseInt(request.responseJson['modified']);
+            Vault[this.vid].modified = parseInt(evt.detail.data['modified']);
             //console.log("Updated vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
         }
         catch (e) {
@@ -284,11 +284,11 @@ Client.prototype.updateVault = function(callback, errorCallback) {
         if ((evt.detail.code != 412) || (--retries <= 0))
             return this.$emitEvent("error", errorCallback, evt.detail);
         try {
-            if (request.responseJson['vault'] && request.responseJson['vec']) {
+            if (evt.detail.data['vault'] && evt.detail.data['vec']) {
                 console.info("vault has been updated by a forgein leaf, merging vaults");
                 // NOTE If decrypting fails, most probably the account credentials have been changed.
                 // TODO Ask for password and generate new account credentials.
-                vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], Vault[this.vid].account[3], request.responseJson['vec']));
+                vault = JSON.parse(this.crypto.decryptData(evt.detail.data['vault'], Vault[this.vid].account[3], evt.detail.data['vec']));
                 vault = this.$upgradeVault(vault);
                 //console.log("Newer vault: "+JSON.stringify(vault)); // DEBUG
                 // NOTE Add and update items
@@ -319,7 +319,7 @@ Client.prototype.updateVault = function(callback, errorCallback) {
                 }
                 //console.log("Merged vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
             }
-            Vault[this.vid].modified = parseInt(request.responseJson['modified']);
+            Vault[this.vid].modified = parseInt(evt.detail.data['modified']);
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
@@ -344,7 +344,7 @@ Client.prototype.createPod = function(url, password, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -375,16 +375,16 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
     function onLoad(evt) {
         try {
             var pkey, ikey_, invitation;
-            if (iid != request.responseJson['iid'])
+            if (iid != evt.detail.data['iid'])
                 throw new Error("leaf and pod iid mismatch");
-            if (ikeyL.publicKey != request.responseJson['ikey_l'])
+            if (ikeyL.publicKey != evt.detail.data['ikey_l'])
                 throw new Error("leaf and pod ikeyL mismatch");
-            pkey = this.crypto.generateSecureHash(password, request.responseJson['psalt']);
+            pkey = this.crypto.generateSecureHash(password, evt.detail.data['psalt']);
             // TODO Verify pod signature!
-            ikey_ = this.crypto.combineKeypair(ikeyL.privateKey, request.responseJson['ikey_p']);
-            Vault[this.vid].invitations[request.responseJson['iid']] = [
+            ikey_ = this.crypto.combineKeypair(ikeyL.privateKey, evt.detail.data['ikey_p']);
+            Vault[this.vid].invitations[evt.detail.data['iid']] = [
                 Date.now(),                            // NOTE invitation[0] = modified timestamp
-                request.responseJson['iid'],           // NOTE invitation[1] = invitation id
+                evt.detail.data['iid'],           // NOTE invitation[1] = invitation id
                 this.crypto.generateHmac(ikey_, pkey), // NOTE invitation[2] = invitation key
                 null                                   // NOTE invitation[1] = invitation signature
             ];
@@ -394,7 +394,7 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
             return;
         }
         this.$emitEvent("load", callback, {
-            'iid': request.responseJson['iid']
+            'iid': evt.detail.data['iid']
         });
     }
     
@@ -422,13 +422,13 @@ Client.prototype.deleteDomain = function(did, callback, errorCallback) {
 
     function onLoad(evt) {
         try {
-            delete Vault[this.vid].tickets[request.responseJson['did']];
-            delete Vault[this.vid].streams[request.responseJson['did']];
+            delete Vault[this.vid].tickets[evt.detail.data['did']];
+            delete Vault[this.vid].streams[evt.detail.data['did']];
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -462,13 +462,13 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
     function onLoad(evt) {
         var tkey;
         try {
-            tkey = this.crypto.combineKeypair(tkeyL.privateKey, request.responseJson['tkey_p'])
-            Vault[this.vid].tickets[request.responseJson['did']] = [
+            tkey = this.crypto.combineKeypair(tkeyL.privateKey, evt.detail.data['tkey_p'])
+            Vault[this.vid].tickets[evt.detail.data['did']] = [
                 Date.now(),                     // NOTE ticket[0] = modified timestamp
-                request.responseJson['tid'],    // NOTE ticket[1] = ticket id
+                evt.detail.data['tid'],    // NOTE ticket[1] = ticket id
                 tkey,                           // NOTE ticket[2] = ticket key
-                request.responseJson['tflags'], // NOTE ticket[3] = ticket flags
-                request.responseJson['did']     // NOTE ticket[4] = domain id
+                evt.detail.data['tflags'], // NOTE ticket[3] = ticket flags
+                evt.detail.data['did']     // NOTE ticket[4] = domain id
             ];
             delete Vault[this.vid].invitations[iid];
         }
@@ -476,9 +476,9 @@ Client.prototype.createTicket = function(iid, callback, errorCallback) {
             return this.$emitEvent("error", errorCallback, e);
         }
         this.$emitEvent("load", callback, {
-            'tid': Vault[this.vid].tickets[request.responseJson['did']][1],
-            'tflags': Vault[this.vid].tickets[request.responseJson['did']][3],
-            'did': Vault[this.vid].tickets[request.responseJson['did']][4]
+            'tid': Vault[this.vid].tickets[evt.detail.data['did']][1],
+            'tflags': Vault[this.vid].tickets[evt.detail.data['did']][3],
+            'did': Vault[this.vid].tickets[evt.detail.data['did']][4]
         });
     }
     
@@ -506,7 +506,7 @@ Client.prototype.readTickets = function(tids, did, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -539,7 +539,7 @@ Client.prototype.updateTickets = function(tids, data, did, callback, errorCallba
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -573,14 +573,14 @@ Client.prototype.deleteTickets = function(tids, did, callback, errorCallback) {
     function onLoad(evt) {
         var i;
         try {
-            for (i=0; i<request.responseJson.length; i++)
-                if (Vault[this.vid].tickets[did][1] == request.responseJson[i]['tid'])
+            for (i=0; i<evt.detail.data.length; i++)
+                if (Vault[this.vid].tickets[did][1] == evt.detail.data[i]['tid'])
                     delete Vault[this.vid].tickets[did];
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -617,7 +617,7 @@ Client.prototype.createInvitation = function(invitation, did, callback, errorCal
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -823,20 +823,20 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     function onLoad(evt) {
         var skey, sid;
         try {
-            skey = this.crypto.combineKeypair(skeyL.privateKey, request.responseJson['skey_p']);
-            sid = this.crypto.generateHmac(request.responseJson['ssalt'], skey);
-            Vault[this.vid].streams[request.responseJson['did']] = [
+            skey = this.crypto.combineKeypair(skeyL.privateKey, evt.detail.data['skey_p']);
+            sid = this.crypto.generateHmac(evt.detail.data['ssalt'], skey);
+            Vault[this.vid].streams[evt.detail.data['did']] = [
                 Date.now(),                     // NOTE stream[0] = modified timestamp
                 sid,                            // NOTE stream[1] = stream id
                 skey,                           // NOTE stream[2] = stream key
-                request.responseJson['tflags'], // NOTE stream[3] = ticket flags
-                request.responseJson['did']     // NOTE stream[4] = domain id
+                evt.detail.data['tflags'], // NOTE stream[3] = ticket flags
+                evt.detail.data['did']     // NOTE stream[4] = domain id
             ];
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        return this.$emitEvent("load", callback, request.responseJson['did']);
+        return this.$emitEvent("load", callback, evt.detail.data['did']);
     }
 
     function onError(evt) {
@@ -921,7 +921,7 @@ Client.prototype.createEntity = function(path, data, did, callback, errorCallbac
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -954,7 +954,7 @@ Client.prototype.readEntities = function(path, did, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -986,7 +986,7 @@ Client.prototype.updateEntities = function(path, data, did, callback, errorCallb
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
@@ -1017,7 +1017,7 @@ Client.prototype.deleteEntities = function(path, did, callback, errorCallback) {
     }
 
     function onLoad(evt) {
-        this.$emitEvent("load", callback, request.responseJson);
+        this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {

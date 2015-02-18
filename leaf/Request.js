@@ -28,22 +28,25 @@ var Request = function(crypto, realm, credentials) {
 // TODO HTTP Error have to handled after verification (!) by the client!
 //      Get the xhr status and pass it via a custom load event.
 Request.prototype.$onLoad = function(evt) {
-    var error;
     try {
         if (this.$xhr.status >= 400)
-            throw new HttpError(this.$xhr.status, this.$xhr.statusText);
+            throw new HttpError(this.$xhr.status, this.$xhr.statusText, this.$xhr.responseText);
         if (this.realm && this.credentials) {
             this.verify(this.realm, this.credentials);
             if (this.realm == "stream")
                 this.decrypt(this.credentials);
         }
+        evt.detail = {
+            'code': this.$xhr.status,
+            'message': this.$xhr.statusText,
+            'data': this.responseJson
+        };
     }
     catch (e) {
-        evt.stopImmediatePropagation();
         this.dispatchEvent(new CustomEvent("error", {'detail':e}));
     }
 }
-    
+
 Request.prototype.open = function(method, node, path) {
     this.$method = method;
     return this.$xhr.open(method, node+path, true);
@@ -133,8 +136,9 @@ Object.defineProperty(Request.prototype, "responseText", {
 
 Object.defineProperty(Request.prototype, "responseJson", {
     get: function() {
-        if (this.$responseJson === undefined)
+        if (this.$responseJson === undefined) {
             this.$responseJson = this.responseText ? JSON.parse(this.responseText) : null;
+        }
         return this.$responseJson;
     }
 });
