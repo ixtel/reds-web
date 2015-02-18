@@ -125,14 +125,6 @@ Request.prototype.send = function() {
     return this.$xhr.send(new Blob([this.$data]));
 }
 
-// TODO Dont use this header! Move modified in body
-Request.prototype.setUnmodifiedSince = function(timestamp) {
-    var date, msec;
-    date = new Date(timestamp);
-    msec = ('000'+date.getUTCMilliseconds()).substr(-3);
-    this.$xhr.setRequestHeader("if-unmodified-since", date.toUTCString().replace(/ GMT$/, "."+msec+" GMT"));
-}
-
 Object.defineProperty(Request.prototype, "responseText", {
     get: function() {
         return this.$responseText ? this.$responseText : this.$xhr.responseText;

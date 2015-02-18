@@ -259,9 +259,9 @@ Client.prototype.updateVault = function(callback, errorCallback) {
         request.open("PUT", this.options.url, "/!/account/"+Vault[this.vid].account[1]);
         request.write({
             'vault': vault,
+            'modified': Vault[this.vid].modified,
             'vec': vec
         });
-        request.setUnmodifiedSince(Vault[this.vid].modified);
         request.send();
     }
     catch (e) {
@@ -285,7 +285,7 @@ Client.prototype.updateVault = function(callback, errorCallback) {
             return this.$emitEvent("error", errorCallback, evt.detail);
         try {
             if (request.responseJson['vault'] && request.responseJson['vec']) {
-                console.info("vault has benn updated by a forgein leaf, merging vaults");
+                console.info("vault has been updated by a forgein leaf, merging vaults");
                 // NOTE If decrypting fails, most probably the account credentials have been changed.
                 // TODO Ask for password and generate new account credentials.
                 vault = JSON.parse(this.crypto.decryptData(request.responseJson['vault'], Vault[this.vid].account[3], request.responseJson['vec']));
