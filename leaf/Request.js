@@ -25,20 +25,23 @@ var Request = function(crypto, realm, credentials) {
     this.dispatchEvent = this.$xhr.dispatchEvent.bind(this.$xhr);
 }
 
+// TODO HTTP Error have to handled after verification (!) by the client!
+//      Get the xhr status and pass it via a custom load event.
 Request.prototype.$onLoad = function(evt) {
-    // TODO HTTP Error have to handled afyer verification (!) by the client!
-    //      Get the xhr status and pass it via a custom load event.
     var error;
-    if (this.$xhr.status >= 400) {
-        evt.stopImmediatePropagation();
-        error = new HttpError(this.$xhr.status, this.$xhr.statusText);
-        this.dispatchEvent(new CustomEvent("error", {'detail':error}));
-        return false;
+    try {
+        if (this.$xhr.status >= 400)
+            throw new HttpError(this.$xhr.status, this.$xhr.statusText);
+        if (this.realm && this.credentials) {
+            this.verify(this.realm, this.credentials);
+            if (this.realm == "stream")
+                this.decrypt(this.credentials);
+        }
     }
-    if (this.responseAuthorization != null)
-        this.verify(this.realm, this.credentials);
-    if (this.responseType['name'] == "application/x.reds.encrypted")
-        this.decrypt(this.credentials);
+    catch (e) {
+        evt.stopImmediatePropagation();
+        this.dispatchEvent(new CustomEvent("error", {'detail':e}));
+    }
 }
     
 Request.prototype.open = function(method, node, path) {

@@ -59,7 +59,7 @@ exports.DELETE = function(session) {
     function afterDeleteDomain(error, result) {
         if (error !== null)
             return session.abort(error);
-        session.writeJson(result, "application/x.reds.domain");
+        session.writeEncrypted(result);
         session.signStream();
         session.end();
     }
