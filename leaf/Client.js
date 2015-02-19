@@ -535,7 +535,9 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
         this.createTicket(invitation, afterCreateTicket.bind(this), afterCreateTicketError.bind(this));
         
         function afterCreateTicket(response) {
+            console.log("foo");
             results.push(response);
+            console.log(results);
             if (--count <= 0)
                 finalize.call(this);
             // NOTE Surpress global load event, which will be emitted by finalize().
@@ -560,6 +562,8 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
             this.$emitEvent("error", errorCallback, errors);
         if (results.length)
             this.$emitEvent("load", callback, results);
+        else
+            this.$emitEvent("load", callback, null);
     }
 }
 
@@ -669,7 +673,8 @@ Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback,
         this.$emitEvent("load", callback, {
             'xid': xid,
             'xkeyR': xkeyR.publicKey,
-            'xsaltR': xsaltR
+            'xsaltR': xsaltR,
+            'xsig': xsig
         });
     }
 }
