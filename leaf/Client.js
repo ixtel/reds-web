@@ -515,6 +515,7 @@ Client.prototype.deleteTickets = function(did, tids, callback, errorCallback) {
 
 // TODO Should be moved to convenience functions as soon as all convfuncs have error callbacks
 Client.prototype.createPendingTickets = function(iids, callback, errorCallback) {
+    console.log("createPendingTickets");
     var results, errors, iid, count;
     results = new Array();
     errors = new Array();
@@ -525,8 +526,12 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
             createTicketForInvitation.call(this, Vault[this.vid].invitation[iid]);
         }
     }
+    if (count == 0)
+        // NOTE An event should always be emitted asynchronously
+        setTimeout(this.$emitEvent.bind(this), 0, "load", callback, null);
 
     function createTicketForInvitation(invitation) {
+        console.log("createTicketForInvitation");
         // NOTE By removing the invitation from the vault before creating the
         //      ticket, we save the updateVault call after ticket creration,
         //      which would otherwise be required to save the vault after the
@@ -535,6 +540,7 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
         this.createTicket(invitation, afterCreateTicket.bind(this), afterCreateTicketError.bind(this));
         
         function afterCreateTicket(response) {
+            console.log("afterCreateTicket");
             console.log("foo");
             results.push(response);
             console.log(results);
@@ -545,6 +551,7 @@ Client.prototype.createPendingTickets = function(iids, callback, errorCallback) 
         }
 
         function afterCreateTicketError(error) {
+            console.log("afterCreateTicketError");
             errors.push(error);
             // NOTE Restore the previously removed invitation.
             Vault[this.vid].invitation[invitation['iid']] = invitation;
