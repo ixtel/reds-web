@@ -5,8 +5,7 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 
 // INFO Leaf client module
 
-var Request = function(crypto, realm, credentials) {
-    this.$method = "";
+var Request = function(client, options) {
     this.$type = "application/octet-stream";
     this.$data = "";
     this.$responseText = undefined;
@@ -15,10 +14,8 @@ var Request = function(crypto, realm, credentials) {
     this.$responseAuthorization = undefined
     this.$xhr = new XMLHttpRequest();
     this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
-    // TODO store client instead
-    this.crypto = crypto;
-    this.realm = realm;
-    this.credentials = credentials;
+    this.client = client;
+    this.options = options;
     // NOTE Pass event handling to XMLHttpRequest
     this.addEventListener = this.$xhr.addEventListener.bind(this.$xhr);
     this.removeEventListener = this.$xhr.removeEventListener.bind(this.$xhr);
@@ -31,25 +28,22 @@ Request.prototype.$onLoad = function(evt) {
     try {
         if (this.$xhr.status >= 400)
             throw new HttpError(this.$xhr.status, this.$xhr.statusText, this.$xhr.responseText);
-        if (this.realm && this.credentials) {
-            this.verify(this.realm, this.credentials);
-            if (this.realm == "stream")
-                this.decrypt(this.credentials);
+        if (this.options.realm && this.options.credentials) {
+            this.verify(this.options.realm, this.options.credentials);
+            if (this.options.realm == "stream")
+                this.decrypt(this.options.credentials);
         }
         evt.detail = {
             'code': this.$xhr.status,
             'message': this.$xhr.statusText,
-            'data': this.responseJson
+            'data': this.responseJson,
+            'type': this.responseType
         };
     }
     catch (e) {
+        evt.stopImmediatePropagation();
         this.dispatchEvent(new CustomEvent("error", {'detail':e}));
     }
-}
-
-Request.prototype.open = function(method, node, path) {
-    this.$method = method;
-    return this.$xhr.open(method, node+path, true);
 }
 
 Request.prototype.write = function(data) {
@@ -63,33 +57,33 @@ Request.prototype.write = function(data) {
 
 Request.prototype.sign = function() {
     var vec, msg, sig;
-    vec = this.crypto.generateTimestamp();
-    msg = this.crypto.concatenateStrings(
-        this.realm,
-        this.credentials[1],
+    vec = this.client.crypto.generateTimestamp();
+    msg = this.client.crypto.concatenateStrings(
+        this.options.realm,
+        this.options.credentials[1],
         vec,
-        this.crypto.name,
-        this.$method,
+        this.client.crypto.name,
+        this.options.method,
         this.$type,
         this.$data
     );
-    sig = this.crypto.generateHmac(msg, this.credentials[2]);
+    sig = this.client.crypto.generateHmac(msg, this.options.credentials[2]);
     // TODO Set crypto name to front
-    this.$xhr.setRequestHeader("Authorization", this.realm+":"+this.credentials[1]+":"+vec+":"+sig+":"+this.crypto.name);
+    this.$xhr.setRequestHeader("Authorization", this.options.realm+":"+this.options.credentials[1]+":"+vec+":"+sig+":"+this.client.crypto.name);
 }
 
 Request.prototype.verify = function() {
     var msg, sig;
     if (!this.responseAuthorization)
         throw new Error("missing authorization");
-    if (this.responseAuthorization['realm'] != this.realm)
+    if (this.responseAuthorization['realm'] != this.options.realm)
         throw new Error("invalid realm");
-    if (this.responseAuthorization['id'] != this.credentials[1])
+    if (this.responseAuthorization['id'] != this.options.credentials[1])
         throw new Error("invalid credentials");
     // NOTE Note this check won't be needed once the session can handle multiple facilities
-    if (this.responseAuthorization['crypto'] != this.crypto.name)
+    if (this.responseAuthorization['crypto'] != this.client.crypto.name)
         throw new Error("unsupported crypto facility");
-    msg = this.crypto.concatenateStrings(
+    msg = this.client.crypto.concatenateStrings(
         this.responseAuthorization['realm'],
         this.responseAuthorization['id'],
         this.responseAuthorization['vec'],
@@ -97,28 +91,28 @@ Request.prototype.verify = function() {
         this.$xhr.getResponseHeader("Content-Type"),
         this.$xhr.responseText||""
     );
-    sig = this.crypto.generateHmac(msg, this.credentials[2]);
+    sig = this.client.crypto.generateHmac(msg, this.options.credentials[2]);
     if (sig != this.responseAuthorization['sig'])
         throw new Error("invalid authorization");
 }
 
 Request.prototype.encrypt = function() {
     var vec;
-    vec = this.crypto.generateTimestamp();
-    this.$type = "application/x.reds.encrypted;did="+this.credentials[4]+";vec="+vec;
+    vec = this.client.crypto.generateTimestamp();
+    this.$type = "application/x.reds.encrypted;did="+this.options.credentials[4]+";vec="+vec;
     if (this.$data.length)
-        this.$data = this.crypto.encryptData(this.$data, this.credentials[2], vec);
+        this.$data = this.client.crypto.encryptData(this.$data, this.options.credentials[2], vec);
 }
 
 Request.prototype.decrypt = function() {
     if (this.$xhr.responseText.length)
-        this.$responseText = this.crypto.decryptData(this.$xhr.responseText, this.credentials[2], this.responseType.options['vec']);
+        this.$responseText = this.client.crypto.decryptData(this.$xhr.responseText, this.options.credentials[2], this.responseType.options['vec']);
 }
 
 Request.prototype.send = function() {
-    this.dispatchEvent(new Event("send"));
-    if (this.realm && this.credentials) {
-        if (this.realm == "stream")
+    this.$xhr.open(this.options.method, this.client.options.url+this.options.path, true);
+    if (this.options.realm && this.options.credentials) {
+        if (this.options.realm == "stream")
             this.encrypt();
         this.sign();
     }

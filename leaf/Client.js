@@ -108,49 +108,121 @@ Client.prototype.$emitEvent = function(name, callback, detail) {
     return false; // NOTE To use "return this.$emitEvent" to prevent the callback event
 }
 
-Client.prototype.$createRequest = function(realm, credentials, onLoad, onError) {
-    var request = new Request(this.crypto, realm, credentials);
-    request.addEventListener("send", onSend.bind(this));
-    request.addEventListener("load", onLoad);
-    request.addEventListener("error", onError);
-    return request;
+Client.prototype.$sendRequest = function(options, hooks, callback, errorCallback) {
+    send.call(this);
 
-    function onSend(evt) {
-        this.dispatchEvent(new Event("send"));
-    }
-}
-
-Client.prototype.signin = function(name, password, callback, errorCallback) {
-    var alias, aliasUrl, request;
-    try {
-        alias = this.crypto.generateSecureHash(name, password);
-        aliasUrl = alias.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-        request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
-        request.open("GET", this.options.url, "/!/account/"+aliasUrl);
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
+    function send() {
+        var outfunc, request;
+        try {
+            if (hooks.prepare)
+                outfunc = hooks.prepare(options);
+        }
+        catch (e) {
+            this.$emitEvent("error", errorCallback, e);
+        }
+        if ((typeof(outfunc) !== 'function') || (outfunc.call(this) !== false)) {
+            try {
+                request = new Request(this, options);
+                request.addEventListener("load", onLoad.bind(this));
+                request.addEventListener("error", onError.bind(this));
+                request.write(options.data);
+                this.dispatchEvent(new Event("send"));
+                request.send();
+            }
+            catch (e) {
+                this.$emitEvent("error", errorCallback, e);
+            }
+        }
     }
 
     function onLoad(evt) {
-        var akey, asec;
+        var outfunc;
         try {
-            asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), evt.detail.data['asalt']);
-            Vault[this.vid] = JSON.parse(this.crypto.decryptData(evt.detail.data['vault'], asec, evt.detail.data['vec']));
-            Vault[this.vid] = this.$upgradeVault(Vault[this.vid]);
-            Vault[this.vid].modified = parseInt(evt.detail.data['modified']); 
-            Vault[this.vid].streams = new Object();
-            Vault[this.vid].account.push(asec); // NOTE account[2] = account secret 
+            if (hooks.load)
+                outfunc = hooks.load(evt);
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
-        this.$emitEvent("load", callback, {'aid':Vault[this.vid].account[1]});
+        if ((typeof(outfunc) !== 'function') || (outfunc.call(this) !== false))
+            this.$emitEvent("load", callback, evt.detail.data);
     }
     
     function onError(evt) {
-        this.$emitEvent("error", errorCallback, evt.detail);
+        var outfunc;
+        try {
+            if (hooks.error)
+                outfunc = hooks.error(evt);
+        }
+        catch (e) {
+            return this.$emitEvent("error", errorCallback, [evt.detail, e]);
+        }
+        if ((typeof(outfunc) !== 'function') || (outfunc.call(this) !== false))
+            this.$emitEvent("error", errorCallback, evt.detail);
+    }
+}
+
+Client.prototype.$sendStreamRequest = function(options, hooks, did, callback, errorCallback) {
+    var retries;
+    retries = 3;
+    start.call(this);
+
+    function start() {
+        this.openStream(did, afterOpenStream.bind(this), errorCallback);
+        return false; // NOTE Block $emitEvent
+    }
+    
+    function afterOpenStream(did) {
+        if (!did)
+            this.$emitEvent("load", callback, null);
+        this.$sendRequest({
+            'method': options.method,
+            'path': options.path,
+            'data': options.data,
+            'realm': "stream",
+            'credentials': Vault[this.vid].streams[did]
+        }, {
+            'prepare': hooks.prepare,
+            'load': hooks.load,
+            'error': errorHook.bind(this)
+        }, callback, errorCallback);
+        return false; // NOTE Prevent event
+    }
+    
+    function errorHook(evt) {
+        if (evt.detail.code == 412) {
+            delete Vault[this.vid].streams[did];
+            if (--retries >= 0)
+                return start.bind(this);
+        }
+        return hooks.error && hooks.error(evt);
+    }
+}
+
+Client.prototype.signin = function(name, password, callback, errorCallback) {
+    this.$sendRequest({
+        'method': "GET",
+        'path': "/!/account/"
+    }, {
+        'prepare': prepareHook.bind(this),
+        'load': loadHook.bind(this)
+    }, callback, errorCallback);
+
+    function prepareHook(options) {
+        var alias;
+        alias = this.crypto.generateSecureHash(name, password);
+        options['path'] += alias.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    }
+
+    function loadHook(evt) {
+        var akey, asec;
+        asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), evt.detail.data['asalt']);
+        Vault[this.vid] = JSON.parse(this.crypto.decryptData(evt.detail.data['vault'], asec, evt.detail.data['vec']));
+        Vault[this.vid] = this.$upgradeVault(Vault[this.vid]);
+        Vault[this.vid].modified = parseInt(evt.detail.data['modified']); 
+        Vault[this.vid].streams = new Object();
+        Vault[this.vid].account.push(asec); // NOTE account[2] = account secret 
+        evt.detail.data = {'aid':Vault[this.vid].account[1]};
     }
 }
 
@@ -163,90 +235,84 @@ Client.prototype.signout = function(callback) {
 // INFO Account operations
 
 Client.prototype.createAccount = function(name, password, callback, errorCallback) {
-    var alias, asalt, akeyL, request;
-    try {
+    var asalt, akeyL;
+    this.$sendRequest({
+        'method': "POST",
+        'path': "/!/account",
+        'data': null
+    }, {
+        'prepare': prepareHook.bind(this),
+        'load': loadHook.bind(this)
+    }, callback, errorCallback);
+
+    function prepareHook(options) {
+        var alias;
         alias = this.crypto.generateSecureHash(name, password);
         asalt = this.crypto.generateKey();
         akeyL = this.crypto.generateKeypair();
-        request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
-        request.open("POST", this.options.url, "/!/account");
-        request.write({
+        options.data = {
             'alias': alias,
             'asalt': asalt,
             'akey_l': akeyL.publicKey
-        });
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
+        };
     }
 
-    function onLoad() {
+    function loadHook(evt) {
         var akey, asec;
-        try {
-            akey = this.crypto.combineKeypair(akeyL.privateKey, evt.detail.data['akey_n']);
-            asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
-            Vault[this.vid] = {
-                'account': [
-                    Date.now(),                  // NOTE account[0] = modified timestamp
-                    evt.detail.data['aid'], // NOTE account[1] = account id
-                    akey,                        // NOTE account[2] = account key
-                    asec                         // NOTE account[3] = account secret
-                ],
-                'streams': {},
-                'tickets': {},
-                'invitations': {},
-                'exchanges': {},
-                'version': [0,2,3],
-                'modified': evt.detail.data['modified']
-            };
-        }
-        catch(e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        // TODO Move updateVault call into conveniance function
-        this.updateVault(afterUpdateVault.bind(this), errorCallback);
-    
-        function afterUpdateVault() {
-            this.$emitEvent("load", callback, {'aid':Vault[this.vid].account[1]});
-        }
-    }
-    
-    function onError(evt) {
-        this.$emitEvent("error", errorCallback, evt.detail);
+        akey = this.crypto.combineKeypair(akeyL.privateKey, evt.detail.data['akey_n']);
+        asec = this.crypto.generateSecureHash(this.crypto.concatenateStrings(name, password), asalt);
+        Vault[this.vid] = {
+            'account': [
+                Date.now(),             // NOTE account[0] = modified timestamp
+                evt.detail.data['aid'], // NOTE account[1] = account id
+                akey,                   // NOTE account[2] = account key
+                asec                    // NOTE account[3] = account secret
+            ],
+            'streams': {},
+            'tickets': {},
+            'invitations': {},
+            'exchanges': {},
+            'version': [0,2,3],
+            'modified': evt.detail.data['modified']
+        };
+        evt.detail.data = {'aid':Vault[this.vid].account[1]};
     }
 }
 
 Client.prototype.deleteAccount = function(callback, errorCallback) {
-    var request;
-    try {
-        request = this.$createRequest("account", Vault[this.vid].account, onLoad.bind(this), onError.bind(this));
-        request.open("DELETE", this.options.url, "/!/account/"+Vault[this.vid].account['aid']);
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
-    }
+    this.$sendRequest({
+        'method': "DELETE",
+        'path': "/!/account/"+Vault[this.vid].account['aid']
+    }, {
+        'load': loadHook.bind(this),
+    }, callback, errorCallback);
 
-    function onLoad(evt) {
-        try {
-            Vault.resetClient(this.vid);
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        this.$emitEvent("load", callback, null);
-    }
-    
-    function onError(evt) {
-        this.$emitEvent("error", errorCallback, evt.detail);
+    function loadHook(evt) {
+        Vault.resetClient(this.vid);
     }
 }
 
 Client.prototype.updateVault = function(callback, errorCallback) {
-    var retries, vec, vault, request;
-    try {
-        retries = 3;
+    var retries;
+    retries = 3;
+    start.call(this);
+
+    function start() {
+        this.$sendRequest({
+            'method': "PUT",
+            'path': "/!/account/"+Vault[this.vid].account[1],
+            'realm': "account",
+            'credentials': Vault[this.vid].account
+        }, {
+            'prepare': prepareHook.bind(this),
+            'load': loadHook.bind(this),
+            'error': errorHook.bind(this),
+        }, callback, errorCallback);
+        return false; // NOTE Block $emitEvent when called from errorHook
+    }
+
+    function prepareHook(options) {
+        var vec, vault;
         vec = this.crypto.generateTimestamp();
         //console.log("Current vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
         // NOTE This JSON dance is necessary to create a real clone.
@@ -255,341 +321,196 @@ Client.prototype.updateVault = function(callback, errorCallback) {
         delete vault.streams;
         delete vault.modified;
         vault = this.crypto.encryptData(JSON.stringify(vault), Vault[this.vid].account[3], vec);
-        request = this.$createRequest("account", Vault[this.vid].account, onLoad.bind(this), onError.bind(this));
-        request.open("PUT", this.options.url, "/!/account/"+Vault[this.vid].account[1]);
-        request.write({
+        options.data = {
             'vault': vault,
             'modified': Vault[this.vid].modified,
             'vec': vec
-        });
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
+        };
     }
 
-    function onLoad(evt) {
-        try {
-            Vault[this.vid].modified = parseInt(evt.detail.data['modified']);
-            //console.log("Updated vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        this.$emitEvent("load", callback, null);
+    function loadHook(evt) {
+        Vault[this.vid].modified = parseInt(evt.detail.data['modified']);
+        //console.log("Updated vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
     }
 
-    function onError(evt) {
-        var id;
-        if ((evt.detail.code != 412) || (--retries <= 0))
-            return this.$emitEvent("error", errorCallback, evt.detail);
-        try {
-            if (evt.detail.data['vault'] && evt.detail.data['vec']) {
-                console.info("vault has been updated by a forgein leaf, merging vaults");
-                // NOTE If decrypting fails, most probably the account credentials have been changed.
-                // TODO Ask for password and generate new account credentials.
-                vault = JSON.parse(this.crypto.decryptData(evt.detail.data['vault'], Vault[this.vid].account[3], evt.detail.data['vec']));
-                vault = this.$upgradeVault(vault);
-                //console.log("Newer vault: "+JSON.stringify(vault)); // DEBUG
-                // NOTE Add and update items
-                for (id in vault.tickets) {
-                    if (vault.tickets[id][0] > Vault[this.vid].modified)
-                        Vault[this.vid].tickets[id] = vault.tickets[id]; 
-                }
-                for (id in vault.invitations) {
-                    if (vault.invitations[id][0] > Vault[this.vid].modified)
-                        Vault[this.vid].invitations[id] = vault.invitations[id]; 
-                }
-                for (id in vault.exchanges) {
-                    if (vault.exchanges[id][0] > Vault[this.vid].modified)
-                        Vault[this.vid].exchanges[id] = vault.exchanges[id]; 
-                }
-                // NOTE Remove items
-                for (id in Vault[this.vid].tickets) {
-                    if (!vault.tickets[id] && (Vault[this.vid].tickets[id][0] < Vault[this.vid].modified))
-                        delete Vault[this.vid].tickets[id];
-                }
-                for (id in Vault[this.vid].invitations) {
-                    if (!vault.invitations[id] && (Vault[this.vid].invitations[id][0] < Vault[this.vid].modified))
-                        delete Vault[this.vid].invitations[id];
-                }
-                for (id in Vault[this.vid].exchanges) {
-                    if (!vault.exchanges[id] && (Vault[this.vid].exchanges[id][0] < Vault[this.vid].modified))
-                        delete Vault[this.vid].exchanges[id];
-                }
-                //console.log("Merged vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
+    function errorHook(evt) {
+        var vault, id;
+        if ((evt.detail.code == 412) && (--retries > 0)) {
+            console.info("vault has been updated by a forgein leaf, merging vaults");
+            // NOTE If decrypting fails, most probably the account credentials have been changed.
+            // TODO Ask for password and generate new account credentials.
+            vault = JSON.parse(this.crypto.decryptData(evt.detail.data['vault'], Vault[this.vid].account[3], evt.detail.data['vec']));
+            vault = this.$upgradeVault(vault);
+            //console.log("Newer vault: "+JSON.stringify(vault)); // DEBUG
+            // NOTE Add and update items
+            for (id in vault.tickets) {
+                if (vault.tickets[id][0] > Vault[this.vid].modified)
+                    Vault[this.vid].tickets[id] = vault.tickets[id]; 
+            }
+            for (id in vault.invitations) {
+                if (vault.invitations[id][0] > Vault[this.vid].modified)
+                    Vault[this.vid].invitations[id] = vault.invitations[id]; 
+            }
+            for (id in vault.exchanges) {
+                if (vault.exchanges[id][0] > Vault[this.vid].modified)
+                    Vault[this.vid].exchanges[id] = vault.exchanges[id]; 
+            }
+            // NOTE Remove items
+            for (id in Vault[this.vid].tickets) {
+                if (!vault.tickets[id] && (Vault[this.vid].tickets[id][0] < Vault[this.vid].modified))
+                    delete Vault[this.vid].tickets[id];
+            }
+            for (id in Vault[this.vid].invitations) {
+                if (!vault.invitations[id] && (Vault[this.vid].invitations[id][0] < Vault[this.vid].modified))
+                    delete Vault[this.vid].invitations[id];
+            }
+            for (id in Vault[this.vid].exchanges) {
+                if (!vault.exchanges[id] && (Vault[this.vid].exchanges[id][0] < Vault[this.vid].modified))
+                    delete Vault[this.vid].exchanges[id];
             }
             Vault[this.vid].modified = parseInt(evt.detail.data['modified']);
+            //console.log("Merged vault: "+JSON.stringify(Vault[this.vid])); // DEBUG
+            return start.bind(this);
         }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        this.updateVault(callback, errorCallback);
     }
 }
 
 // INFO Pod operations
 
 Client.prototype.createPod = function(url, password, callback, errorCallback) {
-    try {
-        var request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
-        request.open("POST", this.options.url, "/!/pod");
-        request.write({
+    this.$sendRequest({
+        'method': "POST",
+        'path': "/!/pod",
+        'data': {
             'url': url
-        });
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+        }
+    }, {}, callback, errorCallback);
 }
 
 // INFO Domain operations
 
 Client.prototype.createDomain = function(pod, password, callback, errorCallback) {
-    try {
-        var iid, ikeyL, request;
+    var iid, ikeyL;
+    this.$sendRequest({
+        'method': "POST",
+        'path': "/!/domain"
+    }, {
+        'prepare': prepareHook.bind(this),
+        'load': loadHook.bind(this)
+    }, callback, errorCallback);
+
+    function prepareHook(options) {
         iid = this.crypto.generateTimestamp();
         ikeyL = this.crypto.generateKeypair();
-        request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
-        request.open("POST", this.options.url, "/!/domain");
-        request.write({
+        options.data = {
             'pod': pod,
             'iid': iid,
             'ikey_l': ikeyL.publicKey
-        });
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
+        };
     }
 
-    function onLoad(evt) {
-        try {
-            var pkey, ikey_, invitation;
-            if (iid != evt.detail.data['iid'])
-                throw new Error("leaf and pod iid mismatch");
-            if (ikeyL.publicKey != evt.detail.data['ikey_l'])
-                throw new Error("leaf and pod ikeyL mismatch");
-            pkey = this.crypto.generateSecureHash(password, evt.detail.data['psalt']);
-            // TODO Verify pod signature!
-            ikey_ = this.crypto.combineKeypair(ikeyL.privateKey, evt.detail.data['ikey_p']);
-            Vault[this.vid].invitations[evt.detail.data['iid']] = [
-                Date.now(),                            // NOTE invitation[0] = modified timestamp
-                evt.detail.data['iid'],           // NOTE invitation[1] = invitation id
-                this.crypto.generateHmac(ikey_, pkey), // NOTE invitation[2] = invitation key
-                null                                   // NOTE invitation[1] = invitation signature
-            ];
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-            return;
-        }
-        this.$emitEvent("load", callback, {
+    function loadHook(evt) {
+        var pkey, ikey_, invitation;
+        if (iid != evt.detail.data['iid'])
+            throw new Error("leaf and pod iid mismatch");
+        if (ikeyL.publicKey != evt.detail.data['ikey_l'])
+            throw new Error("leaf and pod ikeyL mismatch");
+        pkey = this.crypto.generateSecureHash(password, evt.detail.data['psalt']);
+        // TODO Verify pod signature!
+        ikey_ = this.crypto.combineKeypair(ikeyL.privateKey, evt.detail.data['ikey_p']);
+        Vault[this.vid].invitations[evt.detail.data['iid']] = [
+            Date.now(),                            // NOTE invitation[0] = modified timestamp
+            evt.detail.data['iid'],           // NOTE invitation[1] = invitation id
+            this.crypto.generateHmac(ikey_, pkey), // NOTE invitation[2] = invitation key
+            null                                   // NOTE invitation[1] = invitation signature
+        ];
+        evt.detail.data = {
             'iid': evt.detail.data['iid']
-        });
-    }
-    
-    function onError(evt) {
-        this.$emitEvent("error", errorCallback, evt.detail);
+        }
     }
 }
 
 Client.prototype.deleteDomain = function(did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        try {
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("DELETE", this.options.url, "/!/domain/"+did);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
+    this.$sendStreamRequest({
+        'method': "DELETE",
+        'path': "/!/domain/"+did
+    }, {
+        'load': loadHook.bind(this)
+    }, did, callback, errorCallback);
 
-    function onLoad(evt) {
-        try {
-            delete Vault[this.vid].tickets[evt.detail.data['did']];
-            delete Vault[this.vid].streams[evt.detail.data['did']];
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
+    function loadHook(evt) {
+        delete Vault[this.vid].tickets[evt.detail.data['did']];
+        delete Vault[this.vid].streams[evt.detail.data['did']];
     }
 }
 
 // INFO Ticket operations
 
 Client.prototype.createTicket = function(iid, callback, errorCallback) {
-    var iidUrl, tkeyL, request;
-    try {
-        iidUrl = iid.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    var tkeyL;
+    this.$sendRequest({
+        'method': "PUT",
+        'path': "/!/invitation/"+iid.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
+        'data': null,
+        'realm': "invitation",
+        'credentials': Vault[this.vid].invitations[iid]
+    }, {
+        'prepare': prepareHook.bind(this),
+        'load': loadHook.bind(this)
+    }, callback, errorCallback);
+
+    function prepareHook(options) {
         tkeyL = this.crypto.generateKeypair();
-        request = this.$createRequest("invitation", Vault[this.vid].invitations[iid], onLoad.bind(this), onError.bind(this));
-        request.open("PUT", this.options.url, "/!/invitation/"+iidUrl);
-        request.write({
+        options.data = {
             'tkey_l': tkeyL.publicKey
-        });
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
+        };
     }
 
-    function onLoad(evt) {
+    function loadHook(evt) {
         var tkey;
-        try {
-            tkey = this.crypto.combineKeypair(tkeyL.privateKey, evt.detail.data['tkey_p'])
-            Vault[this.vid].tickets[evt.detail.data['did']] = [
-                Date.now(),                     // NOTE ticket[0] = modified timestamp
-                evt.detail.data['tid'],    // NOTE ticket[1] = ticket id
-                tkey,                           // NOTE ticket[2] = ticket key
-                evt.detail.data['tflags'], // NOTE ticket[3] = ticket flags
-                evt.detail.data['did']     // NOTE ticket[4] = domain id
-            ];
-            delete Vault[this.vid].invitations[iid];
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        this.$emitEvent("load", callback, {
+        tkey = this.crypto.combineKeypair(tkeyL.privateKey, evt.detail.data['tkey_p']);
+        Vault[this.vid].tickets[evt.detail.data['did']] = [
+            Date.now(),                // NOTE ticket[0] = modified timestamp
+            evt.detail.data['tid'],    // NOTE ticket[1] = ticket id
+            tkey,                      // NOTE ticket[2] = ticket key
+            evt.detail.data['tflags'], // NOTE ticket[3] = ticket flags
+            evt.detail.data['did']     // NOTE ticket[4] = domain id
+        ];
+        delete Vault[this.vid].invitations[iid];
+        evt.detail.data = {
             'tid': Vault[this.vid].tickets[evt.detail.data['did']][1],
             'tflags': Vault[this.vid].tickets[evt.detail.data['did']][3],
             'did': Vault[this.vid].tickets[evt.detail.data['did']][4]
-        });
-    }
-    
-    function onError(evt) {
-        this.$emitEvent("error", errorCallback, evt.detail);
+        };
     }
 }
 
 Client.prototype.readTickets = function(tids, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        try {
-            tids = tids||"*";
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("GET", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+    tids = tids||"*";
+    this.$sendStreamRequest({
+        'method': "GET",
+        'path': "/!/domain/"+did+"/ticket/"+tids
+    }, {}, did, callback, errorCallback);
 }
 
 Client.prototype.updateTickets = function(tids, data, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        var iidUrl;
-        try {
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("PUT", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.write(data);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+    this.$sendStreamRequest({
+        'method': "PUT",
+        'path': "/!/domain/"+did+"/ticket/"+tids,
+        'data': data
+    }, {}, did, callback, errorCallback);
 }
 
 Client.prototype.deleteTickets = function(tids, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        var iidUrl;
-        try {
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("DELETE", this.options.url, "/!/domain/"+did+"/ticket/"+tids);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
+    this.$sendStreamRequest({
+        'method': "DELETE",
+        'path': "/!/domain/"+did+"/ticket/"+tids
+    }, {}, did, callback, errorCallback);
 
-    function onLoad(evt) {
-        var i;
-        try {
-            for (i=0; i<evt.detail.data.length; i++)
-                if (Vault[this.vid].tickets[did][1] == evt.detail.data[i]['tid'])
-                    delete Vault[this.vid].tickets[did];
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
+    function loadHook(evt) {
+        for (i=0; i<evt.detail.data.length; i++)
+            if (Vault[this.vid].tickets[did][1] == evt.detail.data[i]['tid'])
+                delete Vault[this.vid].tickets[did];
     }
 }
 
@@ -597,37 +518,11 @@ Client.prototype.deleteTickets = function(tids, did, callback, errorCallback) {
 
 // TODO Use /!/domain/did/invitation/iid as URL
 Client.prototype.createInvitation = function(invitation, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        var iidUrl;
-        try {
-            iidUrl = invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("POST", this.options.url, "/!/invitation/"+iidUrl);
-            request.write(invitation);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+    this.$sendStreamRequest({
+        'method': "POST",
+        'path': "/!/invitation/"+invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
+        'data': invitation
+    }, {}, did, callback, errorCallback);
 }
 
 Client.prototype.createPrivateInvitation = function(tflags, did, callback, errorCallback) {
@@ -792,25 +687,60 @@ Client.prototype.deletePendingInvitation = function(ttl, iid, callback, errorCal
 // INFO Stream operations
 
 Client.prototype.openStream = function(did, callback, errorCallback) {
-    var request, skeyL;
+    var skeyL;
     if (Vault[this.vid].streams[did])
         return this.$emitEvent("load", callback, did);
     if (Vault[this.vid].streams[did] === null)
         return setTimeout(waitForCompletion.bind(this), 100, Date.now());
-    try {
+    this.$sendRequest({
+        'method': "POST",
+        'path': "/!/domain/"+did+"/leaf",
+        'realm': "ticket",
+        'credentials': Vault[this.vid].tickets[did]
+    }, {
+        'prepare': prepareHook.bind(this),
+        'load': loadHook.bind(this),
+        'error': errorHook.bind(this),
+    }, callback, errorCallback);
+
+    function prepareHook(options) {
         Vault[this.vid].streams[did] = null;
         skeyL = this.crypto.generateKeypair();
-        request = this.$createRequest("ticket", Vault[this.vid].tickets[did], onLoad.bind(this), onError.bind(this));
-        request.open("POST", this.options.url, "/!/domain/"+did+"/leaf");
-        request.write({
+        options.data = {
             'skey_l': skeyL.publicKey
-        });
-        request.send();
-    }
-    catch (e) {
-        this.$emitEvent("error", errorCallback, e);
+        };
     }
 
+    function loadHook(evt) {
+        var skey, sid;
+        skey = this.crypto.combineKeypair(skeyL.privateKey, evt.detail.data['skey_p']);
+        sid = this.crypto.generateHmac(evt.detail.data['ssalt'], skey);
+        Vault[this.vid].streams[evt.detail.data['did']] = [
+            Date.now(),                     // NOTE stream[0] = modified timestamp
+            sid,                            // NOTE stream[1] = stream id
+            skey,                           // NOTE stream[2] = stream key
+            evt.detail.data['tflags'], // NOTE stream[3] = ticket flags
+            evt.detail.data['did']     // NOTE stream[4] = domain id
+        ];
+        evt.detail.data = evt.detail.data['did'];
+    }
+
+    function errorHook(evt) {
+        // TODO Return a 404 if the domain cannot be found and verify the
+        //      deletion certificate of the domain (which is also a TODO)
+        if (evt.detail.code==502 || evt.detail.code==401) {
+            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault")
+            delete Vault[this.vid].tickets[did];
+            delete Vault[this.vid].streams[did];
+            return function() {
+                this.updateVault(function() {
+                    this.$emitEvent("load", callback, null);
+                }.bind(this), errorCallback);
+                return false; // NOTE Block $emitEvent
+            };
+        }
+    }
+    
     function waitForCompletion(start) {
         if (Vault[this.vid].streams[did])
             this.$emitEvent("load", callback, did);
@@ -819,215 +749,78 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
         else
             setTimeout(waitForCompletion.bind(this), 100, start);
     }
-
-    function onLoad(evt) {
-        var skey, sid;
-        try {
-            skey = this.crypto.combineKeypair(skeyL.privateKey, evt.detail.data['skey_p']);
-            sid = this.crypto.generateHmac(evt.detail.data['ssalt'], skey);
-            Vault[this.vid].streams[evt.detail.data['did']] = [
-                Date.now(),                     // NOTE stream[0] = modified timestamp
-                sid,                            // NOTE stream[1] = stream id
-                skey,                           // NOTE stream[2] = stream key
-                evt.detail.data['tflags'], // NOTE stream[3] = ticket flags
-                evt.detail.data['did']     // NOTE stream[4] = domain id
-            ];
-        }
-        catch (e) {
-            return this.$emitEvent("error", errorCallback, e);
-        }
-        return this.$emitEvent("load", callback, evt.detail.data['did']);
-    }
-
-    function onError(evt) {
-        // TODO Return a 404 if the domain cannot be found and verify the
-        //      deletion certificate of the domain (which is also a TODO)
-        if (evt.detail.code==502 || evt.detail.code==401) {
-            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault")
-            delete Vault[this.vid].tickets[did];
-            delete Vault[this.vid].streams[did];
-            this.updateVault(afterUpdateVault.bind(this), errorCallback);
-        }
-        else {
-            this.$emitEvent("error", errorCallback, evt.detail);
-        }
-
-        function afterUpdateVault() {
-            return this.$emitEvent("load", callback, null);
-        }
-    }
 }
 
 // INFO Entity operations
 
 // TODO Implement some kind of caching to reduce HEAD requests
 Client.prototype.resolveEntities = function(path, callback, errorCallback) {
-    var dids, request, did;
-    try {
-        if (!path.match(/\/\w+\/\*/)) {
-            request = this.$createRequest(null, null, onLoad.bind(this), onError.bind(this));
-            request.open("HEAD", this.options.url, path);
-            return request.send();
-        }
-        dids = new Array();
-        for (did in Vault[this.vid].tickets)
-            dids.push(parseInt(did));
-    }
-    catch (e) {
-        return this.$emitEvent("error", errorCallback, e);
-    }
-    this.$emitEvent("load", callback, dids);
+    if (path.match(/\/\w+\/\*/))
+        return loadDirecty.call(this);
+    this.$sendRequest({
+        'method': "HEAD",
+        'path': path,
+    }, {
+        'load': loadHook.bind(this),
+    }, callback, errorCallback);
 
-    function onLoad(evt) {
+    function loadHook(evt) {
+        var dids;
+        dids = new Array();
+        if (evt.detail.type.options && evt.detail.type.options['did']) {
+            evt.detail.type.options['did'].replace(/(\d+)(?=,|$)/g, function(m, p) {
+                p = parseInt(p);
+                if (Vault[this.vid].tickets[p])
+                    dids.push(p);
+                return false;
+            }.bind(this));
+        }
+        evt.detail.data = dids;
+    }
+
+    function loadDirecty() {
+        var dids, did;
         try {
             dids = new Array();
-            if (request.responseType.options && request.responseType.options['did']) {
-                request.responseType.options['did'].replace(/(\d+)(?=,|$)/g, function(m, p) {
-                    p = parseInt(p);
-                    if (Vault[this.vid].tickets[p])
-                        dids.push(p);
-                    return false;
-                }.bind(this));
-            }
+            for (did in Vault[this.vid].tickets)
+                dids.push(parseInt(did));
         }
         catch (e) {
             return this.$emitEvent("error", errorCallback, e);
         }
         this.$emitEvent("load", callback, dids);
     }
-    
-    function onError(evt) {
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
 }
 
 // TODO Use same data format like for updateEntities
 Client.prototype.createEntity = function(path, data, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        try {
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("POST", this.options.url, path);
-            request.write(data);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+    this.$sendStreamRequest({
+        'method': "POST",
+        'path': path,
+        'data': data
+    }, {}, did, callback, errorCallback);
 }
 
 Client.prototype.readEntities = function(path, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        try {
-            if (!did)
-                this.$emitEvent("load", callback, null);
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("GET", this.options.url, path);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+    this.$sendStreamRequest({
+        'method': "GET",
+        'path': path,
+    }, {}, did, callback, errorCallback);
 }
 
 Client.prototype.updateEntities = function(path, data, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        try {
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("PUT", this.options.url, path);
-            request.write(data);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+    this.$sendStreamRequest({
+        'method': "PUT",
+        'path': path,
+        'data': data
+    }, {}, did, callback, errorCallback);
 }
 
 Client.prototype.deleteEntities = function(path, did, callback, errorCallback) {
-    var retries, request;
-    retries = 3;
-    this.openStream(did, afterOpenStream.bind(this), errorCallback);
-    
-    function afterOpenStream(did) {
-        try {
-            request = this.$createRequest("stream", Vault[this.vid].streams[did], onLoad.bind(this), onError.bind(this));
-            request.open("DELETE", this.options.url, path);
-            request.send();
-        }
-        catch (e) {
-            this.$emitEvent("error", errorCallback, e);
-        }
-        return false; // NOTE Prevent event
-    }
-
-    function onLoad(evt) {
-        this.$emitEvent("load", callback, evt.detail.data);
-    }
-    
-    function onError(evt) {
-        if (evt.detail.code == 412) {
-            delete Vault[this.vid].streams[did];
-            if (--retries >= 0)
-                return this.openStream(did, afterOpenStream.bind(this), errorCallback);
-        }
-        this.$emitEvent("error", errorCallback, evt.detail);
-    }
+    this.$sendStreamRequest({
+        'method': "DELETE",
+        'path': path
+    }, {}, did, callback, errorCallback);
 }
 
 // INFO Convenience functions
