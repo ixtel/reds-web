@@ -202,6 +202,15 @@ exports.prototype.signStream = function() {
     this.response.setHeader("Authorization", "stream:"+this.authorization.stream['sid']+":"+time+":"+sig+":"+this.crypto.name);
 }
 
+exports.prototype.signPod = function() {
+    var pkey, time, msg, sig;
+    pkey = this.crypto.generateSecureHash(this.config['password'], this.config['salt']);
+    time = this.crypto.generateTimestamp();
+    msg = this.crypto.concatenateStrings("pod", 0, time, this.crypto.name, this.response.getHeader("Content-Type"), this.$responseText);
+    sig = this.crypto.generateHmac(msg, pkey);
+    this.response.setHeader("Authorization", "pod:"+0+":"+time+":"+sig+":"+this.crypto.name);
+}
+
 exports.prototype.writeEncrypted = function(data, type) {
     var msg, vec, cipher;
     vec = this.crypto.generateTimestamp();

@@ -393,7 +393,9 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
     var iid, ikeyL;
     this.$sendRequest({
         'method': "POST",
-        'path': "/!/domain"
+        'path': "/!/domain",
+        'realm': "pod",
+        'credentials': password
     }, {
         'prepare': prepareHook.bind(this),
         'load': loadHook.bind(this)
@@ -410,17 +412,16 @@ Client.prototype.createDomain = function(pod, password, callback, errorCallback)
     }
 
     function loadHook(evt) {
-        var pkey, ikey_, invitation;
+        var pkey, ikey_, msg;
         if (iid != evt.detail.data['iid'])
             throw new Error("leaf and pod iid mismatch");
         if (ikeyL.publicKey != evt.detail.data['ikey_l'])
             throw new Error("leaf and pod ikeyL mismatch");
         pkey = this.crypto.generateSecureHash(password, evt.detail.data['psalt']);
-        // TODO Verify pod signature!
         ikey_ = this.crypto.combineKeypair(ikeyL.privateKey, evt.detail.data['ikey_p']);
         Vault[this.vid].invitations[evt.detail.data['iid']] = [
             Date.now(),                            // NOTE invitation[0] = modified timestamp
-            evt.detail.data['iid'],           // NOTE invitation[1] = invitation id
+            evt.detail.data['iid'],                // NOTE invitation[1] = invitation id
             this.crypto.generateHmac(ikey_, pkey), // NOTE invitation[2] = invitation key
             null                                   // NOTE invitation[1] = invitation signature
         ];

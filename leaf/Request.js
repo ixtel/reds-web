@@ -57,6 +57,8 @@ Request.prototype.write = function(data) {
 
 Request.prototype.sign = function() {
     var vec, msg, sig;
+    if (this.options.realm == "pod")
+        return;
     vec = this.client.crypto.generateTimestamp();
     msg = this.client.crypto.concatenateStrings(
         this.options.realm,
@@ -74,6 +76,8 @@ Request.prototype.sign = function() {
 
 Request.prototype.verify = function() {
     var msg, sig;
+    if (this.options.realm == "pod")
+        this.options.credentials = [null, 0, this.client.crypto.generateSecureHash(this.options.credentials, this.responseJson['psalt'])];
     if (!this.responseAuthorization)
         throw new Error("missing authorization");
     if (this.responseAuthorization['realm'] != this.options.realm)

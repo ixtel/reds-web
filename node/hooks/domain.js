@@ -42,6 +42,7 @@ exports.POST = function(session) {
 
     function onRouteResponse() {
         session.write(route.responseText, route.responseHeaders['content-type']);
+        session.response.setHeader("Authorization", route.responseHeaders['authorization']);
         session.end();
     }
 

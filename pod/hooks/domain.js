@@ -42,7 +42,7 @@ exports.POST = function(session) {
         };
         console.log(values);
         session.writeJson(values);
-        //session.signPod();
+        session.signPod();
         session.end();
     }
 }
