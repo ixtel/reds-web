@@ -17,10 +17,11 @@ exports.prototype.leafs = new TemporaryStorage(30000, 5000);
 
 exports.prototype.HookHandlers = {
     '/!/node': require("./hooks/node"),
-    '/!/invitation': require("./hooks/invitation"),
     '/!/domain': require("./hooks/domain"),
-    '/!/domain/ticket': require("./hooks/ticket"),
-    '/!/domain/leaf': require("./hooks/leaf"),
+    '/!/ticket': require("./hooks/ticket"),
+    '/!/domain/invitation': require("./hooks/domain/invitation"),
+    '/!/domain/ticket': require("./hooks/domain/ticket"),
+    '/!/domain/stream': require("./hooks/domain/stream"),
     '*': require("./hooks/entity")
 }
 

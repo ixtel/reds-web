@@ -450,8 +450,8 @@ Client.prototype.deleteDomain = function(did, callback, errorCallback) {
 Client.prototype.createTicket = function(iid, callback, errorCallback) {
     var tkeyL;
     this.$sendRequest({
-        'method': "PUT",
-        'path': "/!/invitation/"+iid.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
+        'method': "POST",
+        'path': "/!/ticket/"+iid.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
         'data': null,
         'realm': "invitation",
         'credentials': Vault[this.vid].invitations[iid]
@@ -521,7 +521,7 @@ Client.prototype.deleteTickets = function(tids, did, callback, errorCallback) {
 Client.prototype.createInvitation = function(invitation, did, callback, errorCallback) {
     this.$sendStreamRequest({
         'method': "POST",
-        'path': "/!/invitation/"+invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
+        'path': "/!/domain/"+did+"/invitation/"+invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
         'data': invitation
     }, {}, did, callback, errorCallback);
 }
@@ -695,7 +695,7 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
         return setTimeout(waitForCompletion.bind(this), 100, Date.now());
     this.$sendRequest({
         'method': "POST",
-        'path': "/!/domain/"+did+"/leaf",
+        'path': "/!/domain/"+did+"/stream",
         'realm': "ticket",
         'credentials': Vault[this.vid].tickets[did]
     }, {

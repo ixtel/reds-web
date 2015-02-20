@@ -1,17 +1,15 @@
 "use strict";
 
-var HttpError = require("../../shared/HttpError");
-var Route = require("../Route");
+var HttpError = require("../../../shared/HttpError");
+var Route = require("../../Route");
 
 exports.POST = function(session) {
-    var iid, route;
-    // NOTE Convert iid in url from base64url to base64
-    iid = (new Buffer(session.selector.last.value, 'base64')).toString('base64');
+    var route, iid;
     route = new Route(session.crypto, session.storage);
     route.addListener("error", onRouteError);
     route.addListener("ready", onRouteReady);
     route.addListener("response", onRouteResponse);
-    route.resolve(iid);
+    route.resolve(session.type.options['did']);
 
     function onRouteReady() {
         route.method = session.request.method;
@@ -22,11 +20,15 @@ exports.POST = function(session) {
     }
 
     function onRouteResponse() {
-        session.storage.unregisterInvitation(iid, afterUnregisterInvitation);
+        session.storage.registerInvitation({
+            // NOTE Convert iid in url from base64url to base64
+            'iid': (new Buffer(session.selector.last.value, 'base64')).toString('base64'),
+            'did': session.type.options['did']
+        }, afterRegisterInvitation.bind(this));
     }
 
-    function afterUnregisterInvitation(error, result) {
-        if (error != null)
+    function afterRegisterInvitation(error, result) {
+        if (error)
             return session.abort(error);
         session.write(route.responseText, route.responseHeaders['content-type']);
         session.response.setHeader("Authorization", route.responseHeaders['authorization']);

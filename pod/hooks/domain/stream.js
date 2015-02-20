@@ -1,6 +1,6 @@
 "use strict";
 
-var HttpError = require("../../shared/HttpError");
+var HttpError = require("../../../shared/HttpError");
 
 exports.POST = function(session) {
     session.authorizeTicket(parseInt(session.selector[0].value), afterAuthorization);

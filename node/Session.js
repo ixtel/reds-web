@@ -12,10 +12,11 @@ exports.prototype = Object.create(Session.prototype);
 exports.prototype.HookHandlers = {
     '/!/account': require("./hooks/account"),
     '/!/pod': require("./hooks/pod"),
-    '/!/invitation': require("./hooks/invitation"),
     '/!/domain': require("./hooks/domain"),
-    '/!/domain/ticket': require("./hooks/ticket"),
-    '/!/domain/leaf': require("./hooks/leaf"),
+    '/!/ticket': require("./hooks/ticket"),
+    '/!/domain/invitation': require("./hooks/domain/invitation"),
+    '/!/domain/ticket': require("./hooks/domain/ticket"),
+    '/!/domain/stream': require("./hooks/domain/stream"),
     '*': require("./hooks/entity")
 }
 
