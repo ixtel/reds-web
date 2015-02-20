@@ -1003,10 +1003,24 @@ Client.prototype.acceptCreateAndSyncPrivateInvitationAndTicket = function(xid, x
 }
 
 Client.prototype.createAndSyncDomainAndTicket = function(url, password, callback, errorCallback) {
-    this.createDomain(url, password, afterCreateDomain.bind(this), errorCallback);
+    var retries;
+    retries = 3;
+    start.call(this);
+
+    function start() {
+        this.createDomain(url, password, afterCreateDomain.bind(this), afterCreateDomainError.bind(this));
+    }
 
     function afterCreateDomain(response) {
         this.createAndSyncTicket(response['iid'], callback, errorCallback);
+        return false; // NOTE Prevent event
+    }
+
+    function afterCreateDomainError(error) {
+        if ((error.code == 502) && (--retries >= 0))
+            this.createPod(url, password, start.bind(this), errorCallback);
+        else
+            this.$emitEvent("error", errorCallback, error);
         return false; // NOTE Prevent event
     }
 }
