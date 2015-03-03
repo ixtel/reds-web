@@ -10,7 +10,7 @@ The [REDS.web example repository](https://github.com/flowyapps/reds-web-example)
 
 ## Documentation
 
-The [REDS.web API Documentation](https://github.com/flowyapps/reds-web/wiki/REDS.web-API-Documentation) can be found in Wiki. Like REDS itself is is still under development and may change along with the code. All documents describing the REDS standard itself, are located in the [REDS.concept repository](https://github.com/flowyapps/reds-concept)  here on GitHub.
+The [REDS.web Wiki](https://github.com/flowyapps/reds-web/wiki) contains the [Client module API documentation](https://github.com/flowyapps/reds-web/wiki/Client-module-API) as well as other texts that help you to get started. Like REDS itself the wiki is still under development and may change along with the code. All documents describing the REDS standard itself, are located in the [REDS.concept repository](https://github.com/flowyapps/reds-concept)  here on GitHub.
 
 ## Contact
 
