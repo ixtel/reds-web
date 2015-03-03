@@ -229,7 +229,9 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
 Client.prototype.signout = function(callback) {
     Vault.resetClient(this.vid);
     // NOTE Always call the callback asynchronously
-    setTimeout(callback, 0);
+    setTimeout(function() {
+        this.$emitEvent("load", callback, null);
+    }, 0);
 }
 
 // INFO Account operations
@@ -550,9 +552,12 @@ Client.prototype.acceptPrivateInvitation = function(iid, ikey, callback, errorCa
         ikey,       // NOTE invitation[2] = invitation key
         null        // NOTE invitation[1] = invitation signature
     ];
-    this.$emitEvent("load", callback, {
-        'iid': iid
-    });
+    // NOTE Always call the callback asynchronously
+    setTimeout(function() {
+        this.$emitEvent("load", callback, {
+            'iid': iid
+        });
+    }, 0);
 }
 
 Client.prototype.createPublicInvitation = function(tflags, did, callback, errorCallback) {
@@ -575,11 +580,14 @@ Client.prototype.createPublicInvitation = function(tflags, did, callback, errorC
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.$emitEvent("load", callback, {
-        'xid': xid,
-        'xkeyS': xkeyS.publicKey,
-        'xsaltS': xsaltS
-    });
+    // NOTE Always call the callback asynchronously
+    setTimeout(function() {
+        this.$emitEvent("load", callback, {
+            'xid': xid,
+            'xkeyS': xkeyS.publicKey,
+            'xsaltS': xsaltS
+        });
+    }, 0);
 }
 
 Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback, errorCallback) {
@@ -604,13 +612,16 @@ Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback,
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.$emitEvent("load", callback, {
-        'iid': iid,
-        'xid': xid,
-        'xkeyR': xkeyR.publicKey,
-        'xsaltR': xsaltR,
-        'xsig': xsig
-    });
+    // NOTE Always call the callback asynchronously
+    setTimeout(function() {
+        this.$emitEvent("load", callback, {
+            'iid': iid,
+            'xid': xid,
+            'xkeyR': xkeyR.publicKey,
+            'xsaltR': xsaltR,
+            'xsig': xsig
+        });
+    }, 0);
 }
 
 Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, xsigL, callback, errorCallback) {
@@ -661,7 +672,10 @@ Client.prototype.readPendingInvitation = function(iid, callback, errorCallback) 
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.$emitEvent("load", callback, response);
+    // NOTE Always call the callback asynchronously
+    setTimeout(function() {
+        this.$emitEvent("load", callback, response);
+    }, 0);
 }
 
 // NOTE We're using callbacks here with regard to further changes.
@@ -682,7 +696,10 @@ Client.prototype.deletePendingInvitation = function(ttl, iid, callback, errorCal
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.$emitEvent("load", callback, response||null);
+    // NOTE Always call the callback asynchronously
+    setTimeout(function() {
+        this.$emitEvent("load", callback, response||null);
+    }, 0);
 }
 
 // INFO Stream operations
