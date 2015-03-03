@@ -199,7 +199,7 @@ Client.prototype.$sendStreamRequest = function(options, hooks, did, callback, er
     }
 }
 
-Client.prototype.signin = function(name, password, callback, errorCallback) {
+Client.prototype.login = function(name, password, callback, errorCallback) {
     this.$sendRequest({
         'method': "GET",
         'path': "/!/account/"
@@ -226,12 +226,12 @@ Client.prototype.signin = function(name, password, callback, errorCallback) {
     }
 }
 
-Client.prototype.signout = function(callback) {
+Client.prototype.logout = function(callback) {
     Vault.resetClient(this.vid);
     // NOTE Always call the callback asynchronously
     setTimeout(function() {
         this.$emitEvent("load", callback, null);
-    }, 0);
+    }.bind(this), 0);
 }
 
 // INFO Account operations
@@ -555,7 +555,7 @@ Client.prototype.createInvitation = function(tflags, did, callback, errorCallbac
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.$createInvitation(invitation, did, callback, afterCreateInvitationError.bind(this));
+    this.$createInvitation(invitation, did, callback, errorCallback);
 }
 
 Client.prototype.acceptInvitation = function(ikey, iid, callback, errorCallback) {
@@ -570,7 +570,7 @@ Client.prototype.acceptInvitation = function(ikey, iid, callback, errorCallback)
         this.$emitEvent("load", callback, {
             'iid': iid
         });
-    }, 0);
+    }.bind(this), 0);
 }
 
 Client.prototype.createExchange = function(tflags, did, callback, errorCallback) {
@@ -600,7 +600,7 @@ Client.prototype.createExchange = function(tflags, did, callback, errorCallback)
             'xkeyS': xkeyS.publicKey,
             'xsaltS': xsaltS
         });
-    }, 0);
+    }.bind(this), 0);
 }
 
 Client.prototype.acceptExchange = function(xkeyS, xsaltS, xid, callback, errorCallback) {
@@ -634,7 +634,7 @@ Client.prototype.acceptExchange = function(xkeyS, xsaltS, xid, callback, errorCa
             'xsaltR': xsaltR,
             'xsig': xsig
         });
-    }, 0);
+    }.bind(this), 0);
 }
 
 Client.prototype.confirmExchange = function(xkeyR, xsaltR, xsigR, xid, callback, errorCallback) {
@@ -658,7 +658,7 @@ Client.prototype.confirmExchange = function(xkeyR, xsaltR, xsigR, xid, callback,
     catch (e) {
         return this.$emitEvent("error", errorCallback, e);
     }
-    this.createInvitation({
+    this.$createInvitation({
         'iid': this.crypto.generateHmac(xsaltR, xkey),
         'ikey': this.crypto.generateHmac(xsaltS, xkey),
         'did': Vault[this.vid].exchanges[xid][4],
@@ -670,6 +670,52 @@ Client.prototype.confirmExchange = function(xkeyR, xsaltR, xsigR, xid, callback,
         this.$emitEvent("load", callback, response);
         return false; // NOTE Prevent event
     }
+}
+
+// NOTE We're using callbacks here with regard to further changes.
+Client.prototype.readPendingExchange = function(xid, callback, errorCallback) {
+    var response;
+    try {
+        response = {
+            'xid': Vault[this.vid].exchanges[xid][1],
+            'xsalt': Vault[this.vid].exchanges[xid][3],
+            'did': Vault[this.vid].exchanges[xid][4],
+            'tflags': Vault[this.vid].exchanges[xid][5],
+            'modified': Vault[this.vid].exchanges[xid][0]
+        };
+    }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
+    // NOTE Always call the callback asynchronously
+    setTimeout(function() {
+        this.$emitEvent("load", callback, response);
+    }.bind(this), 0);
+}
+
+// NOTE We're using callbacks here with regard to further changes.
+Client.prototype.deletePendingExchange = function(ttl, xid, callback, errorCallback) {
+    var  response, modified;
+    try {
+        modified = parseInt(Vault[this.vid].exchanges[xid][0]);
+        if (!ttl || modified+ttl < Date.now()) {
+            response = {
+                'xid': Vault[this.vid].exchanges[xid][1],
+                'xsalt': Vault[this.vid].exchanges[xid][3],
+                'did': Vault[this.vid].exchanges[xid][4],
+                'tflags': Vault[this.vid].exchanges[xid][5],
+                'modified': Vault[this.vid].exchanges[xid][0]
+            };
+            delete Vault[this.vid].exchanges[xid];
+        }
+    }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
+    // NOTE Always call the callback asynchronously
+    setTimeout(function() {
+        this.$emitEvent("load", callback, response||null);
+    }.bind(this), 0);
 }
 
 // NOTE We're using callbacks here with regard to further changes.
@@ -688,21 +734,20 @@ Client.prototype.readPendingInvitation = function(iid, callback, errorCallback) 
     // NOTE Always call the callback asynchronously
     setTimeout(function() {
         this.$emitEvent("load", callback, response);
-    }, 0);
+    }.bind(this), 0);
 }
 
 // NOTE We're using callbacks here with regard to further changes.
 Client.prototype.deletePendingInvitation = function(ttl, iid, callback, errorCallback) {
-    var  response, deadline, modified;
+    var  response, modified;
     try {
-        deadline = Date.now();
         modified = parseInt(Vault[this.vid].invitations[iid][0]);
-        if (!ttl || modified+ttl < deadline) {
+        if (!ttl || modified+ttl < Date.now()) {
             response = {
                 'iid': Vault[this.vid].invitations[iid][1],
                 'signature': Vault[this.vid].invitations[iid][3],
                 'modified': Vault[this.vid].invitations[iid][0]
-            }
+            };
             delete Vault[this.vid].invitations[iid];
         }
     }
@@ -712,7 +757,7 @@ Client.prototype.deletePendingInvitation = function(ttl, iid, callback, errorCal
     // NOTE Always call the callback asynchronously
     setTimeout(function() {
         this.$emitEvent("load", callback, response||null);
-    }, 0);
+    }.bind(this), 0);
 }
 
 // INFO Stream operations
@@ -993,6 +1038,20 @@ Client.prototype.confirmAndSyncExchange = function(xkeyR, xsaltR, xsigR, xid, ca
     this.$callMethodAndSyncVault(this.confirmExchange, [xkeyR, xsaltR, xsigR, xid], callback, errorCallback);
 }
 
+Client.prototype.readPendingExchanges = function(xids, callback, errorCallback) {
+    xids = xids||Object.keys(Vault[this.vid].exchanges);
+    this.$callMethodForEachId(this.readPendingExchange, [], xids, callback, errorCallback);
+}
+
+Client.prototype.deletePendingExchanges = function(ttl, xids, callback, errorCallback) {
+    xids = xids||Object.keys(Vault[this.vid].exchanges);
+    this.$callMethodForEachId(this.deletePendingExchange, [ttl], xids, callback, errorCallback);
+}
+
+Client.prototype.deleteAndSyncPendingExchanges = function(ttl, xids, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.deletePendingExchanges, [ttl, xids], callback, errorCallback);
+}
+
 Client.prototype.readPendingInvitations = function(iids, callback, errorCallback) {
     iids = iids||Object.keys(Vault[this.vid].invitations);
     this.$callMethodForEachId(this.readPendingInvitation, [], iids, callback, errorCallback);
@@ -1022,6 +1081,20 @@ Client.prototype.resolveAndDeleteEntities = function(path, data, callback, error
 }
 
 // INFO Mixed convenience functions
+
+Client.prototype.cleanupAndSyncExchangesAndInvitations = function(ttl, callback, errorCallback) {
+    this.deletePendingExchanges(ttl, null, afterDeletePendingExchanges.bind(this), errorCallback);
+
+    function afterDeletePendingExchanges(response) {
+        this.deletePendingInvitations(ttl, null, afterDeletePendingInvitations.bind(this), errorCallback);
+        return false; // NOTE Prevent event
+    }
+
+    function afterDeletePendingInvitations(response) {
+        this.createAndSyncTickets(null, callback, errorCallback);
+        return false; // NOTE Prevent event
+    }
+}
 
 Client.prototype.acceptCreateAndSyncInvitationAndTicket = function(ikey, iid, callback, errorCallback) {
     this.acceptInvitation(ikey, iid, afterAcceptInvitation.bind(this), errorCallback);
