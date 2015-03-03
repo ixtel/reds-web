@@ -519,33 +519,46 @@ Client.prototype.deleteTickets = function(tids, did, callback, errorCallback) {
 
 // INFO Invitation operations
 
-// TODO Use /!/domain/did/invitation/iid as URL
-Client.prototype.createInvitation = function(invitation, did, callback, errorCallback) {
+// NOTE Generic function that will be called from createInvitation() and confirmExchange()
+Client.prototype.$createInvitation = function(invitation, did, callback, errorCallback) {
     this.$sendStreamRequest({
         'method': "POST",
-        'path': "/!/domain/"+did+"/invitation/"+invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''),
+        'path': null,      // NOTE Will be set in the prepare hook
         'data': invitation
-    }, {}, did, callback, errorCallback);
-}
+    }, {
+        'prepare': prepareHook,
+        'error': errorHook
+    }, did, callback, errorCallback);
 
-Client.prototype.createPrivateInvitation = function(tflags, did, callback, errorCallback) {
-    this.createInvitation({
-        'iid': this.crypto.generateKey(),
-        'ikey': this.crypto.generateKey(),
-        'did': did,
-        'tflags': tflags
-    }, did, callback, afterCreateInvitationError.bind(this));
-    
-    function afterCreateInvitationError(error) {
-        if (error.code == 409)
-            this.createPrivateInvitation(tflags, did, callback, errorCallback);
-        else
-            this.$emitEvent("error", errorCallback, error);
-        return false; // NOTE Prevent event
+    function prepareHook(options) {
+        options.path = "/!/domain/"+did+"/invitation/"+invitation['iid'].replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    }
+
+    function errorHook(evt) {
+        if (evt.detail.code == 409) {
+            this.$createInvitation(tflags, did, callback, errorCallback);
+            return false;
+        }
     }
 }
 
-Client.prototype.acceptPrivateInvitation = function(iid, ikey, callback, errorCallback) {
+Client.prototype.createInvitation = function(tflags, did, callback, errorCallback) {
+    var invitation;
+    try {
+        invitation = {
+            'iid': this.crypto.generateKey(),
+            'ikey': this.crypto.generateKey(),
+            'did': did,
+            'tflags': tflags
+        };
+    }
+    catch (e) {
+        return this.$emitEvent("error", errorCallback, e);
+    }
+    this.$createInvitation(invitation, did, callback, afterCreateInvitationError.bind(this));
+}
+
+Client.prototype.acceptInvitation = function(ikey, iid, callback, errorCallback) {
     Vault[this.vid].invitations[iid] = [ 
         Date.now(), // NOTE invitation[0] = modified timestamp
         iid,        // NOTE invitation[1] = invitation id
@@ -560,7 +573,7 @@ Client.prototype.acceptPrivateInvitation = function(iid, ikey, callback, errorCa
     }, 0);
 }
 
-Client.prototype.createPublicInvitation = function(tflags, did, callback, errorCallback) {
+Client.prototype.createExchange = function(tflags, did, callback, errorCallback) {
     var xid, xkeyS, xsaltS;
     try {
         xkeyS = this.crypto.generateKeypair();
@@ -590,7 +603,7 @@ Client.prototype.createPublicInvitation = function(tflags, did, callback, errorC
     }, 0);
 }
 
-Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback, errorCallback) {
+Client.prototype.acceptExchange = function(xkeyS, xsaltS, xid, callback, errorCallback) {
     var xkeyR, xsaltR, xkey, xstr, xsig, iid, ikey;
     try {
         xkeyR = this.crypto.generateKeypair();
@@ -624,7 +637,7 @@ Client.prototype.acceptPublicInvitation = function(xid, xkeyS, xsaltS, callback,
     }, 0);
 }
 
-Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, xsigL, callback, errorCallback) {
+Client.prototype.confirmExchange = function(xkeyR, xsaltR, xsigR, xid, callback, errorCallback) {
     var xkeyS, xsaltS, xkey, xstr, xsig;
     try {
         if (!Vault[this.vid].exchanges[xid])
@@ -635,7 +648,7 @@ Client.prototype.confirmPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, x
         if (xsigR) {
             xstr = this.crypto.concatenateStrings(xid, xsaltS, xsaltR);
             xsig = this.crypto.generateHmac(xstr, xkey);
-            if (xsig.substr(0, xsigL) != xsigR)
+            if (xsig.substr(0, xsigR.length) != xsigR)
                 throw new Error("exchange signatures mismatch");
         }
         else {
@@ -967,17 +980,17 @@ Client.prototype.deleteAndSyncTickets = function(tids, did, callback, errorCallb
 // INFO Invitation convenience functions
 
 // TODO Handle collision, if an exchange with the same xid has been created since the last update.
-Client.prototype.createAndSyncPublicInvitation = function(tflags, did, callback, errorCallback) {
-    this.$callMethodAndSyncVault(this.createPublicInvitation, [tflags, did], callback, errorCallback);
+Client.prototype.createAndSyncExchange = function(tflags, did, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.createExchange, [tflags, did], callback, errorCallback);
 }
 
 // TODO Handle collision, if an invitation with the same iid has been created since the last update.
-Client.prototype.acceptAndSyncPublicInvitation = function(xid, xkeyS, xsaltS, callback, errorCallback) {
-    this.$callMethodAndSyncVault(this.acceptPublicInvitation, [xid, xkeyS, xsaltS], callback, errorCallback);
+Client.prototype.acceptAndSyncExchange = function(xkeyS, xsaltS, xid, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.acceptExchange, [xkeyS, xsaltS, xid], callback, errorCallback);
 }
 
-Client.prototype.confirmAndSyncPublicInvitation = function(xid, xkeyR, xsaltR, xsigR, xsigL, callback, errorCallback) {
-    this.$callMethodAndSyncVault(this.confirmPublicInvitation, [xid, xkeyR, xsaltR, xsigR, xsigL], callback, errorCallback);
+Client.prototype.confirmAndSyncExchange = function(xkeyR, xsaltR, xsigR, xid, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.confirmExchange, [xkeyR, xsaltR, xsigR, xid], callback, errorCallback);
 }
 
 Client.prototype.readPendingInvitations = function(iids, callback, errorCallback) {
@@ -1010,10 +1023,10 @@ Client.prototype.resolveAndDeleteEntities = function(path, data, callback, error
 
 // INFO Mixed convenience functions
 
-Client.prototype.acceptCreateAndSyncPrivateInvitationAndTicket = function(xid, xkey, callback, errorCallback) {
-    this.acceptPrivateInvitation(xid, xkey, afterAcceptPrivateInvitation.bind(this), errorCallback);
+Client.prototype.acceptCreateAndSyncInvitationAndTicket = function(ikey, iid, callback, errorCallback) {
+    this.acceptInvitation(ikey, iid, afterAcceptInvitation.bind(this), errorCallback);
 
-    function afterAcceptPrivateInvitation(response) {
+    function afterAcceptInvitation(response) {
         this.createAndSyncTicket(response['iid'], callback, errorCallback);
         return false; // NOTE Prevent event
     }
