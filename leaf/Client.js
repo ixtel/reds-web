@@ -226,7 +226,7 @@ Client.prototype.login = function(name, password, callback, errorCallback) {
     }
 }
 
-Client.prototype.logout = function(callback) {
+Client.prototype.logout = function(callback, errorCallback) {
     Vault.resetClient(this.vid);
     // NOTE Always call the callback asynchronously
     setTimeout(function() {

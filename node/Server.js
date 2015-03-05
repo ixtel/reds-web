@@ -3,8 +3,8 @@
 var Server = require("../shared/Server");
 var NodeSession = require("./Session");
 
-module.exports = exports = function(config, Session) {
-    Server.call(this, config, Session||NodeSession);
+module.exports = exports = function(config) {
+    Server.call(this, config);
 }
 
 exports.prototype = Object.create(Server.prototype);
@@ -21,4 +21,6 @@ exports.prototype.listen = function(request, response) {
         }
     }*/
     Server.prototype.listen.call(this, request, response);
+    var session = new NodeSession(this.config, request, response);
+    session.run();
 }
