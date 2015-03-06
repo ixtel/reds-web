@@ -9,7 +9,7 @@ CryptoFacilities.addFacility(require("./crypto/CryptoJs"));
 CryptoFacilities.addFacility(require("./crypto/Sjcl"));
 
 var StorageFacilities = new FacilityManager();
-StorageFacilities.addFacility(require("./storage/NodePg.js"));
+StorageFacilities.addFacility(require("./storage/NodePg"));
 
 module.exports = exports = function(config, request, response) {
     events.EventEmitter.call(this);
