@@ -1,30 +1,30 @@
 #!/bin/sh
 
-NAME="reds_web"
-NAMESPACE="dev.reds-web"
-PREFIX="/usr/local"
-BRANCH="master"
+PREFIX=${PREFIX-"/usr/local"}
+BRANCH=${BRANCH-"master"}
+NAME=${NAME-"reds_web"}
+NAMESPACE=${NAMESPACE-"dev.reds-web"}
 
-BINPATH="${PREFIX}/bin"
-LIBPATH="${PREFIX}/lib"
-ETCPATH="${PREFIX}/etc"
-LOGPATH="/var/log"
-TMPPATH="/tmp"
+BINPATH=${BINPATH-"${PREFIX}/bin"}
+LIBPATH=${LIBPATH-"${PREFIX}/lib"}
+ETCPATH=${ETCPATH-"${PREFIX}/etc"}
+LOGPATH=${LOGPATH-"/var/log"}
+TMPPATH=${TMPPATH-"/tmp"}
 
-BINFILE_NODE="${BINPATH}/${NAME}_node"
-BINFILE_POD="${BINPATH}/${NAME}_pod"
-ETCFILE_NODE="${ETCPATH}/reds/${NAME}_node.json"
-ETCFILE_POD="${ETCPATH}/reds/${NAME}_pod.json"
-LOGFILE_NODE="${LOGPATH}/${NAME}_node.log"
-LOGFILE_POD="${LOGPATH}/${NAME}_pod.log"
+BINFILE_NODE=${BINFILE_NODE-"${BINPATH}/${NAME}_node"}
+BINFILE_POD=${BINFILE_POD-"${BINPATH}/${NAME}_pod"}
+ETCFILE_NODE=${ETCFILE_NODE-"${ETCPATH}/reds/${NAME}_node.json"}
+ETCFILE_POD=${ETCFILE_POD-"${ETCPATH}/reds/${NAME}_pod.json"}
+LOGFILE_NODE=${LOGFILE_NODE-"${LOGPATH}/${NAME}_node.log"}
+LOGFILE_POD=${LOGFILE_POD-"${LOGPATH}/${NAME}_pod.log"}
 
-PGROLE="${NAME}"
-PGDATABASE_NODE="${NAME}_node"
-PGDATABASE_POD="${NAME}_pod"
+PGROLE=${PGROLE-"${NAME}"}
+PGDATABASE_NODE=${PGDATABASE_NODE-"${NAME}_node"}
+PGDATABASE_POD=${PGDATABASE_POD-"${NAME}_pod"}
 
-NODEJS=`which nodejs`
-PODSALT=`cat /dev/urandom | head -c 32 | base64`
-PGPASSWORD=`cat /dev/urandom | tr -dc "A-Za-z0-9-_" | head -c 32`
+NODEJS=${NODEJS-`which nodejs`}
+PODSALT=${PODSALT-`cat /dev/urandom | head -c 32 | base64`}
+PGPASSWORD=${PGPASSWORD-`cat /dev/urandom | tr -dc "A-Za-z0-9-_" | head -c 32`}
 
 # INFO Read the pod password
 
@@ -49,78 +49,87 @@ mkdir -p "${TMPPATH}"
 
 # INFO Download and install REDS library
 
-wget https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz -O "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
-tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
-mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
-rm "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+if [ ! -e ${LIBPATH} ]; then
+    wget https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz -O "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+    tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
+    mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
+    rm "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+fi
 
 # INFO Create config files
 
-echo "{
-    \"host\": null,
-    \"port\": 8080,
-    \"user\": \"nobody\",
-    \"group\": \"nogroup\",
-    \"workers\": 1,
-    \"log\": null,
-    \"namespace\": \"${NAMESPACE}\",
-    \"types\": {
-        \"contact\": {
-            \"name\": \"text\"
+if [ ! -e "${ETCFILE_NODE}" ]; then
+    echo "{
+        \"host\": null,
+        \"port\": 8080,
+        \"user\": \"nobody\",
+        \"group\": \"nogroup\",
+        \"workers\": 1,
+        \"log\": null,
+        \"namespace\": \"${NAMESPACE}\",
+        \"types\": {
+            \"contact\": {
+                \"name\": \"text\"
+            },
+            \"address\": {
+                \"street\": \"text\",
+                \"city\": \"text\"
+            }
         },
-        \"address\": {
-            \"street\": \"text\",
-            \"city\": \"text\"
+        \"crypto\": [\"sjcl-1\", \"cryptojs-1\"],
+        \"storage\": {
+            \"name\": \"nodepg-1\",
+            \"options\": {
+                \"connect\": \"postgres://${PGROLE}:${PGPASSWORD}@localhost/${PGDATABASE_NODE}\"
+            }
+        },
+        \"cors\": {
+            \"origin\": \"*\",
+            \"methods\": \"GET, POST, PUT, DELETE\",
+            \"headers\": \"Content-Type, Authorization, X-REDS-Test\"
         }
-    },
-    \"crypto\": [\"sjcl-1\", \"cryptojs-1\"],
-    \"storage\": {
-        \"name\": \"nodepg-1\",
-        \"options\": {
-            \"connect\": \"postgres://${PGROLE}:${PGPASSWORD}@localhost/${PGDATABASE_NODE}\"
-        }
-    },
-    \"cors\": {
-        \"origin\": \"*\",
-        \"methods\": \"GET, POST, PUT, DELETE\",
-        \"headers\": \"Content-Type, Authorization, X-REDS-Test\"
-    }
-}" > "${ETCFILE_NODE}"
+    }" > "${ETCFILE_NODE}"
+fi
 
-echo "{
-    \"host\": null,
-    \"port\": 8181,
-    \"user\": \"nobody\",
-    \"group\": \"nogroup\",
-    \"workers\": 1,
-    \"log\": null,
-    \"password\": \"${PODPASSWORD}\",
-    \"salt\": \"${PODSALT}\",
-    \"crypto\": [\"sjcl-1\", \"cryptojs-1\"],
-    \"storage\": {
-        \"name\": \"nodepg-1\",
-        \"options\": {
-            \"connect\": \"postgres://${PGROLE}:${PGPASSWORD}@localhost/${PGDATABASE_POD}\"
+if [ ! -e "${ETCFILE_POD}" ]; then
+    echo "{
+        \"host\": null,
+        \"port\": 8181,
+        \"user\": \"nobody\",
+        \"group\": \"nogroup\",
+        \"workers\": 1,
+        \"log\": null,
+        \"password\": \"${PODPASSWORD}\",
+        \"salt\": \"${PODSALT}\",
+        \"crypto\": [\"sjcl-1\", \"cryptojs-1\"],
+        \"storage\": {
+            \"name\": \"nodepg-1\",
+            \"options\": {
+                \"connect\": \"postgres://${PGROLE}:${PGPASSWORD}@localhost/${PGDATABASE_POD}\"
+            }
         }
-    }
-}" > "${ETCFILE_POD}"
+    }" > "${ETCFILE_POD}"
+fi
 
 # INFO Create start scripts
 
-echo "#!${NODEJS}
-var NodeServer = require(\"${LIBPATH}/reds/node/Server\");
-var config = require(\"${ETCFILE_NODE}\");
-var server = new NodeServer(config);
-server.run();" > "${BINFILE_NODE}"
+if [ ! -e "${BINFILE_NODE}" ]; then
+    echo "#!${NODEJS}
+    var NodeServer = require(\"${LIBPATH}/reds/node/Server\");
+    var config = require(\"${ETCFILE_NODE}\");
+    var server = new NodeServer(config);
+    server.run();" > "${BINFILE_NODE}"
+    chmod a+x "${BINFILE_NODE}"
+fi
 
-echo "#!${NODEJS}
-var PodServer = require(\"${LIBPATH}/reds/pod/Server\");
-var config = require(\"${ETCFILE_POD}\");
-var server = new PodServer(config);
-server.run();" > "${BINFILE_POD}"
-
-chmod a+x "${BINFILE_NODE}"
-chmod a+x "${BINFILE_POD}"
+if [ ! -e "${BINFILE_NODE}" ]; then
+    echo "#!${NODEJS}
+    var PodServer = require(\"${LIBPATH}/reds/pod/Server\");
+    var config = require(\"${ETCFILE_POD}\");
+    var server = new PodServer(config);
+    server.run();" > "${BINFILE_POD}"
+    chmod a+x "${BINFILE_POD}"
+fi
 
 # INFO Create generic PostgreSQL user
 
