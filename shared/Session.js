@@ -5,8 +5,7 @@ var FacilityManager = require("./FacilityManager");
 var HttpError = require("./HttpError");
 
 var CryptoFacilities = new FacilityManager();
-CryptoFacilities.addFacility(require("./crypto/CryptoJs"));
-CryptoFacilities.addFacility(require("./crypto/Sjcl"));
+CryptoFacilities.addFacility(require("./crypto/NodeJs"));
 
 var StorageFacilities = new FacilityManager();
 StorageFacilities.addFacility(require("./storage/NodePg"));

@@ -27,7 +27,6 @@ Vault.resetClient = function(vid) {
 // INFO Facility managers
 
 var CryptoFacilities = new FacilityManager();
-CryptoFacilities.addFacility(window.reds ? reds.crypto.CryptoJs : require("../shared/crypto/CryptoJs"));
 CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl"));
 
 // INFO Client
