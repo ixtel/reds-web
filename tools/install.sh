@@ -22,7 +22,7 @@ PGROLE=${PGROLE-"${NAME}"}
 PGDATABASE_NODE=${PGDATABASE_NODE-"${NAME}_node"}
 PGDATABASE_POD=${PGDATABASE_POD-"${NAME}_pod"}
 
-NODEJS=${NODEJS-`which nodejs`}
+NODEJS=${NODEJS-`which node`}
 PODSALT=${PODSALT-`cat /dev/urandom | head -c 32 | base64`}
 PGPASSWORD=${PGPASSWORD-`cat /dev/urandom | tr -dc "A-Za-z0-9-_" | head -c 32`}
 
@@ -49,7 +49,7 @@ mkdir -p "${TMPPATH}"
 
 # INFO Download and install REDS library
 
-if [ ! -e ${LIBPATH} ]; then
+if [ ! -e "${LIBPATH}/reds" ]; then
     wget https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz -O "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
     tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
     mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
@@ -76,7 +76,7 @@ if [ ! -e "${ETCFILE_NODE}" ]; then
                 \"city\": \"text\"
             }
         },
-        \"crypto\": [\"sjcl-1\", \"cryptojs-1\"],
+        \"crypto\": [\"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"],
         \"storage\": {
             \"name\": \"nodepg-1\",
             \"options\": {
@@ -101,7 +101,7 @@ if [ ! -e "${ETCFILE_POD}" ]; then
         \"log\": null,
         \"password\": \"${PODPASSWORD}\",
         \"salt\": \"${PODSALT}\",
-        \"crypto\": [\"sjcl-1\", \"cryptojs-1\"],
+        \"crypto\": [\"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"],
         \"storage\": {
             \"name\": \"nodepg-1\",
             \"options\": {
@@ -122,7 +122,7 @@ if [ ! -e "${BINFILE_NODE}" ]; then
     chmod a+x "${BINFILE_NODE}"
 fi
 
-if [ ! -e "${BINFILE_NODE}" ]; then
+if [ ! -e "${BINFILE_POD}" ]; then
     echo "#!${NODEJS}
     var PodServer = require(\"${LIBPATH}/reds/pod/Server\");
     var config = require(\"${ETCFILE_POD}\");
