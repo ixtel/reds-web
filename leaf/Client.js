@@ -194,6 +194,19 @@ Client.prototype.$sendStreamRequest = function(options, hooks, did, callback, er
             if (--retries >= 0)
                 return start.bind(this);
         }
+        // TODO Pod should return 410 (gone) if the domain or ticket has been deleted.
+        // NOTE This operation is not save until the error signature has been checked!
+        else if (evt.detail.code==502 || evt.detail.code==401) {
+            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault (sendStreamRequest)")
+            delete Vault[this.vid].tickets[did];
+            delete Vault[this.vid].streams[did];
+            return function() {
+                this.updateVault(function() {
+                    this.$emitEvent("load", callback, null);
+                }.bind(this), errorCallback);
+                return false; // NOTE Block $emitEvent
+            };
+        }
         return hooks.error && hooks.error(evt);
     }
 }
@@ -801,10 +814,10 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     }
 
     function errorHook(evt) {
-        // TODO Return a 404 if the domain cannot be found and verify the
-        //      deletion certificate of the domain (which is also a TODO)
+        // TODO Pod should return 410 (gone) if the domain or ticket has been deleted.
+        // NOTE This operation is not save until the error signature has been checked!
         if (evt.detail.code==502 || evt.detail.code==401) {
-            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault")
+            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault (openStream)")
             delete Vault[this.vid].tickets[did];
             delete Vault[this.vid].streams[did];
             return function() {
@@ -1022,6 +1035,10 @@ Client.prototype.deleteAndSyncTickets = function(tids, did, callback, errorCallb
 }
 
 // INFO Invitation convenience functions
+
+Client.prototype.acceptAndSyncInvitation = function(ikey, iid, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.acceptInvitation, [ikey, iid], callback, errorCallback);
+}
 
 // TODO Handle collision, if an exchange with the same xid has been created since the last update.
 Client.prototype.createAndSyncExchange = function(tflags, did, callback, errorCallback) {

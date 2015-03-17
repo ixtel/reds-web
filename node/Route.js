@@ -104,7 +104,7 @@ exports.prototype.send = function(data, authorization) {
             return this.emit("error", new HttpError(response.statusCode, "pod returned error"));
 
         response.addListener("error", function(error) {
-            this.emit("error", new HttpError(502, error.message));
+            this.emit("error", new HttpError(504, error.message));
         }.bind(this));
 
         response.addListener("data", function(chunk) {
@@ -119,7 +119,7 @@ exports.prototype.send = function(data, authorization) {
     }
 
     function onError(error) {
-        this.emit("error", new HttpError(502, error.message));
+        this.emit("error", new HttpError(504, error.message));
     }
 }
 
