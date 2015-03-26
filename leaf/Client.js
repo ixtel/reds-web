@@ -65,6 +65,11 @@ Client.prototype.$upgradeVault = function(vault) {
             vault.tickets = vault.tickets||new Object();
             vault.invitations = vault.invitations||new Object();
             vault.exchanges = vault.exchanges||new Object();
+            vault.account = [
+                Date.now(),
+                vault.account['aid'],
+                vault.account['akey']	
+            ];
             for (id in vault.domain) {
                 vault.tickets[id] = [
                     vault.domain[id]['modified'],
@@ -179,7 +184,7 @@ Client.prototype.$sendStreamRequest = function(options, hooks, did, callback, er
             'path': options.path,
             'data': options.data,
             'realm': "stream",
-            'credentials': Vault[this.vid].streams[did]
+            'credentials': Vault[this.vid].streams[did],
         }, {
             'prepare': hooks.prepare,
             'load': hooks.load,
@@ -892,7 +897,7 @@ Client.prototype.createEntity = function(path, data, did, callback, errorCallbac
 Client.prototype.readEntities = function(path, did, callback, errorCallback) {
     this.$sendStreamRequest({
         'method': "GET",
-        'path': path,
+        'path': path
     }, {}, did, callback, errorCallback);
 }
 
