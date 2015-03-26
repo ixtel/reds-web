@@ -30,20 +30,17 @@ function parseSelection(selection) {
 
 exports.POST = function(session) {
     var route, eid;
-    if (session.selector.last.value) {
-        session.selector.hard = (session.selector.query == "hard");
-        session.storage.registerEntity(session.selector, session.type.options['did'], afterRegisterEntity);
-    }
-    else {
-        route = new Route(session.crypto, session.storage);
-        route.addListener("error", onRouteError);
-        route.addListener("ready", onRouteReady);
-        route.addListener("response", onRouteResponse);
-        route.resolve(session.type.options['did']);
-    }
+    route = new Route(session.crypto, session.storage);
+    route.addListener("error", onRouteError);
+    route.addListener("ready", onRouteReady);
+    route.addListener("response", onRouteResponse);
+    route.resolve(session.type.options['did']);
 
     function onRouteReady() {
-        session.storage.reserveEntity(session.selector, session.type.options['did'], afterReserveEntity);
+        if (session.selector.last.value)
+            afterReserveEntity(null, parseInt(session.selector.last.value));
+        else
+            session.storage.reserveEntity(session.selector, session.type.options['did'], afterReserveEntity);
     }
 
     function afterReserveEntity(error, result) {
@@ -51,7 +48,7 @@ exports.POST = function(session) {
             return session.abort(error);
         eid = result;
         route.method = "POST";
-        route.path = "/"+session.selector.last.key+"/"+eid;
+        route.path = "/"+session.selector.last.key+"/"+eid+(session.selector.last.value?"?relation":"");
         route.write(session.requestText, session.request.headers['content-type']);
         route.requestHeaders['authorization'] = session.request.headers['authorization'];
         route.send();
@@ -74,14 +71,8 @@ exports.POST = function(session) {
     function afterRegisterEntity(error, result) {
         if (error)
             return session.abort(error);
-        // TODO Support multiple MIME types
-        if (route) {
-            session.write(route.responseText, route.responseHeaders['content-type']);
-            session.response.setHeader("Authorization", route.responseHeaders['authorization']);
-        }
-        else {
-            session.writeJson(result);
-        }
+        session.write(route.responseText, route.responseHeaders['content-type']);
+        session.response.setHeader("Authorization", route.responseHeaders['authorization']);
         session.end(route.responseStatus);
     }
 }
@@ -93,7 +84,6 @@ exports.HEAD = function(session) {
         var dids, i;
         if (error)
             return session.abort(error);
-        console.log(result);
         if (!result || (result.length == 0)) {
             // NOTE Only return an error if the request asked for specific eids
             if (session.selector.last.value != "*")
@@ -206,21 +196,16 @@ exports.DELETE = function(session) {
         if (error)
             return session.abort(error);
         selection = parseSelection(result);
-        if (selection.path) {
-            if (!result) {
-                // NOTE Only return an error if the request asked for specific eids
-                if (session.selector.last.value != "*")
-                    return session.abort(new HttpError(404, "entities not found"));
-            }
-            route.method = "DELETE";
-            route.path = selection.path;
-            route.write(session.requestText, session.request.headers['content-type']);
-            route.requestHeaders['authorization'] = session.request.headers['authorization'];
-            route.send();
+        if (!result) {
+            // NOTE Only return an error if the request is not a pure relation operation and if it asked for specific eids
+            if (selection.path && session.selector.last.value != "*")
+                return session.abort(new HttpError(404, "entities not found"));
         }
-        else {
-            session.storage.unregisterEntities(session.selector, session.type.options['did'], afterUnregisterEntities);
-        }
+        route.method = "DELETE";
+        route.path = selection.path||"/"+session.selector.last.key+"/"+session.selector.last.value+"?relation";
+        route.write(session.requestText, session.request.headers['content-type']);
+        route.requestHeaders['authorization'] = session.request.headers['authorization'];
+        route.send();
     }
 
     function onRouteResponse() {

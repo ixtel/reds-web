@@ -15,11 +15,18 @@ exports.POST = function(session) {
         var values;
         if (error)
             return session.abort(error);
-        // NOTE We don't want to modify requestEncrypted so we clone it
-        values = JSON.parse(JSON.stringify(session.requestEncrypted));
-        values['eid'] = session.selector[0].value;
-        values['did'] = session.type.options['did'];
-        session.storage.createEntity(session.selector.last.key, values, afterCreateEntity);
+        if (session.selector.query == "relation") {
+            // TODO Read entity
+            afterCreateEntity(null, null);
+        }
+        else {
+            // NOTE We don't want to modify requestEncrypted so we clone it
+            values = JSON.parse(JSON.stringify(session.requestEncrypted));
+            console.log(values);
+            values['eid'] = session.selector[0].value;
+            values['did'] = session.type.options['did'];
+            session.storage.createEntity(session.selector.last.key, values, afterCreateEntity);
+        }
     }
 
     function afterCreateEntity(error, result) {
@@ -138,7 +145,10 @@ exports.DELETE = function(session) {
             return session.abort(new HttpError(400, "url types and ids mismatch"));
         for (i=0; i<eids.length; i++)
             eids[i] = eids[i].split(",");
-        session.storage.deleteEntities(types, eids, afterDeleteEntities);
+        if (session.selector.query == "relation")
+            session.storage.readEntities(types, eids, afterDeleteEntities);
+        else
+            session.storage.deleteEntities(types, eids, afterDeleteEntities);
     }
 
     function afterDeleteEntities(errors, result) {
