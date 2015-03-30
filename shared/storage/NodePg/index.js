@@ -731,8 +731,9 @@ exports.prototype.createEntity = function(type, values, callback) {
 }
 
 // TODO Check for SQL injection!
-exports.prototype.readEntities = function(types, eids, callback) {
+exports.prototype.readEntities = function(types, eids, fields, callback) {
     var values, errors, count;
+    fields = fields||"*";
     values = new Object();
     errors = new Array();
     types.forEach(readEntitiesForType.bind(this));
@@ -741,7 +742,7 @@ exports.prototype.readEntities = function(types, eids, callback) {
         var table;
         table = "\""+this.options['namespace']+"\".entity_"+type;
         count = index;
-        this.$client.query("SELECT * FROM "+table+" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
+        this.$client.query("SELECT "+fields+" FROM "+table+" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
 
         function afterQuery(error, result) {
             if (error)
@@ -811,8 +812,9 @@ exports.prototype.updateEntities = function(types, values, callback) {
 }
 
 // TODO Check for SQL injection!
-exports.prototype.deleteEntities = function(types, eids, callback) {
+exports.prototype.deleteEntities = function(types, eids, fields, callback) {
     var values, errors, count;
+    fields = fields||"*";
     values = new Object();
     errors = new Array();
     types.forEach(deleteEntitiesForType.bind(this));
@@ -821,7 +823,7 @@ exports.prototype.deleteEntities = function(types, eids, callback) {
         var table;
         table = "\""+this.options['namespace']+"\".entity_"+type;
         count = index;
-        this.$client.query("DELETE FROM "+table+" WHERE eid IN ("+eids[index].join(",")+") RETURNING *", afterQuery);
+        this.$client.query("DELETE FROM "+table+" WHERE eid IN ("+eids[index].join(",")+") RETURNING "+fields, afterQuery);
 
         function afterQuery(error, result) {
             if (error)

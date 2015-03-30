@@ -57,7 +57,7 @@ exports.GET = function(session) {
     session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
-        var types, eids, i;
+        var types, eids, fields, i;
         if (error)
             return session.abort(error);
         if (session.selector.last.value == null)
@@ -68,7 +68,9 @@ exports.GET = function(session) {
             return session.abort(new HttpError(400, "url types and ids mismatch"));
         for (i=0; i<eids.length; i++)
             eids[i] = eids[i].split(",");
-        session.storage.readEntities(types, eids, afterReadEntities);
+        if ((fields = session.selector.query) && (fields = session.selector.query.match(/(?:^|&)fields=([\w,]+)(?:&|$)$/)))
+            fields = fields[1].split(",");
+        session.storage.readEntities(types, eids, fields, afterReadEntities);
     }
 
     function afterReadEntities(errors, result) {
@@ -92,7 +94,7 @@ exports.PUT = function(session) {
     session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
-        var types, eids, values, i, j;
+        var types, eids, values, fields, i, j;
         if (error)
             return session.abort(error);
         types = session.selector.last.key.split(",");
@@ -136,7 +138,7 @@ exports.DELETE = function(session) {
     session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
-        var types, eids, values, i, j;
+        var types, eids, values, fields, i, j;
         if (error)
             return session.abort(error);
         types = session.selector.last.key.split(",");
@@ -145,10 +147,12 @@ exports.DELETE = function(session) {
             return session.abort(new HttpError(400, "url types and ids mismatch"));
         for (i=0; i<eids.length; i++)
             eids[i] = eids[i].split(",");
-        if (session.selector.query == "relation")
-            session.storage.readEntities(types, eids, afterDeleteEntities);
+        if ((fields = session.selector.query) && (fields = session.selector.query.match(/(?:^|&)fields=([\w,]+)(?:&|$)$/)))
+            fields = fields[1].split(",");
+        if (session.selector.query && session.selector.query.match(/(?:^|&)relation(?:&|$)/))
+            session.storage.readEntities(types, eids, fields, afterDeleteEntities);
         else
-            session.storage.deleteEntities(types, eids, afterDeleteEntities);
+            session.storage.deleteEntities(types, eids, fields, afterDeleteEntities);
     }
 
     function afterDeleteEntities(errors, result) {

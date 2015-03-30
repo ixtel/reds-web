@@ -60,7 +60,7 @@ exports.POST = function(session) {
         rselector = JSON.parse(JSON.stringify(session.selector));
         rselector.last = rselector[rselector.length-1];
         rselector.last.value = eid;
-        rselector.hard = true;
+        rselector.hard = true; // TODO Handle soft relations
         session.storage.registerEntity(rselector, session.type.options['did'], afterRegisterEntity);
     }
 
@@ -122,7 +122,10 @@ exports.GET = function(session) {
         }
         selection = parseSelection(result);
         route.method = "GET";
-        route.path = selection.path||"/"+session.selector.last.key;
+        if (selection.path)
+            route.path = selection.path+(session.selector.query?"?"+session.selector.query:"");
+        else
+            route.path = "/"+session.selector.last.key+(session.selector.query?"?"+session.selector.query:"");
         route.write(session.requestText, session.request.headers['content-type']);
         route.requestHeaders['authorization'] = session.request.headers['authorization'];
         route.send();
@@ -202,7 +205,10 @@ exports.DELETE = function(session) {
                 return session.abort(new HttpError(404, "entities not found"));
         }
         route.method = "DELETE";
-        route.path = selection.path||"/"+session.selector.last.key+"/"+session.selector.last.value+"?relation";
+        if (selection.path)
+            route.path = selection.path+(session.selector.query?"?"+session.selector.query:"");
+        else
+            route.path = "/"+session.selector.last.key+"/"+session.selector.last.value+"?relation"+(session.selector.query?"&"+session.selector.query:"");
         route.write(session.requestText, session.request.headers['content-type']);
         route.requestHeaders['authorization'] = session.request.headers['authorization'];
         route.send();
