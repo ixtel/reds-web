@@ -1107,13 +1107,30 @@ Client.prototype.cleanupAndSyncExchangesAndInvitations = function(ttl, callback,
     this.deletePendingExchanges(ttl, null, afterDeletePendingExchanges.bind(this), errorCallback);
 
     function afterDeletePendingExchanges(response) {
-        this.deletePendingInvitations(ttl, null, afterDeletePendingInvitations.bind(this), errorCallback);
+        this.deleteAndSyncPendingInvitations(ttl, null, afterDeletePendingInvitations.bind(this), errorCallback);
         return false; // NOTE Prevent event
     }
 
     function afterDeletePendingInvitations(response) {
-        this.createAndSyncTickets(null, callback, errorCallback);
+        this.createAndSyncTickets(null, callback, afterCreateAndSyncTicketsError.bind(this));
         return false; // NOTE Prevent event
+    }
+
+    // NOTE Return false for status 502 by default to prevent bad
+    //      gateway errors caused by unconfirmed invitations. 
+    function afterCreateAndSyncTicketsError(errors) {
+        var result, i;
+        result = errorCallback && errorCallback(errors);
+        if (result === undefined) {
+            for (i=0; i<errors.length; i++) {
+                if (errors[i] && errors[i].code == 502) {
+                    errors.splice(i, 1);
+                    i--;
+                }
+            }
+            result = errors.length ? result : false;
+        }
+        return result;
     }
 }
 
