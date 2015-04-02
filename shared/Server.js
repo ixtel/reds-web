@@ -20,13 +20,13 @@ exports.prototype.run = function() {
 }
 
 exports.prototype.setup = function() {
-    console.info("M "+process.pid+" starting workers"); // DEBUG
+    console.info("MASTER "+process.pid+" starting workers");
     for (var i = 0; i < this.config.workers; i++)
         cluster.fork();
 }
 
 exports.prototype.connect = function() {
-    console.info("W "+process.pid+" starting http server"); // DEBUG
+    console.info("WORKER "+process.pid+" starting http server");
     this.httpd = http.createServer();
     this.httpd.listen(this.config.port, this.config.host);
     this.httpd.addListener("listening", onListening.bind(this));
@@ -34,18 +34,18 @@ exports.prototype.connect = function() {
 
     function onListening() {
         var addr = this.httpd.address();
-        console.info("W "+process.pid+" listening at "+addr.address+":"+addr.port);
+        console.info("WORKER "+process.pid+" listening at "+addr.address+":"+addr.port);
         process.setgid(this.config.group);
-        console.info("W "+process.pid+" gid is now "+process.getgid());
+        console.info("WORKER "+process.pid+" gid is now "+process.getgid());
         process.setuid(this.config.user);
-        console.info("W "+process.pid+" uid is now "+process.getuid());
+        console.info("WORKER "+process.pid+" uid is now "+process.getuid());
         if (process.getuid() == 0)
-            console.warn("W "+process.pid+" process runs with root privileges!")
+            console.warn("WORKER "+process.pid+" process runs with root privileges!")
     }
 }
 
 exports.prototype.listen = function(request, response) {
-    console.log("W "+process.pid+" "+request.method+" "+request.url); // DEBUG
+    (this.config.log == "debug") && console.log("REQUEST "+request.method+" "+request.url+" (WORKER "+process.pid+")");
     response.setHeader("Pragma", "no-cache");
     response.setHeader("Cache-Control", "no-cache");
     response.setHeader("Expires", "-1");

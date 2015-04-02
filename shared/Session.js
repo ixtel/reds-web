@@ -33,8 +33,8 @@ CryptoFacilities.addFactoryToObject("createCryptoFacility", exports.prototype);
 StorageFacilities.addFactoryToObject("createStorageFacility", exports.prototype);
 
 exports.prototype.run = function() {
-    console.log("REQUEST "+this.request.headers["content-type"]); // DEBUG
-    //console.log("REQUEST "+this.request.headers["authorization"]); // DEBUG
+    (this.config.log == "debug") && console.log("REQUEST "+this.request.headers["content-type"]);
+    (this.config.log == "debug") && console.log("REQUEST "+this.request.headers["authorization"]);
     var lock = 2;
     // TODO Select crypto facility by content-type
     this.crypto = this.createCryptoFacility(this.config.crypto[0]);
@@ -53,7 +53,7 @@ exports.prototype.run = function() {
             return this.abort(error);
         if (--lock)
             return;
-        console.log("REQUEST "+this.requestText); // DEBUG
+        (this.config.log == "debug") && console.log("REQUEST "+this.requestText);
         this.delegate();
     }
 }
@@ -74,9 +74,9 @@ exports.prototype.end = function(status) {
     this.response.end();
     if (this.storage)
         this.storage.disconnect();
-    console.log("RESPONSE "+this.$responseText); // DEBUG
-    console.log("RESPONSE "+this.response.getHeader("Content-Type")); // DEBUG
-    //console.log("RESPONSE "+this.response.getHeader["Authorization"]); // DEBUG
+    (this.config.log == "debug") && console.log("RESPONSE "+this.$responseText);
+    (this.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader("Content-Type"));
+    (this.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader["Authorization"]);
 }
 
 exports.prototype.abort = function(error) {
