@@ -55,22 +55,17 @@ Request.prototype.$onLoad = function(evt) {
 }
 
 Request.prototype.$onError = function (evt) {
-    var error;
     try {
         window.removeEventListener("onBeforeOnload", this.$onBeforeOnload);
         if (evt.detail === undefined) {
             // NOTE There seems to be no way to get more information
             //      about the actual error that occured.
-            error = new Error("XMLHttpRequest network error");
-            evt.stopImmediatePropagation();
+            evt.detail = new Error("XMLHttpRequest network error");
         }
     }
     catch (e) {
-        evt.stopImmediatePropagation();
-        this.dispatchEvent(new CustomEvent("error", {'detail':e}));
-        return;
+        evt.detail = e;
     }
-    this.dispatchEvent(new CustomEvent("error", {'detail':error}));
 }
 
 
