@@ -177,19 +177,22 @@ Client.prototype.$sendStreamRequest = function(options, hooks, did, callback, er
     }
     
     function afterOpenStream(did) {
-        if (!did)
+        if (did) {	
+            this.$sendRequest({
+                'method': options.method,
+                'path': options.path,
+                'data': options.data,
+                'realm': "stream",
+                'credentials': Vault[this.vid].streams[did],
+            }, {
+                'prepare': hooks.prepare,
+                'load': hooks.load,
+                'error': errorHook.bind(this)
+            }, callback, errorCallback);
+        }
+        else {
             this.$emitEvent("load", callback, null);
-        this.$sendRequest({
-            'method': options.method,
-            'path': options.path,
-            'data': options.data,
-            'realm': "stream",
-            'credentials': Vault[this.vid].streams[did],
-        }, {
-            'prepare': hooks.prepare,
-            'load': hooks.load,
-            'error': errorHook.bind(this)
-        }, callback, errorCallback);
+        }
         return false; // NOTE Prevent event
     }
     
@@ -202,7 +205,7 @@ Client.prototype.$sendStreamRequest = function(options, hooks, did, callback, er
         // TODO Pod should return 410 (gone) if the domain or ticket has been deleted.
         // NOTE This operation is not save until the error signature has been checked!
         else if (evt.detail.code==502 || evt.detail.code==401) {
-            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault (sendStreamRequest)")
+            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault ("+did+")");
             delete Vault[this.vid].tickets[did];
             delete Vault[this.vid].streams[did];
             return function() {
@@ -822,7 +825,7 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
         // TODO Pod should return 410 (gone) if the domain or ticket has been deleted.
         // NOTE This operation is not save until the error signature has been checked!
         if (evt.detail.code==502 || evt.detail.code==401) {
-            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault (openStream)")
+            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault ("+did+")")
             delete Vault[this.vid].tickets[did];
             delete Vault[this.vid].streams[did];
             return function() {
