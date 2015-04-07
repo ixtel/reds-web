@@ -6,6 +6,11 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 // INFO Leaf client module
 
 var Request = function(client, options) {
+    // NOTE Remap event handler scope
+    this.$onLoad = this.$onLoad.bind(this);
+    this.$onError = this.$onError.bind(this);
+    this.$onBeforeOnload = this.$onBeforeOnload.bind(this);
+    // NOTE Protected properties
     this.$type = "application/octet-stream";
     this.$data = "";
     this.$responseText = undefined;
@@ -13,7 +18,9 @@ var Request = function(client, options) {
     this.$responseType = undefined
     this.$responseAuthorization = undefined
     this.$xhr = new XMLHttpRequest();
-    this.$xhr.addEventListener("load", this.$onLoad.bind(this), false);
+    this.$xhr.addEventListener("load", this.$onLoad, false);
+    this.$xhr.addEventListener("error", this.$onError, false)
+    // NOTE Public properties
     this.client = client;
     this.options = options;
     // NOTE Pass event handling to XMLHttpRequest
@@ -26,6 +33,7 @@ var Request = function(client, options) {
 //      Get the xhr status and pass it via a custom load event.
 Request.prototype.$onLoad = function(evt) {
     try {
+        window.removeEventListener("beforeunload", this.$onBeforeOnload);
         if (this.$xhr.status >= 400)
             throw new HttpError(this.$xhr.status, this.$xhr.statusText, this.$xhr.responseText);
         if (this.options.realm && this.options.credentials) {
@@ -44,6 +52,32 @@ Request.prototype.$onLoad = function(evt) {
         evt.stopImmediatePropagation();
         this.dispatchEvent(new CustomEvent("error", {'detail':e}));
     }
+}
+
+Request.prototype.$onError = function (evt) {
+    var error;
+    try {
+        window.removeEventListener("onBeforeOnload", this.$onBeforeOnload);
+        if (evt.detail === undefined) {
+            // NOTE There seems to be no way to get more information
+            //      about the actual error that occured.
+            error = new Error("XMLHttpRequest network error");
+            evt.stopImmediatePropagation();
+        }
+    }
+    catch (e) {
+        evt.stopImmediatePropagation();
+        this.dispatchEvent(new CustomEvent("error", {'detail':e}));
+        return;
+    }
+    this.dispatchEvent(new CustomEvent("error", {'detail':error}));
+}
+
+
+Request.prototype.$onBeforeOnload = function (evt) {
+    window.removeEventListener("onBeforeOnload", this.$onBeforeOnload);
+    console.warn("aborting HTTP request due to page unload");
+    this.$xhr.abort();
 }
 
 Request.prototype.write = function(data) {
@@ -114,6 +148,7 @@ Request.prototype.decrypt = function() {
 }
 
 Request.prototype.send = function() {
+    window.addEventListener("beforeunload", this.$onBeforeOnload, false);
     this.$xhr.open(this.options.method, this.client.options.url+this.options.path, true);
     if (this.options.realm && this.options.credentials) {
         if (this.options.realm == "stream")
