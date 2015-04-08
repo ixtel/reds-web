@@ -3,14 +3,14 @@
 # INFO Detect Node.js binary
 
 NODEJS=${NODEJS-`which nodejs`}
-if [ -z "${NAME}" ]
+if [ -z "${NODEJS}" ]; then
     NODEJS=${NODEJS-`which node`}
-    if [ -z "${NAME}" ]
+    if [ -z "${NODEJS}" ]; then
         echo "Node.js binary not found in path!"
         exit 1
     fi
 fi
-if [ ! -x "${NAME}" ]
+if [ ! -x "${NODEJS}" ]; then
     echo "Node.js binary is not executable!"
     exit 2
 fi
@@ -82,16 +82,16 @@ if [ ! -e "${ETCFILE}" ]; then
         \"user\": \"nobody\",
         \"group\": \"nogroup\",
         \"workers\": 1,
-        \"log\": "info",
+        \"log\": \"info\",
         \"salt\": \"${SALT}\",
         \"password\": \"${PODPASSWORD}\",
         \"crypto\": [
             \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
         ],
         \"storage\": {
-            \"name\": \"POSTGRESQL-1\",
+            \"name\": \"POSTGRESQL\",
             \"options\": {
-                \"connect\": \"postgres://${NODEPG_ROLE}:${NODEPG_PASSWORD}@localhost/${NODEPG_DATABASE}\"
+                \"connect\": \"postgres://${POSTGRESQL_ROLE}:${POSTGRESQL_PASSWORD}@localhost/${POSTGRESQL_DATABASE}\"
             }
         }
     }" > "${ETCFILE}"

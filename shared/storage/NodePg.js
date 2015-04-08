@@ -8,7 +8,7 @@ module.exports = exports = function(options) {
     this.options = options||null;
 }
 
-exports.prototype.name = "POSTGRESQL-1"
+exports.prototype.name = "POSTGRESQL"
 
 exports.prototype.connect = function(callback) {
     pg.connect(this.options.connect, afterConnect.bind(this));
