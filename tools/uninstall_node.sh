@@ -18,6 +18,7 @@ fi
 # INFO Define variables
 
 PREFIX=${PREFIX-"/usr/local"}
+RMLIB=${RMLIB-"auto"}
 
 BINPATH=${BINPATH-"${PREFIX}/bin"}
 LIBPATH=${LIBPATH-"${PREFIX}/lib"}
@@ -38,11 +39,13 @@ sudo -u postgres psql -c "DROP USER \"${POSTGRESQL_ROLE}\";"
 
 # INFO Remove files
 
-rm "${BINFILE}"
-rm "${ETCFILE}"
-rm "${ETCFILE}.sample"
-rm "${LOGFILE}"
-if [ ! `ls -A "${ETCPATH}/reds"` ]; then
-    rm -r "${ETCPATH}/reds"
-    rm -r "${LIBPATH}/reds"
+[ -f "${BINFILE}" ] && rm "${BINFILE}"
+[ -f "${ETCFILE}" ] && rm "${ETCFILE}"
+[ -f "${ETCFILE}.sample" ] && rm "${ETCFILE}.sample"
+[ -f "${LOGFILE}" ] && rm "${LOGFILE}"
+
+[ $RMLIB = auto ] && [ -d "${ETCPATH}/reds" ] && [ -z "`ls -A "${ETCPATH}/reds"`" ] && RMLIB=true
+if [ $RMLIB = true ]; then
+    [ -d "${ETCPATH}/reds" ] && rm -r "${ETCPATH}/reds"
+    [ -d "${LIBPATH}/reds" ] && rm -r "${LIBPATH}/reds"
 fi
