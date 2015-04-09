@@ -11,6 +11,6 @@ exports.prototype = Object.create(Server.prototype);
 
 exports.prototype.listen = function(request, response) {
     Server.prototype.listen.call(this, request, response);
-    var session = new PodSession(this.config, request, response);
+    var session = new PodSession(this, request, response);
     session.run();
 }

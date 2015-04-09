@@ -20,7 +20,7 @@ exports.POST = function(session) {
                     return session.abort(error);
             }
         }
-        pkey = session.crypto.generateSecureHash(session.config['password'], session.config['salt']);
+        pkey = session.crypto.generateSecureHash(session.server.config['password'], session.server.config['salt']);
         ikeyP = session.crypto.generateKeypair();
         ikey_ = session.crypto.combineKeypair(ikeyP.privateKey, session.requestJson['ikey_l']);
         session.storage.createInvitation({
@@ -38,7 +38,7 @@ exports.POST = function(session) {
             'iid': result['iid'],
             'ikey_l': session.requestJson['ikey_l'],
             'ikey_p': ikeyP.publicKey,
-            'psalt': session.config['salt']
+            'psalt': session.server.config['salt']
         };
         console.log(values);
         session.writeJson(values);

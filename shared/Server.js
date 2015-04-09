@@ -3,6 +3,13 @@
 var cluster = require("cluster");
 var http = require("http");
 var os = require("os");
+var FacilityManager = require("./FacilityManager");
+
+var CryptoFacilities = new FacilityManager();
+CryptoFacilities.addFacility(require("./crypto/NodeJs"));
+
+var StorageFacilities = new FacilityManager();
+StorageFacilities.addFacility(require("./storage/NodePg"));
 
 module.exports = exports = function(config) {
     this.config = config;
@@ -11,6 +18,9 @@ module.exports = exports = function(config) {
     if (this.config.workers == "cores")
         this.config.workers = os.cpus().length;
 }
+
+CryptoFacilities.addFactoryToObject("createCryptoFacility", exports.prototype);
+StorageFacilities.addFactoryToObject("createStorageFacility", exports.prototype);
 
 exports.prototype.run = function() {
     if (cluster.isMaster)

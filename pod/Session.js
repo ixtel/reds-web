@@ -5,9 +5,9 @@ var HttpError = require("../shared/HttpError");
 var TemporaryStorage = require("./TemporaryStorage");
 
 
-module.exports = exports = function(config, request, response) {
+module.exports = exports = function(server, request, response) {
     this.$requestEncrypted = undefined;
-    Session.call(this, config, request, response);
+    Session.call(this, server, request, response);
 }
 
 exports.prototype = Object.create(Session.prototype);
@@ -205,7 +205,7 @@ exports.prototype.signStream = function() {
 
 exports.prototype.signPod = function() {
     var pkey, time, msg, sig;
-    pkey = this.crypto.generateSecureHash(this.config['password'], this.config['salt']);
+    pkey = this.crypto.generateSecureHash(this.server.config['password'], this.server.config['salt']);
     time = this.crypto.generateTimestamp();
     msg = this.crypto.concatenateStrings("pod", 0, time, this.crypto.name, this.response.getHeader("Content-Type"), this.$responseText);
     sig = this.crypto.generateHmac(msg, pkey);

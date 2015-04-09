@@ -1,22 +1,15 @@
 "use strict";
 
 var events = require("events");
-var FacilityManager = require("./FacilityManager");
 var HttpError = require("./HttpError");
 
-var CryptoFacilities = new FacilityManager();
-CryptoFacilities.addFacility(require("./crypto/NodeJs"));
-
-var StorageFacilities = new FacilityManager();
-StorageFacilities.addFacility(require("./storage/NodePg"));
-
-module.exports = exports = function(config, request, response) {
+module.exports = exports = function(server, request, response) {
     events.EventEmitter.call(this);
     this.$requestJson = undefined;
     this.$responseText = undefined;
     this.$selector = undefined;
     this.$type = undefined;
-    this.config = config;
+    this.server = server;
     this.request = request;
     this.response = response;
     this.requestText = '';
@@ -29,17 +22,14 @@ exports.prototype = Object.create(events.EventEmitter.prototype);
 
 exports.prototype.HookHandlers = null;
 
-CryptoFacilities.addFactoryToObject("createCryptoFacility", exports.prototype);
-StorageFacilities.addFactoryToObject("createStorageFacility", exports.prototype);
-
 exports.prototype.run = function() {
-    (this.config.log == "debug") && console.log("REQUEST "+this.request.headers["content-type"]);
-    (this.config.log == "debug") && console.log("REQUEST "+this.request.headers["authorization"]);
+    (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["content-type"]);
+    (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["authorization"]);
     var lock = 2;
     // TODO Select crypto facility by content-type
-    this.crypto = this.createCryptoFacility(this.config.crypto[0]);
+    this.crypto = this.server.createCryptoFacility(this.server.config.crypto[0]);
     // TODO Select storage facility by selector
-    this.storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
+    this.storage = this.server.createStorageFacility(this.server.config.storage.name, this.server.config.storage.options);
     this.storage.connect(delegate.bind(this));
     this.request.addListener("data", receive.bind(this));
     this.request.addListener("end", delegate.bind(this));
@@ -53,7 +43,7 @@ exports.prototype.run = function() {
             return this.abort(error);
         if (--lock)
             return;
-        (this.config.log == "debug") && console.log("REQUEST "+this.requestText);
+        (this.server.config.log == "debug") && console.log("REQUEST "+this.requestText);
         this.delegate();
     }
 }
@@ -74,9 +64,9 @@ exports.prototype.end = function(status) {
     this.response.end();
     if (this.storage)
         this.storage.disconnect();
-    (this.config.log == "debug") && console.log("RESPONSE "+this.$responseText);
-    (this.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader("Content-Type"));
-    (this.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader["Authorization"]);
+    (this.server.config.log == "debug") && console.log("RESPONSE "+this.$responseText);
+    (this.server.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader("Content-Type"));
+    (this.server.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader["Authorization"]);
 }
 
 exports.prototype.abort = function(error) {

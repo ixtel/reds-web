@@ -3,8 +3,8 @@
 var Session = require("../shared/Session");
 var HttpError = require("../shared/HttpError");
 
-module.exports = exports = function(config, request, response) {
-    Session.call(this, config, request, response);
+module.exports = exports = function(server, request, response) {
+    Session.call(this, server, request, response);
 }
 
 exports.prototype = Object.create(Session.prototype);

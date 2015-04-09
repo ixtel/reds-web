@@ -28,6 +28,36 @@ exports.prototype.disconnect = function(callback) {
     callback && callback(null);
 }
 
+// INFO Type operation
+
+// TODO Delete old types
+// TODO Insert all types in one query
+exports.prototype.updateTypes = function(types, callback) {
+    var rows, count, i;
+    rows = new Array();
+    count = types.length;
+    for (i=0; i<types.length; i++) {
+        this.$client.query("INSERT INTO types (name) "+
+            "SELECT $1 WHERE NOT EXISTS (SELECT name FROM types WHERE name=$2) "+
+            "RETURNING tid,name",
+            [types[i], types[i]],
+        afterInsertQuery);
+    }
+
+    function afterInsertQuery(error, result) {
+        if (error) {
+            count = -1;
+            callback(error, null);
+        }
+        else if (count >= 0) {
+            if (result.rows[0])
+                rows.push(result.rows[0]);
+            if (--count <= 0)
+                callback(null, rows);
+        }
+    }
+}
+
 // INFO Pod operation
 
 exports.prototype.createPod = function(values, callback) {

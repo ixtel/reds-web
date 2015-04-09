@@ -9,18 +9,35 @@ module.exports = exports = function(config) {
 
 exports.prototype = Object.create(Server.prototype);
 
+exports.prototype.setup = function() {
+    var storage;
+    storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);
+    storage.connect(afterConnect.bind(this));
+
+    function afterConnect(error) {
+        if (error)
+            throw error;
+        storage.updateTypes(Object.keys(this.config.types), afterUpdateTypes.bind(this))	
+    }
+
+    function afterUpdateTypes(error, rows) {
+        var i;
+        if (error)
+            throw error;
+        for (i=0; i<rows.length; i++)
+            console.info("MASTER "+process.pid+" added type '"+rows[i]['name']+"'");
+        storage.disconnect(afterDisconnect.bind(this));
+    }
+
+    function afterDisconnect(error) {
+        if (error)
+            throw error;
+        Server.prototype.setup.call(this);
+    }
+}
+
 exports.prototype.listen = function(request, response) {
-    // TODO Activate CORS once the authorization header has been merged onto content-type
-    /*if (this.config.cors) {
-        response.setHeader('Access-Control-Allow-Origin', this.config.cors.origin);
-        if (request.method == 'OPTIONS') {
-            response.setHeader('Access-Control-Allow-Methods', this.config.cors.methods);
-            response.setHeader('Access-Control-Allow-Headers', this.config.cors.headers);
-            response.end();
-            return;
-        }
-    }*/
     Server.prototype.listen.call(this, request, response);
-    var session = new NodeSession(this.config, request, response);
+    var session = new NodeSession(this, request, response);
     session.run();
 }

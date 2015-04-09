@@ -28,8 +28,8 @@ exports.POST = function(session) {
         route.writeJson({
             'pid': route.pod['pid'],
             'auth_n': authN.publicKey,
-            'namespace': session.config.namespace,
-            'types': session.config.types
+            'namespace': session.server.config.namespace,
+            'types': session.server.config.types
         });
         route.send();
     }
