@@ -177,43 +177,27 @@ Client.prototype.$sendStreamRequest = function(options, hooks, did, callback, er
     }
     
     function afterOpenStream(did) {
-        if (did) {	
-            this.$sendRequest({
-                'method': options.method,
-                'path': options.path,
-                'data': options.data,
-                'realm': "stream",
-                'credentials': Vault[this.vid].streams[did],
-            }, {
-                'prepare': hooks.prepare,
-                'load': hooks.load,
-                'error': errorHook.bind(this)
-            }, callback, errorCallback);
-        }
-        else {
-            this.$emitEvent("load", callback, null);
-        }
+        this.$sendRequest({
+            'method': options.method,
+            'path': options.path,
+            'data': options.data,
+            'realm': "stream",
+            'credentials': Vault[this.vid].streams[did],
+        }, {
+            'prepare': hooks.prepare,
+            'load': hooks.load,
+            'error': errorHook.bind(this)
+        }, callback, errorCallback);
         return false; // NOTE Prevent event
     }
     
     function errorHook(evt) {
-        if (evt.detail.code == 412) {
+        // TODO Pod should return 419 (authentication timeout) instead of 502 (bad gateway) 
+        //      returned by the node, if the domain has been deleted.
+        if (evt.detail.code == 419 || evt.detail.code==502) {
             delete Vault[this.vid].streams[did];
             if (--retries >= 0)
                 return start.bind(this);
-        }
-        // TODO Pod should return 410 (gone) if the domain or ticket has been deleted.
-        // NOTE This operation is not save until the error signature has been checked!
-        else if (evt.detail.code==502 || evt.detail.code==401) {
-            console.info("ticket or domain has been deleted by forgein leaf, cleaning vault ("+did+")");
-            delete Vault[this.vid].tickets[did];
-            delete Vault[this.vid].streams[did];
-            return function() {
-                this.updateVault(function() {
-                    this.$emitEvent("load", callback, null);
-                }.bind(this), errorCallback);
-                return false; // NOTE Block $emitEvent
-            };
         }
         return hooks.error && hooks.error(evt);
     }
@@ -803,6 +787,7 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
         Vault[this.vid].streams[did] = null;
         skeyL = this.crypto.generateKeypair();
         options.data = {
+            'did': did,
             'skey_l': skeyL.publicKey
         };
     }
@@ -811,10 +796,12 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
         var skey, sid;
         skey = this.crypto.combineKeypair(skeyL.privateKey, evt.detail.data['skey_p']);
         sid = this.crypto.generateHmac(evt.detail.data['ssalt'], skey);
+        if (did !== evt.detail.data['did'])
+            throw new Error("leaf and pod did mismatch");
         Vault[this.vid].streams[evt.detail.data['did']] = [
-            Date.now(),                     // NOTE stream[0] = modified timestamp
-            sid,                            // NOTE stream[1] = stream id
-            skey,                           // NOTE stream[2] = stream key
+            Date.now(),                // NOTE stream[0] = modified timestamp
+            sid,                       // NOTE stream[1] = stream id
+            skey,                      // NOTE stream[2] = stream key
             evt.detail.data['tflags'], // NOTE stream[3] = ticket flags
             evt.detail.data['did']     // NOTE stream[4] = domain id
         ];
@@ -822,15 +809,16 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     }
 
     function errorHook(evt) {
-        // TODO Pod should return 410 (gone) if the domain or ticket has been deleted.
+        delete Vault[this.vid].streams[did];
         // NOTE This operation is not save until the error signature has been checked!
-        if (evt.detail.code==502 || evt.detail.code==401) {
+        // TODO Pod should return 401 (authentication failed) instead of 502 (bad gateway) 
+        //      returned by the node, if the domain has been deleted.
+        if (evt.detail.code==401 || evt.detail.code==502) {
             console.info("ticket or domain has been deleted by forgein leaf, cleaning vault ("+did+")")
             delete Vault[this.vid].tickets[did];
-            delete Vault[this.vid].streams[did];
             return function() {
                 this.updateVault(function() {
-                    this.$emitEvent("load", callback, null);
+                    this.$emitEvent("error", errorCallback, evt.detail);
                 }.bind(this), errorCallback);
                 return false; // NOTE Block $emitEvent
             };
@@ -838,12 +826,14 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
     }
     
     function waitForCompletion(start) {
-        if (Vault[this.vid].streams[did])
-            this.$emitEvent("load", callback, did);
-        else if (start+Date.now() > start+60000)
-            this.$emitEvent("error", errorCallback, new Error("stream creation timed out"));
-        else
-            setTimeout(waitForCompletion.bind(this), 100, start);
+        if (Vault[this.vid].streams[did] !== undefined) {
+            if (Vault[this.vid].streams[did])
+                this.$emitEvent("load", callback, did);
+            else if (start+Date.now() > start+60000)
+                this.$emitEvent("error", errorCallback, new Error("stream creation timed out"));
+            else
+                setTimeout(waitForCompletion.bind(this), 100, start);
+        }
     }
 }
 

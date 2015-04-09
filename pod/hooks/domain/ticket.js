@@ -76,10 +76,10 @@ exports.PUT = function(session) {
 }
 
 exports.DELETE = function(session) {
+    var tids;
     session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
-        var tids;
         if (error)
             return session.abort(error);
         tids = session.selector.last.value.split(",");
@@ -87,6 +87,9 @@ exports.DELETE = function(session) {
     }
 
     function afterCreateTicket(error, result) {
+        var i;
+        for (i=0; i<tids.length; i++)
+            session.streams.deleteTicket(tids[i]);
         session.writeEncrypted(result);
         session.signStream();
         session.end();

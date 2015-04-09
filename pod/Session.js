@@ -2,7 +2,7 @@
 
 var Session = require("../shared/Session");
 var HttpError = require("../shared/HttpError");
-var TemporaryStorage = require("./TemporaryStorage");
+var StreamStorage = require("./StreamStorage");
 
 
 module.exports = exports = function(server, request, response) {
@@ -13,7 +13,7 @@ module.exports = exports = function(server, request, response) {
 exports.prototype = Object.create(Session.prototype);
 
 // TODO Make ttl and ttd configurable
-exports.prototype.leafs = new TemporaryStorage(30000, 5000);
+exports.prototype.streams = new StreamStorage();
 
 exports.prototype.HookHandlers = {
     '/!/node': require("./hooks/node"),
@@ -145,7 +145,7 @@ exports.prototype.authorizeStream = function(callback) {
             throw new HttpError(400, "unsupported crypto facility");
         if (this.authorization['realm'] != "stream")
             throw new HttpError(400, "invalid realm");
-        stream = this.leafs.getItem(this.authorization['id']);
+        stream = this.streams.getItem(this.authorization['id']);
     }
     catch (e) {
         callback(e);
@@ -157,7 +157,7 @@ exports.prototype.authorizeStream = function(callback) {
             if (error)
                 throw error;
             if (!result || !result[0])
-                return callback(new HttpError(412, "unknown leaf"));
+                return callback(new HttpError(419, "unknown stream"));
             var msg = this.crypto.concatenateStrings(
                 'stream',
                 this.authorization['id'],
