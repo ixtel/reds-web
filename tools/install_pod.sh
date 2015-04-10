@@ -103,10 +103,10 @@ fi
 
 if [ ! -e "${BINFILE}" ]; then
     echo "#!${NODEJS}
-    var PodServer = require(\"${LIBPATH}/reds/pod/Server\");
-    var config = require(\"${ETCFILE}\");
-    var server = new PodServer(config);
-    server.run();" > "${BINFILE}"
+var PodServer = require(\"${LIBPATH}/reds/pod/Server\");
+var config = require(\"${ETCFILE}\");
+var server = new PodServer(config);
+server.run();" > "${BINFILE}"
     chmod a+x "${BINFILE}"
 fi
 

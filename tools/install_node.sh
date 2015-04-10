@@ -110,10 +110,10 @@ fi
 
 if [ ! -e "${BINFILE}" ]; then
     echo "#!${NODEJS}
-    var NodeServer = require(\"${LIBPATH}/reds/node/Server\");
-    var config = require(\"${ETCFILE}\");
-    var server = new NodeServer(config);
-    server.run();" > "${BINFILE}"
+var NodeServer = require(\"${LIBPATH}/reds/node/Server\");
+var config = require(\"${ETCFILE}\");
+var server = new NodeServer(config);
+server.run();" > "${BINFILE}"
     chmod a+x "${BINFILE}"
 fi
 
