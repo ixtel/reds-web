@@ -75,33 +75,33 @@ fi
 
 if [ ! -e "${ETCFILE}.sample" ]; then
     echo "{
-        \"host\": null,
-        \"port\": 5514,
-        \"user\": \"nobody\",
-        \"group\": \"nogroup\",
-        \"workers\": 1,
-        \"log\": \"debug\",
-        \"salt\": \"${SALT}\",
-        \"namespace\": \"${NAMESPACE}\",
-        \"types\": {
-            \"contact\": {
-                \"name\": \"text\"
-            },
-            \"address\": {
-                \"street\": \"text\",
-                \"city\": \"text\"
-            }
+    \"host\": null,
+    \"port\": 5514,
+    \"user\": \"nobody\",
+    \"group\": \"nogroup\",
+    \"workers\": 1,
+    \"log\": \"debug\",
+    \"salt\": \"${SALT}\",
+    \"namespace\": \"${NAMESPACE}\",
+    \"types\": {
+        \"contact\": {
+            \"name\": \"text\"
         },
-        \"crypto\": [
-            \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
-        ],
-        \"storage\": {
-            \"name\": \"POSTGRESQL\",
-            \"options\": {
-                \"connect\": \"postgres://${POSTGRESQL_ROLE}:${POSTGRESQL_PASSWORD}@localhost/${POSTGRESQL_DATABASE}\"
-            }
+        \"address\": {
+            \"street\": \"text\",
+            \"city\": \"text\"
         }
-    }" > "${ETCFILE}.sample"
+    },
+    \"crypto\": [
+        \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
+    ],
+    \"storage\": {
+        \"name\": \"POSTGRESQL\",
+        \"options\": {
+            \"connect\": \"postgres://${POSTGRESQL_ROLE}:${POSTGRESQL_PASSWORD}@localhost/${POSTGRESQL_DATABASE}\"
+        }
+    }
+}" > "${ETCFILE}.sample"
 fi
 
 # INFO Create start script

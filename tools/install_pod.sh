@@ -77,24 +77,24 @@ fi
 
 if [ ! -e "${ETCFILE}" ]; then
     echo "{
-        \"host\": null,
-        \"port\": 5614,
-        \"user\": \"nobody\",
-        \"group\": \"nogroup\",
-        \"workers\": 1,
-        \"log\": \"info\",
-        \"salt\": \"${SALT}\",
-        \"password\": \"${PODPASSWORD}\",
-        \"crypto\": [
-            \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
-        ],
-        \"storage\": {
-            \"name\": \"POSTGRESQL\",
-            \"options\": {
-                \"connect\": \"postgres://${POSTGRESQL_ROLE}:${POSTGRESQL_PASSWORD}@localhost/${POSTGRESQL_DATABASE}\"
-            }
+    \"host\": null,
+    \"port\": 5614,
+    \"user\": \"nobody\",
+    \"group\": \"nogroup\",
+    \"workers\": 1,
+    \"log\": \"info\",
+    \"salt\": \"${SALT}\",
+    \"password\": \"${PODPASSWORD}\",
+    \"crypto\": [
+        \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
+    ],
+    \"storage\": {
+        \"name\": \"POSTGRESQL\",
+        \"options\": {
+            \"connect\": \"postgres://${POSTGRESQL_ROLE}:${POSTGRESQL_PASSWORD}@localhost/${POSTGRESQL_DATABASE}\"
         }
-    }" > "${ETCFILE}"
+    }
+}" > "${ETCFILE}"
 fi
 
 # INFO Create start scripts
