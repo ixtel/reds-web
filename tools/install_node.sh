@@ -17,16 +17,18 @@ fi
 
 # INFO Read the node namespace
 
-echo "Node namespace"
-echo
-echo "The node namespace is a globally unique name that identifies your app on the pod."
-echo "To ensure that the namespace is really unique it is strongly recommended to derive"
-echo "the namespace from a domain you own:"
-echo
-echo "domain-toplevel.domain-name.application-name (e.g. com.flowyapps.flowynotes)"
-echo
-read -p "Namespace: " NAMESPACE
-echo
+if [ -z "${NAMESPACE}" ]; then
+    echo "Application namespace"
+    echo
+    echo "The namespace is a globally unique name that identifies your app on the pod."
+    echo "To ensure that the namespace is really unique it is strongly recommended to"
+    echo "derive the namespace from a domain you own:"
+    echo
+    echo "domain-toplevel.domain-name.application-name (e.g. com.flowyapps.flowynotes)"
+    echo
+    read -p "Namespace: " NAMESPACE
+    echo
+fi
 NAME=`expr "${NAMESPACE}" : '[A-Za-z0-9][A-Za-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9-]*\.\([A-Za-z0-9][A-Za-z0-9-]*\)'`
 if [ -z "${NAME}" ]; then
     echo "Invalid namespace format!"

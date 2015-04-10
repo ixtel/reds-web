@@ -2,13 +2,15 @@
 
 # INFO Read the node namespace
 
-echo "Application name"
-echo
-echo "Please enter the namespace of the REDS node you want to delete."
-echo "The namespace value can be found in the node config file."
-echo
-read -p "Namespace: " NAMESPACE
-echo
+if [ -z "${NAMESPACE}" ]; then
+    echo "Application namespace"
+    echo
+    echo "Please enter the namespace of the REDS node you want to delete."
+    echo "The namespace value can be found in the node config file."
+    echo
+    read -p "Namespace: " NAMESPACE
+    echo
+fi
 NAME=`expr "${NAMESPACE}" : '[A-Za-z0-9][A-Za-z0-9-]*\.[A-Za-z0-9][A-Za-z0-9-]*\.\([A-Za-z0-9][A-Za-z0-9-]*\)'`
 if [ -z "${NAME}" ]; then
     echo "Invalid namespace format!"

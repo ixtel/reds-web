@@ -15,24 +15,26 @@ if [ ! -x "${NODEJS}" ]; then
     exit 2
 fi
 
-# INFO Read the node namespace
+# INFO Read pod password
 
-echo "Pod password"
-echo
-echo "The pod password prevents others from using your pod to store their data on it."
-echo "Apart from that it also ensures thay you're really using your pod to store your data."
-echo "The pod password is not required to share data on your pod with others."
-echo
-stty -echo
-read -p "Password: " PODPASSWORD
-echo
-read -p "Confirmation: " CONFIRMATION
-echo
-echo
-stty echo
-if [ "${PODPASSWORD}" != "${CONFIRMATION}" ]; then
-    echo "The password and confirmation mismatch!"
-    exit 1
+if [ -z "${PASSWORD}" ]; then
+    echo "Pod password"
+    echo
+    echo "The pod password prevents others from using your pod to store their data on it."
+    echo "Apart from that it also ensures thay you're really using your pod to store your"
+    echo "data. The pod password is not required to share data on your pod with others."
+    echo
+    stty -echo
+    read -p "Password: " PASSWORD
+    echo
+    read -p "Confirmation: " CONFIRMATION
+    echo
+    echo
+    stty echo
+    if [ "${PASSWORD}" != "${CONFIRMATION}" ]; then
+        echo "The password and confirmation mismatch!"
+        exit 1
+    fi
 fi
 
 # INFO Define variables
@@ -84,7 +86,7 @@ if [ ! -e "${ETCFILE}" ]; then
     \"workers\": 1,
     \"log\": \"info\",
     \"salt\": \"${SALT}\",
-    \"password\": \"${PODPASSWORD}\",
+    \"password\": \"${PASSWORD}\",
     \"crypto\": [
         \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
     ],
