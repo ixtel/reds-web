@@ -19,20 +19,24 @@ fi
 
 # INFO Define variables
 
-PREFIX=${PREFIX-"/usr/local"}
-RMLIB=${RMLIB-"auto"}
+[ -z "$PREFIX" ] && PREFIX="/usr/local"
+[ -z "$RMLIB" ] && RMLIB="auto"
 
-BINPATH=${BINPATH-"${PREFIX}/bin"}
-LIBPATH=${LIBPATH-"${PREFIX}/lib"}
-ETCPATH=${ETCPATH-"${PREFIX}/etc"}
-LOGPATH=${LOGPATH-"/var/log"}
+[ -z "$BINPATH" ] && BINPATH="${PREFIX}/bin"
+[ -z "$LIBPATH" ] && LIBPATH="${PREFIX}/lib"
+[ -z "$ETCPATH" ] && ETCPATH="${PREFIX}/etc"
+[ -z "$LOGPATH" ] && LOGPATH="/var/log"
 
-BINFILE=${BINFILE-"${BINPATH}/${NAME}_node"}
-ETCFILE=${ETCFILE-"${ETCPATH}/reds/${NAME}_node.json"}
-LOGFILE=${LOGFILE-"${LOGPATH}/${NAME}_node.log"}
+[ -z "$BINFILE" ] && BINFILE="${BINPATH}/${NAME}_node"
+[ -z "$ETCFILE" ] && ETCFILE="${ETCPATH}/reds/${NAME}_node.json"
+[ -z "$LOGFILE" ] && LOGFILE="${LOGPATH}/${NAME}_node.log"
 
-POSTGRESQL_ROLE=${POSTGRESQL_ROLE-"${NAME}_node"}
-POSTGRESQL_DATABASE=${POSTGRESQL_DATABASE-"${NAME}_node"}
+[ -z "$POSTGRESQL_ROLE" ] && POSTGRESQL_ROLE="${NAME}_node"
+[ -z "$POSTGRESQL_DATABASE" ] && POSTGRESQL_DATABASE="${NAME}_node"
+
+# INFO Normalize PREFIX
+
+PREFIX="`CDPATH="" cd "$PREFIX" && pwd`"
 
 # INFO Cleanup PostgreSQL database
 

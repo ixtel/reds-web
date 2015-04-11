@@ -2,17 +2,32 @@
 
 # INFO Detect Node.js binary
 
-NODEJS=${NODEJS-`which nodejs`}
-if [ -z "${NODEJS}" ]; then
-    NODEJS=${NODEJS-`which nodejs`}
-    if [ -z "${NODEJS}" ]; then
-        echo "Node.js binary not found in path!"
-        exit 1
+if [ -z ${NODEBIN} ]; then
+    NODEBIN=`which nodejs`
+    if [ -z "${NODEBIN}" ]; then
+        NODEBIN=`which node`
     fi
 fi
-if [ ! -x "${NODEJS}" ]; then
-    echo "Node.js binary is not executable!"
+if [ ! -x "${NODEBIN}" ]; then
+    echo "Node.js binary not executable!"
     exit 2
+fi
+
+# INFO Detect git binary (or fallbacks)
+
+[ -z "$GITBIN" ] && GITBIN=`which git`
+if [ ! -x "${GITBIN}" ]; then
+    echo "Git binary not executable - trying to find fallback."
+    [ -z "$WGETBIN" ] && WGETBIN=`which wget`
+    if [ ! -x "${WGETBIN}" ]; then
+        echo "Wget binary not executable!"
+        exit 3
+    fi
+    [ -z "$TARBIN" ] && TARBIN=`which tar`
+    if [ ! -x "${TARBIN}" ]; then
+        echo "Tar binary not executable!"
+        exit 3
+    fi
 fi
 
 # INFO Read the node namespace
@@ -37,24 +52,27 @@ fi
 
 # INFO Define variables
 
-PREFIX=${PREFIX-"/usr/local"}
-BRANCH=${BRANCH-"master"}
-SALT=${SALT-`cat /dev/urandom | head -c 32 | base64`}
+[ -z "$PREFIX" ] && PREFIX="/usr/local"
+[ -z "$BRANCH" ] && BRANCH="master"
+[ -z "$SALT" ] && SALT=`cat /dev/urandom | head -c 32 | base64`
 
-BINPATH=${BINPATH-"${PREFIX}/bin"}
-LIBPATH=${LIBPATH-"${PREFIX}/lib"}
-ETCPATH=${ETCPATH-"${PREFIX}/etc"}
-LOGPATH=${LOGPATH-"/var/log"}
-TMPPATH=${TMPPATH-"/tmp"}
+[ -z "$BINPATH" ] && BINPATH="${PREFIX}/bin"
+[ -z "$LIBPATH" ] && LIBPATH="${PREFIX}/lib"
+[ -z "$ETCPATH" ] && ETCPATH="${PREFIX}/etc"
+[ -z "$LOGPATH" ] && LOGPATH="/var/log"
+[ -z "$TMPPATH" ] && TMPPATH="/tmp"
 
-BINFILE=${BINFILE-"${BINPATH}/${NAME}_node"}
-ETCFILE=${ETCFILE-"${ETCPATH}/reds/${NAME}_node.json"}
-LOGFILE=${LOGFILE-"${LOGPATH}/${NAME}_node.log"}
+[ -z "$BINFILE" ] && BINFILE="${BINPATH}/${NAME}_node"
+[ -z "$ETCFILE" ] && ETCFILE="${ETCPATH}/reds/${NAME}_node.json"
+[ -z "$LOGFILE" ] && LOGFILE="${LOGPATH}/${NAME}_node.log"
 
-POSTGRESQL_ROLE=${POSTGRESQL_ROLE-"${NAME}_node"}
-POSTGRESQL_PASSWORD=${POSTGRESQL_PASSWORD-`cat /dev/urandom | tr -dc "A-Za-z0-9-_" | head -c 32`}
-POSTGRESQL_DATABASE=${POSTGRESQL_DATABASE-"${NAME}_node"}
+[ -z "$POSTGRESQL_ROLE" ] && POSTGRESQL_ROLE="${NAME}_node"
+[ -z "$POSTGRESQL_PASSWORD" ] && POSTGRESQL_PASSWORD=`cat /dev/urandom | tr -dc "A-Za-z0-9-_" | head -c 32`
+[ -z "$POSTGRESQL_DATABASE" ] && POSTGRESQL_DATABASE="${NAME}_node"
 
+# INFO Normalize PREFIX
+
+PREFIX="`CDPATH="" cd "$PREFIX" && pwd`"
 
 # INFO Create required paths
 
@@ -67,10 +85,14 @@ mkdir -p "${TMPPATH}"
 # INFO Download and install REDS library
 
 if [ ! -e "${LIBPATH}/reds" ]; then
-    wget https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz -O "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
-    tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
-    mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
-    rm "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+    if [ ${GITBIN} ]; then
+        git clone -b ${BRANCH} https://github.com/flowyapps/reds-web "${LIBPATH}/reds"
+    else 
+        wget https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz -O "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+        tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
+        mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
+        rm "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+    fi
 fi
 
 # INFO Create config file
@@ -109,7 +131,7 @@ fi
 # INFO Create start script
 
 if [ ! -e "${BINFILE}" ]; then
-    echo "#!${NODEJS}
+    echo "#!${NODEBIN}
 var NodeServer = require(\"${LIBPATH}/reds/node/Server\");
 var config = require(\"${ETCFILE}\");
 var server = new NodeServer(config);

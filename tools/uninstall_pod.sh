@@ -2,21 +2,25 @@
 
 # INFO Define variables
 
-NAME=${NAME-"reds"}
-PREFIX=${PREFIX-"/usr/local"}
-RMLIB=${RMLIB-"auto"}
+[ -z "$NAME" ] && NAME="reds"
+[ -z "$PREFIX" ] && PREFIX="/usr/local"
+[ -z "$RMLIB" ] && RMLIB="auto"
 
-BINPATH=${BINPATH-"${PREFIX}/bin"}
-LIBPATH=${LIBPATH-"${PREFIX}/lib"}
-ETCPATH=${ETCPATH-"${PREFIX}/etc"}
-LOGPATH=${LOGPATH-"/var/log"}
+[ -z "$BINPATH" ] && BINPATH="${PREFIX}/bin"
+[ -z "$LIBPATH" ] && LIBPATH="${PREFIX}/lib"
+[ -z "$ETCPATH" ] && ETCPATH="${PREFIX}/etc"
+[ -z "$LOGPATH" ] && LOGPATH="/var/log"
 
-BINFILE=${BINFILE-"${BINPATH}/${NAME}_pod"}
-ETCFILE=${ETCFILE-"${ETCPATH}/reds/${NAME}_pod.json"}
-LOGFILE=${LOGFILE-"${LOGPATH}/${NAME}_pod.log"}
+[ -z "$BINFILE" ] && BINFILE="${BINPATH}/${NAME}_pod"
+[ -z "$ETCFILE" ] && ETCFILE="${ETCPATH}/reds/${NAME}_pod.json"
+[ -z "$LOGFILE" ] && LOGFILE="${LOGPATH}/${NAME}_pod.log"
 
-POSTGRESQL_ROLE=${POSTGRESQL_ROLE-"${NAME}_pod"}
-POSTGRESQL_DATABASE=${POSTGRESQL_DATABASE-"${NAME}_pod"}
+[ -z "$POSTGRESQL_ROLE" ] && POSTGRESQL_ROLE="${NAME}_pod"
+[ -z "$POSTGRESQL_DATABASE" ] && POSTGRESQL_DATABASE="${NAME}_pod"
+
+# INFO Normalize PREFIX
+
+PREFIX="`CDPATH="" cd "$PREFIX" && pwd`"
 
 # INFO Cleanup PostgreSQL database
 
