@@ -29,12 +29,12 @@ sudo -u postgres psql -c "DROP USER \"${POSTGRESQL_ROLE}\";"
 
 # INFO Remove files
 
-[ -f "${BINFILE}" ] && rm "${BINFILE}"
-[ -f "${ETCFILE}" ] && rm "${ETCFILE}"
-[ -f "${LOGFILE}" ] && rm "${LOGFILE}"
+[ -f "${BINFILE}" ] && rm -f "${BINFILE}"
+[ -f "${ETCFILE}" ] && rm -f "${ETCFILE}"
+[ -f "${LOGFILE}" ] && rm -f "${LOGFILE}"
 
 [ $RMLIB = auto ] && [ -d "${ETCPATH}/reds" ] && [ -z "`ls -A "${ETCPATH}/reds"`" ] && RMLIB=true
 if [ $RMLIB = true ]; then
-    [ -d "${ETCPATH}/reds" ] && rm -r "${ETCPATH}/reds"
-    [ -d "${LIBPATH}/reds" ] && rm -r "${LIBPATH}/reds"
+    [ -d "${ETCPATH}/reds" ] && rm -rf "${ETCPATH}/reds"
+    [ -d "${LIBPATH}/reds" ] && rm -rf "${LIBPATH}/reds"
 fi

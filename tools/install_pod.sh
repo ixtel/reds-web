@@ -70,7 +70,7 @@ fi
 [ -z "$LOGFILE" ] && LOGFILE="${LOGPATH}/${NAME}_pod.log"
 
 [ -z "$POSTGRESQL_ROLE" ] && POSTGRESQL_ROLE="${NAME}_pod"
-[ -z "$POSTGRESQL_PASSWORD" ] && POSTGRESQL_PASSWORD=`cat /dev/urandom | tr -dc "A-Za-z0-9-_" | head -c 32`
+[ -z "$POSTGRESQL_PASSWORD" ] && POSTGRESQL_PASSWORD=`cat /dev/urandom | LC_CTYPE=C tr -dc "A-Za-z0-9-_" | head -c 22`
 [ -z "$POSTGRESQL_DATABASE" ] && POSTGRESQL_DATABASE="${NAME}_pod"
 
 # INFO Normalize PREFIX
