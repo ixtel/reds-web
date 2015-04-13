@@ -1,10 +1,12 @@
 "use strict";
 
+var path = require("path");
 var Server = require("../shared/Server");
 var NodeSession = require("./Session");
 
 module.exports = exports = function(config) {
     Server.call(this, config);
+    this.config.types = require(path.dirname(this.$cfgfile)+"/"+this.config.types);
 }
 
 exports.prototype = Object.create(Server.prototype);

@@ -11,8 +11,9 @@ CryptoFacilities.addFacility(require("./crypto/NodeJs"));
 var StorageFacilities = new FacilityManager();
 StorageFacilities.addFacility(require("./storage/NodePg"));
 
-module.exports = exports = function(config) {
-    this.config = config;
+module.exports = exports = function(cfgfile) {
+    this.$cfgfile = cfgfile;
+    this.config = require(this.$cfgfile);
     this.httpd = null;
 
     if (this.config.workers == "cores")

@@ -127,8 +127,7 @@ fi
 if [ ! -e "${BINFILE}" ]; then
     echo "#!${NODEBIN}
 var PodServer = require(\"${LIBPATH}/reds/pod/Server\");
-var config = require(\"${ETCFILE}\");
-var server = new PodServer(config);
+var server = new PodServer(\"${ETCFILE}\");
 server.run();" > "${BINFILE}"
     chmod a+x "${BINFILE}"
 fi

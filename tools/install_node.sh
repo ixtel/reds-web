@@ -107,15 +107,7 @@ if [ ! -e "${ETCFILE}.sample" ]; then
     \"log\": \"debug\",
     \"salt\": \"${SALT}\",
     \"namespace\": \"${NAMESPACE}\",
-    \"types\": {
-        \"contact\": {
-            \"name\": \"text\"
-        },
-        \"address\": {
-            \"street\": \"text\",
-            \"city\": \"text\"
-        }
-    },
+    \"types\": \"/path/to/types.json\",
     \"crypto\": [
         \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
     ],
@@ -133,8 +125,7 @@ fi
 if [ ! -e "${BINFILE}" ]; then
     echo "#!${NODEBIN}
 var NodeServer = require(\"${LIBPATH}/reds/node/Server\");
-var config = require(\"${ETCFILE}\");
-var server = new NodeServer(config);
+var server = new NodeServer(\"${ETCFILE}\");
 server.run();" > "${BINFILE}"
     chmod a+x "${BINFILE}"
 fi
