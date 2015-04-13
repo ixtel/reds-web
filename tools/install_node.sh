@@ -97,7 +97,7 @@ fi
 
 # INFO Create config file
 
-if [ ! -e "${ETCFILE}.sample" ]; then
+if [ ! -e "${ETCFILE}" ]; then
     echo "{
     \"host\": null,
     \"port\": 5514,

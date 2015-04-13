@@ -32,12 +32,14 @@ sudo -u postgres psql -c "DROP USER \"${POSTGRESQL_ROLE}\";"
 [ -f "${BINFILE}" ] && rm -f "${BINFILE}"
 [ -f "${ETCFILE}" ] && rm -f "${ETCFILE}"
 [ -f "${LOGFILE}" ] && rm "${LOGFILE}"
-[ -d "${ETCPATH}/reds" ] && [ -z "`ls -A "${ETCPATH}/reds"`" ] && rm -rf "${ETCPATH}/reds" 
+[ -d "${ETCPATH}/reds" ] && [ -z "`ls -A "${ETCPATH}/reds" 2> /dev/null`" ] && rm -rf "${ETCPATH}/reds" 
 
 # INFO Remove library
 
 if [ $RMLIB = "auto" ]; then
+    echo "auto"
     RMLIB=false
-    [ -d "${ETCPATH}/reds" ] && [ -z "`ls -A "${ETCPATH}/reds/*_node.json"`" ] && [ -z "`ls -A "${ETCPATH}/reds/*_pod.json"`" ] && RMLIB=true
+    [ -d "${ETCPATH}/reds" ] && [ -z "`ls -A "${ETCPATH}/reds/"*_node.json 2> /dev/null`" ] && [ -z "`ls -A "${ETCPATH}/reds/"*_pod.json 2> /dev/null`" ] && RMLIB=true
 fi
+echo $RMLIB
 [ $RMLIB = true ] && [ -d "${LIBPATH}/reds" ] && rm -rf "${LIBPATH}/reds"
