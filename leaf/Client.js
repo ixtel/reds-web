@@ -298,7 +298,7 @@ Client.prototype.deleteAccount = function(callback, errorCallback) {
     }
 }
 
-Client.prototype.updateVault = function(callback, errorCallback) {
+Client.prototype.syncVault = function(callback, errorCallback) {
     var retries;
     retries = 3;
     start.call(this);
@@ -817,7 +817,7 @@ Client.prototype.openStream = function(did, callback, errorCallback) {
             console.info("ticket or domain has been deleted by forgein leaf, cleaning vault ("+did+")")
             delete Vault[this.vid].tickets[did];
             return function() {
-                this.updateVault(function() {
+                this.syncVault(function() {
                     this.$emitEvent("error", errorCallback, evt.detail);
                 }.bind(this), errorCallback);
                 return false; // NOTE Block $emitEvent
@@ -975,15 +975,15 @@ Client.prototype.$callMethodAndSyncVault = function(method, args, callback, erro
     method.apply(this, args);
 
     function afterMethodApply(response) {
-        this.updateVault(afterUpdateVault.bind(this), afterUpdateVaultError.bind(this));
+        this.syncVault(afterSyncVault.bind(this), afterSyncVaultError.bind(this));
         return false; // NOTE Prevent event
 
-        function afterUpdateVault() {
+        function afterSyncVault() {
             this.$emitEvent("load", callback, response);
             return false; // NOTE Prevent event
         }
 
-        function afterUpdateVaultError(error) {
+        function afterSyncVaultError(error) {
             console.warn("TODO Revert changes made by method (vault out of sync!)");
             this.$emitEvent("error", errorCallback, error);
             return false; // NOTE Prevent event
