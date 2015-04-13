@@ -104,10 +104,10 @@ if [ ! -e "${ETCFILE}.sample" ]; then
     \"user\": \"nobody\",
     \"group\": \"nogroup\",
     \"workers\": 1,
-    \"log\": \"debug\",
+    \"log\": \"info\",
     \"salt\": \"${SALT}\",
     \"namespace\": \"${NAMESPACE}\",
-    \"types\": \"/path/to/types.json\",
+    \"types\": \"${ETCPATH}/reds/${NAME}_types.json\",
     \"crypto\": [
         \"256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1\"
     ],
@@ -117,7 +117,7 @@ if [ ! -e "${ETCFILE}.sample" ]; then
             \"connect\": \"postgres://${POSTGRESQL_ROLE}:${POSTGRESQL_PASSWORD}@localhost/${POSTGRESQL_DATABASE}\"
         }
     }
-}" > "${ETCFILE}.sample"
+}" > "${ETCFILE}"
 fi
 
 # INFO Create start script
