@@ -991,6 +991,12 @@ Client.prototype.$callMethodAndSyncVault = function(method, args, callback, erro
     }
 }
 
+// INFO Account convenience functions
+
+Client.prototype.createAndSyncAccount = function(name, password, callback, errorCallback) {
+    this.$callMethodAndSyncVault(this.createAccount, [name, password], callback, errorCallback);
+}
+
 // INFO Domain convenience functions
 
 Client.prototype.deleteDomains = function(dids, callback, errorCallback) {
