@@ -6,7 +6,7 @@ The REDS concept allows users to decide freely where they want to store their da
 
 ## Installation
 
-If you want to **build your own REDS.web application** we recommend to take a look at the [REDS.web example](https://github.com/flowyapps/reds-web-example). The repository contains a simple webapp based on REDS.web. You can use the example to get a first impression of REDS and as a boilerplate for your own webapp based on REDS
+If you want to **build your own REDS.web application** we recommend to take a look at the [REDS.web example](https://github.com/flowyapps/reds-web-example). The repository contains a simple webapp based on REDS.web. You can use the example to get a first impression of REDS and as a boilerplate for your own webapp based on REDS.
 
 If you want to **set up you own REDS.web pod** just install the latest stable versions of *curl*, *git*, [*PostgreSQL*](http://www.postgresql.org/), [*Node.js*](https://nodejs.org/) and [*node-postgres*](https://github.com/brianc/node-postgres). Then run:
 
