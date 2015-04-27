@@ -18,9 +18,9 @@ fi
 [ -z "$GITBIN" ] && GITBIN=`which git`
 if [ ! -x "${GITBIN}" ]; then
     echo "Git binary not executable - trying to find fallback."
-    [ -z "$WGETBIN" ] && WGETBIN=`which wget`
-    if [ ! -x "${WGETBIN}" ]; then
-        echo "Wget binary not executable!"
+    [ -z "$CURLBIN" ] && CURLBIN=`which curl`
+    if [ ! -x "${CURLBIN}" ]; then
+        echo "Curl binary not executable!"
         exit 3
     fi
     [ -z "$TARBIN" ] && TARBIN=`which tar`
@@ -88,7 +88,7 @@ if [ ! -e "${LIBPATH}/reds" ]; then
     if [ ${GITBIN} ]; then
         git clone -b ${BRANCH} https://github.com/flowyapps/reds-web "${LIBPATH}/reds"
     else 
-        wget https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz -O "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+        "$CURLBIN" "https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz" -o "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
         tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
         mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
         rm "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
