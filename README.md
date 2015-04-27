@@ -1,6 +1,6 @@
 #REDS.web
 
-REDS.web is an open-source web application framework based on [the REDS data storage concept](https://github.com/flowyapps/reds-concept). The framework is mainly written in JavaScript and contains the code for all client- and server-side components required to run a webapp with REDS. It is still under development therefore we cannot recommended to use REDS.web on production systems right now.
+REDS.web is an open-source web application framework based on [the REDS data storage concept](https://github.com/flowyapps/reds-concept). The framework is mainly written in JavaScript and contains the code for all client- and server-side components required to run a webapp with REDS. It is still under development so take care if you to use REDS.web on production systems right now.
 
 The REDS concept allows users to decide freely where they want to store their data. All data transfers and account information are encrypted, so the webapp can be used privately and anonymously. However, the provider can still control the access to the webapp and its data, so it is still possible to run a service based on subscriptions or a freemium model.
 
@@ -18,7 +18,7 @@ You can start the pod with `/usr/local/bin/reds_pod`. It listens on port 8515.
 
 ## Documentation
 
-The [REDS.web Wiki](https://github.com/flowyapps/reds-web/wiki) contains the [Client module API documentation](https://github.com/flowyapps/reds-web/wiki/Client-module-API) as well as other texts that help you to get started. Like REDS itself the wiki is still under development and may change along with the code. All documents describing the REDS standard itself, are located in the [REDS.concept repository](https://github.com/flowyapps/reds-concept)  here on GitHub.
+The [REDS.web Wiki](https://github.com/flowyapps/reds-web/wiki) contains the [Client module API documentation](https://github.com/flowyapps/reds-web/wiki/Client-module-API) as well as other texts that help you to get started. All documents describing the REDS standard itself, are located in the [REDS.concept repository](https://github.com/flowyapps/reds-concept)  here on GitHub.
 
 ## Contact
 
