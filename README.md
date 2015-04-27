@@ -14,11 +14,9 @@ If you want to **set up you own REDS.web pod** just install the latest stable ve
 
 You can start the pod with `/usr/local/bin/reds_pod`. It listens on port 8515.
 
-*More details about the installation process can be found on the [node setup](https://github.com/flowyapps/reds-web/wiki/REDS-node-setup) and the [pod setup](https://github.com/flowyapps/reds-web/wiki/REDS-pod-setup) wiki pages.*
-
 ## Documentation
 
-The [REDS.web Wiki](https://github.com/flowyapps/reds-web/wiki) contains the [Client module API documentation](https://github.com/flowyapps/reds-web/wiki/Client-module-API) as well as other texts that help you to get started. All documents describing the REDS standard itself, are located in the [REDS.concept repository](https://github.com/flowyapps/reds-concept)  here on GitHub.
+The [REDS.web Wiki](https://github.com/flowyapps/reds-web/wiki) contains details about the [node-setup](https://github.com/flowyapps/reds-web/wiki/REDS-node-setup) and [pod-setup](https://github.com/flowyapps/reds-web/wiki/REDS-pod-setup), the [client API](https://github.com/flowyapps/reds-web/wiki/Client-module-API) as well as other texts that help you to get started. All documents describing the REDS standard itself, are located in the [REDS.concept repository](https://github.com/flowyapps/reds-concept)  here on GitHub.
 
 ## Contact
 
