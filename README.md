@@ -4,9 +4,17 @@ REDS.web is an open-source web application framework based on [the REDS data sto
 
 The REDS concept allows users to decide freely where they want to store their data. All data transfers and account information are encrypted, so the webapp can be used privately and anonymously. However, the provider can still control the access to the webapp and its data, so it is still possible to run a service based on subscriptions or a freemium model.
 
-## Example
+## Installation
 
-The [REDS.web example repository](https://github.com/flowyapps/reds-web-example) contains a simple webapp that uses the REDS.web framework to store all user generated data. You can use the example to get a first impression of REDS and as a boilerplate for your own webapp based on REDS. If you don't want to bother with the installion you can also download ready-to-use virtual machines from the [download section on reds.io](http://reds.io/download#vms).
+If you want to **build your own REDS.web application** we recommend to take a look at the [REDS.web example](https://github.com/flowyapps/reds-web-example). The repository contains a simple webapp based on REDS.web. You can use the example to get a first impression of REDS and as a boilerplate for your own webapp based on REDS
+
+If you want to **set up you own REDS.web pod** just install the latest stable versions of *curl*, *git*, [*PostgreSQL*](http://www.postgresql.org/), [*Node.js*](https://nodejs.org/) and [*node-postgres*](https://github.com/brianc/node-postgres). Then run:
+
+    sudo sh <(curl https://raw.githubusercontent.com/flowyapps/reds-web/master/tools/install_pod.sh)
+
+You can start the pod with `/usr/local/bin/reds_pod`. It listens on port 8515.
+
+*More details about the installation process can be found on the [node setup](https://github.com/flowyapps/reds-web/wiki/REDS-node-setup) and the [pod setup](https://github.com/flowyapps/reds-web/wiki/REDS-pod-setup) wiki pages.*
 
 ## Documentation
 
