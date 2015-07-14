@@ -120,6 +120,7 @@ exports.GET = function(session) {
             if (session.selector.last.value != "*")
                 return session.abort(new HttpError(404, "entities not found"));
         }
+        // NOTE Return empty response if URL contains no eids
         selection = parseSelection(result);
         route.method = "GET";
         if (selection.path)

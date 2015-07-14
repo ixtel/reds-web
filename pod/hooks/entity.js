@@ -60,6 +60,7 @@ exports.GET = function(session) {
         var types, eids, fields, i;
         if (error)
             return session.abort(error);
+        // NOTE Return empty response if URL contains no eids
         if (session.selector.last.value == null)
             return afterReadEntities(null, undefined);
         types = session.selector.last.key.split(",");
