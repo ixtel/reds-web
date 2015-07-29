@@ -288,7 +288,9 @@ Client.prototype.createAccount = function(name, password, callback, errorCallbac
 Client.prototype.deleteAccount = function(callback, errorCallback) {
     this.$sendRequest({
         'method': "DELETE",
-        'path': "/!/account/"+Vault[this.vid].account['aid']
+        'path': "/!/account/"+Vault[this.vid].account[1],
+        'realm': "account",
+        'credentials': Vault[this.vid].account
     }, {
         'load': loadHook.bind(this),
     }, callback, errorCallback);
