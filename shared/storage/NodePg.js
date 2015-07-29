@@ -806,19 +806,26 @@ exports.prototype.updateEntities = function(types, values, callback) {
         }
         for (i = 0; i < values[type].length; i++) {
             val = ""
+            // NOTE The currently used SQL query casts all values to text. Until this is
+            //      fixed we have to use explicit typecasting here.
             for (field in values[type][i]) {
-                params.push(values[type][i][field]);
-                // NOTE NodePG seems to escape numbers as strings when we
-                //      use the parameterized form here.
-                switch (typeof values[type][i][field]) {
-                    case "number":
-                        val += ",$"+params.length+"::real";
-                        break;
-                    case "boolean":
-                        val += ",$"+params.length+"::boolean";
-                        break;
-                    default:
-                        val += ",$"+params.length;
+                if (values[type][i][field] === null) {
+                    // NOTE Works only if automatic typecasting from integer to boolean is activated.
+                    //      This may have sideeffects: https://dba.stackexchange.com/a/46199
+                    val += ",NULL::integer";
+                }
+                else {
+                    params.push(values[type][i][field]);
+                    switch (typeof values[type][i][field]) {
+                        case "number":
+                            val += ",$"+params.length+(values[type][i][field]%1 === 0 ? "::integer" : "::real");
+                            break;
+                        case "boolean":
+                            val += ",$"+params.length+"::boolean";
+                            break;
+                        default:
+                            val += ",$"+params.length;
+                    }
                 }
             }
             vals.push("("+val.substr(1)+")");

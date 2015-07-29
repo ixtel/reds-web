@@ -138,3 +138,6 @@ sudo -u postgres psql -c "CREATE USER \"${POSTGRESQL_ROLE}\" WITH PASSWORD '${PO
 sudo -u postgres psql -c "CREATE DATABASE \"${POSTGRESQL_DATABASE}\" WITH TEMPLATE = template0 OWNER = \"${POSTGRESQL_ROLE}\";"
 sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -f "${LIBPATH}/reds/shared/storage/postgresql/pod.sql"
 sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.nodes OWNER TO \"${POSTGRESQL_ROLE}\";"
+# NOTE The typecasting workaround for update entity calls requires automatic typecasting from integer to boolean.
+#      This may have sideeffects: https://dba.stackexchange.com/a/46199
+sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "UPDATE pg_cast SET castcontext='a' WHERE casttarget = 'boolean'::regtype;"
