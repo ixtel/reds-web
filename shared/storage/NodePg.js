@@ -818,7 +818,12 @@ exports.prototype.updateEntities = function(types, values, callback) {
                     params.push(values[type][i][field]);
                     switch (typeof values[type][i][field]) {
                         case "number":
-                            val += ",$"+params.length+(values[type][i][field]%1 === 0 ? "::integer" : "::real");
+                            if (values[type][i][field]%1 === 0)
+                                // NOTE I'm pretty sure the differentiation between bigint and integer
+                                //      is broken for negative values near -0xFFFF ;)
+                                val += ",$"+params.length+(Math.abs(values[type][i][field])>0xFFFF ? "::bigint" : "::integer");
+                            else
+                                val += ",$"+params.length+"::real";
                             break;
                         case "boolean":
                             val += ",$"+params.length+"::boolean";
