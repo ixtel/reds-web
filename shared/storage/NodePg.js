@@ -2,6 +2,10 @@
 
 var pg = require("pg");
 
+// NOTE This is a workaroud for the missing bigint support in NodePg.
+//      https://github.com/brianc/node-pg-parse-float/issues/3
+pg.types.setTypeParser(20, 'text', parseInt);
+
 module.exports = exports = function(options) {
     this.$client = null;
     this.$done = null;
