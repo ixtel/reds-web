@@ -40,8 +40,8 @@ PREFIX="`CDPATH="" cd "$PREFIX" && pwd`"
 
 # INFO Cleanup PostgreSQL database
 
-sudo -u postgres psql -c "DROP DATABASE \"${POSTGRESQL_DATABASE}\";"
-sudo -u postgres psql -c "DROP USER \"${POSTGRESQL_ROLE}\";"
+su postgres -c "psql -c \"DROP DATABASE \\\"${POSTGRESQL_DATABASE}\\\";\""
+su postgres -c "psql -c \"DROP USER \\\"${POSTGRESQL_ROLE}\\\";\""
 
 # INFO Remove files
 

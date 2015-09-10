@@ -30,6 +30,19 @@ if [ ! -x "${GITBIN}" ]; then
     fi
 fi
 
+#INFO Detech openssl binary (or fallback)
+
+[ -z "$OSSLBIN" ] && OSSLBIN=`which openssl`
+if [ ! -x "${OSSLBIN}" ]; then
+    echo -n "OpenSSL binary not executable - trying to find fallback... "
+    [ -z "$B64BIN" ] && B64BIN=`which base64`
+    if [ ! -x "${B64BIN}" ]; then
+        echo "Base64 binary not executable!"
+        exit 3
+    fi
+    echo "found."
+fi
+
 # INFO Read the node namespace
 
 if [ -z "${NAMESPACE}" ]; then
@@ -54,7 +67,11 @@ fi
 
 [ -z "$PREFIX" ] && PREFIX="/usr/local"
 [ -z "$BRANCH" ] && BRANCH="master"
-[ -z "$SALT" ] && SALT=`cat /dev/urandom | head -c 32 | base64`
+if [ ${OSSLBIN} ]; then
+    [ -z "$SALT" ] && SALT=`cat /dev/urandom | head -c 32 | ${OSSLBIN} base64`
+else
+    [ -z "$SALT" ] && SALT=`cat /dev/urandom | head -c 32 | ${B64BIN}`
+fi
 
 [ -z "$BINPATH" ] && BINPATH="${PREFIX}/bin"
 [ -z "$LIBPATH" ] && LIBPATH="${PREFIX}/lib"
@@ -88,7 +105,7 @@ if [ ! -e "${LIBPATH}/reds" ]; then
     if [ ${GITBIN} ]; then
         git clone -b ${BRANCH} https://github.com/flowyapps/reds-web "${LIBPATH}/reds"
     else 
-        "$CURLBIN" "https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz" -o "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+        "$CURLBIN" "https://codeload.github.com/flowyapps/reds-web/tar.gz/${BRANCH}" -o "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
         tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
         mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
         rm "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
@@ -132,13 +149,13 @@ fi
 
 # INFO Setup PostgreSQL database
 
-sudo -u postgres psql -c "CREATE USER \"${POSTGRESQL_ROLE}\" WITH PASSWORD '${POSTGRESQL_PASSWORD}';"
-sudo -u postgres psql -c "CREATE DATABASE \"${POSTGRESQL_DATABASE}\" WITH TEMPLATE = template0 OWNER = \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -f "${LIBPATH}/reds/shared/storage/postgresql/node.sql"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.accounts OWNER TO \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.domains OWNER TO \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.entities OWNER TO \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.invitations OWNER TO \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.pods OWNER TO \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.relations OWNER TO \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.types OWNER TO \"${POSTGRESQL_ROLE}\";"
+su postgres -c "psql -c \"CREATE USER \\\"${POSTGRESQL_ROLE}\\\" WITH PASSWORD '${POSTGRESQL_PASSWORD}';\""
+su postgres -c "psql -c \"CREATE DATABASE \"${POSTGRESQL_DATABASE}\" WITH TEMPLATE = template0 OWNER = \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -f \"${LIBPATH}/reds/shared/storage/postgresql/node.sql\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.accounts OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.domains OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.entities OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.invitations OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.pods OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.relations OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.types OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""

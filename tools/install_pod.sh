@@ -17,7 +17,7 @@ fi
 
 [ -z "$GITBIN" ] && GITBIN=`which git`
 if [ ! -x "${GITBIN}" ]; then
-    echo "Git binary not executable - trying to find fallback."
+    echo -n "Git binary not executable - trying to find fallback... "
     [ -z "$CURLBIN" ] && CURLBIN=`which curl`
     if [ ! -x "${CURLBIN}" ]; then
         echo "Curl binary not executable!"
@@ -28,6 +28,20 @@ if [ ! -x "${GITBIN}" ]; then
         echo "Tar binary not executable!"
         exit 3
     fi
+    echo "found."
+fi
+
+#INFO Detech openssl binary (or fallback)
+
+[ -z "$OSSLBIN" ] && OSSLBIN=`which openssl`
+if [ ! -x "${OSSLBIN}" ]; then
+    echo -n "OpenSSL binary not executable - trying to find fallback... "
+    [ -z "$B64BIN" ] && B64BIN=`which base64`
+    if [ ! -x "${B64BIN}" ]; then
+        echo "Base64 binary not executable!"
+        exit 3
+    fi
+    echo "found."
 fi
 
 # INFO Read pod password
@@ -57,7 +71,11 @@ fi
 [ -z "$NAME" ] && NAME="reds"
 [ -z "$PREFIX" ] && PREFIX="/usr/local"
 [ -z "$BRANCH" ] && BRANCH="master"
-[ -z "$SALT" ] && SALT=`cat /dev/urandom | head -c 32 | base64`
+if [ ${OSSLBIN} ]; then
+    [ -z "$SALT" ] && SALT=`cat /dev/urandom | head -c 32 | ${OSSLBIN} base64`
+else
+    [ -z "$SALT" ] && SALT=`cat /dev/urandom | head -c 32 | ${B64BIN}`
+fi
 
 [ -z "$BINPATH" ] && BINPATH="${PREFIX}/bin"
 [ -z "$LIBPATH" ] && LIBPATH="${PREFIX}/lib"
@@ -91,7 +109,7 @@ if [ ! -e "${LIBPATH}/reds" ]; then
     if [ ${GITBIN} ]; then
         "${GITBIN}" clone -b ${BRANCH} https://github.com/flowyapps/reds-web "${LIBPATH}/reds"
     else 
-        "$CURLBIN" "https://github.com/flowyapps/reds-web/archive/${BRANCH}.tar.gz" -o "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
+        "$CURLBIN" "https://codeload.github.com/flowyapps/reds-web/tar.gz/${BRANCH}" -o "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
         tar xfz "${TMPPATH}/reds-web-${BRANCH}.tar.gz" -C "${TMPPATH}"
         mv "${TMPPATH}/reds-web-${BRANCH}" "${LIBPATH}/reds"
         rm "${TMPPATH}/reds-web-${BRANCH}.tar.gz"
@@ -134,10 +152,10 @@ fi
 
 # INFO Setup PostgreSQL database
 
-sudo -u postgres psql -c "CREATE USER \"${POSTGRESQL_ROLE}\" WITH PASSWORD '${POSTGRESQL_PASSWORD}';"
-sudo -u postgres psql -c "CREATE DATABASE \"${POSTGRESQL_DATABASE}\" WITH TEMPLATE = template0 OWNER = \"${POSTGRESQL_ROLE}\";"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -f "${LIBPATH}/reds/shared/storage/postgresql/pod.sql"
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "ALTER TABLE public.nodes OWNER TO \"${POSTGRESQL_ROLE}\";"
+su postgres -c "psql -c \"CREATE USER \\\"${POSTGRESQL_ROLE}\\\" WITH PASSWORD '${POSTGRESQL_PASSWORD}';\""
+su postgres -c "psql -c \"CREATE DATABASE \\\"${POSTGRESQL_DATABASE}\\\" WITH TEMPLATE = template0 OWNER = \\\"${POSTGRESQL_ROLE}\\\";\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -f \"${LIBPATH}/reds/shared/storage/postgresql/pod.sql\""
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"ALTER TABLE public.nodes OWNER TO \\\"${POSTGRESQL_ROLE}\\\";\""
 # NOTE The typecasting workaround for update entity calls requires automatic typecasting from integer to boolean.
 #      This may have sideeffects: https://dba.stackexchange.com/a/46199
-sudo -u postgres psql -d ${POSTGRESQL_DATABASE} -c "UPDATE pg_cast SET castcontext='a' WHERE casttarget = 'boolean'::regtype;"
+su postgres -c "psql -d ${POSTGRESQL_DATABASE} -c \"UPDATE pg_cast SET castcontext='a' WHERE casttarget = 'boolean'::regtype;\""
