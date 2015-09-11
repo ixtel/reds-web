@@ -1,6 +1,13 @@
 "use strict";
 
-var pg = require("pg");
+// NOTE Load node-postgres with native bindings if available
+try {
+    var pg = require("pg").native;
+}
+catch (e) {
+    console.warn("WARNING Native pg bindings not available, falling back to JavaScript");
+    pg = require("pg");
+}
 
 // NOTE This is a workaroud for the missing bigint support in NodePg.
 //      https://github.com/brianc/node-pg-parse-float/issues/3
