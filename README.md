@@ -1,12 +1,10 @@
 #REDS.web
 
-REDS.web is an open-source web application framework based on [the REDS data storage concept](https://github.com/flowyapps/reds-concept). The framework is mainly written in JavaScript and contains the code for all client- and server-side components required to run a webapp with REDS. It is still under development so take care if you to use REDS.web on production systems right now. 
+REDS.web is an open-source web application framework based on the REDS data storage. The framework is mainly written in JavaScript and contains the code for all client- and server-side components required to run a webapp with REDS. It is still under development so take care if you to use REDS.web on production systems right now. 
 
 The REDS concept allows users to decide freely where they want to store their data. All data transfers and account information are encrypted, so the webapp can be used privately and anonymously. However, the provider can still control the access to the webapp and its data, so it is still possible to run a service based on subscriptions or a freemium model.
 
 ## Installation
-
-If you want to **build your own REDS.web application** we recommend to take a look at the [REDS.web example](https://github.com/flowyapps/reds-web-example). The repository contains a simple webapp based on REDS.web. You can use the example to get a first impression of REDS and as a boilerplate for your own webapp based on REDS.
 
 If you want to **set up you own REDS.web pod** just install the latest stable versions of *curl*, *git*, [*PostgreSQL*](http://www.postgresql.org/), [*Node.js*](https://nodejs.org/) and [*node-postgres*](https://github.com/brianc/node-postgres). Then run:
 
