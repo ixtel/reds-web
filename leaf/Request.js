@@ -15,11 +15,11 @@ var Request = function(client, options) {
     this.$data = "";
     this.$responseText = undefined;
     this.$responseJson = undefined;
-    this.$responseType = undefined
+    this.$responseType = undefined;
     this.$responseAuthorization = undefined
     this.$xhr = new XMLHttpRequest();
     this.$xhr.addEventListener("load", this.$onLoad, false);
-    this.$xhr.addEventListener("error", this.$onError, false)
+    this.$xhr.addEventListener("error", this.$onError, false);
     // NOTE Public properties
     this.client = client;
     this.options = options;
@@ -32,6 +32,11 @@ var Request = function(client, options) {
 // TODO HTTP Error have to handled after verification (!) by the client!
 //      Get the xhr status and pass it via a custom load event.
 Request.prototype.$onLoad = function(evt) {
+    var s = Date.now()-this.$s;
+    var l = this.$xhr.responseText.length+this.$l;
+    console.log("send->$onLoad took "+s+" ms");
+    console.log("send->$onload size: "+l+" B");
+    console.log("send->$onload speed: "+(l/s)+" kB/s");
     try {
         window.removeEventListener("beforeunload", this.$onBeforeOnload);
         if (this.$xhr.status >= 400)
@@ -153,6 +158,8 @@ Request.prototype.send = function() {
     this.$xhr.setRequestHeader("Content-Type", this.$type);
     // NOTE Sending the data as a blob prevents Firefox (and maybe other browsers)
     //      from adding a charset value to the content-type header.
+    this.$s = Date.now();
+    this.$l = this.$data.length;
     return this.$xhr.send(new Blob([this.$data]));
 }
 
