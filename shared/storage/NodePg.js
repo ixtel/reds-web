@@ -750,6 +750,7 @@ exports.prototype.unregisterEntities = function(selector, did, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.createEntity = function(type, values, callback) {
+    var s = Date.now();
     var table, fields, vals, params, field;
     table = "\""+this.options['namespace']+"\".entity_"+type;
     fields = new Array();
@@ -767,12 +768,14 @@ exports.prototype.createEntity = function(type, values, callback) {
     afterQuery);
 
     function afterQuery(error, result) {
+        console.log("BENCHMARK createEntity took "+(Date.now()-s)+" ms");
         callback(error||null, result?result.rows[0]:null);
     }
 }
 
 // TODO Check for SQL injection!
 exports.prototype.readEntities = function(types, eids, fields, callback) {
+    var s = Date.now();
     var values, errors, count;
     fields = fields||"*";
     values = new Object();
@@ -790,14 +793,17 @@ exports.prototype.readEntities = function(types, eids, fields, callback) {
                 errors.push(error);
             else
                 values[type] = result.rows;
-            if (--count < 0)
+            if (--count < 0) {
+                console.log("BENCHMARK readEntities took "+(Date.now()-s)+" ms");
                 callback(errors.length?errors:null, errors.length?null:values);
+            }
         }
     }
 }
 
 // TODO Check for SQL injection!
 exports.prototype.updateEntities = function(types, values, callback) {
+    var s = Date.now();
     var rvalues, errors, count;
     rvalues = new Object();
     errors = new Array();
@@ -849,7 +855,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
         this.$client.query("UPDATE "+table+" t SET "+set.join(",")+" "+
             "FROM (VALUES "+vals.join(",")+") AS v("+fields.join(",")+") "+
             "WHERE t.eid = v.eid "+
-            "RETURNING *",
+            "RETURNING t.eid,t.did",
             params,
         afterQuery);
 
@@ -858,14 +864,17 @@ exports.prototype.updateEntities = function(types, values, callback) {
                 errors.push(error);
             else
                 rvalues[type] = result.rows;
-            if (--count < 0)
+            if (--count < 0) {
+                console.log("BENCHMARK updateEntities took "+(Date.now()-s)+" ms");
                 callback(errors.length?errors:null, errors.length?null:rvalues);
+            }
         }
     }
 }
 
 // TODO Check for SQL injection!
 exports.prototype.deleteEntities = function(types, eids, fields, callback) {
+    var s = Date.now();
     var values, errors, count;
     fields = fields||"*";
     values = new Object();
@@ -883,8 +892,10 @@ exports.prototype.deleteEntities = function(types, eids, fields, callback) {
                 errors.push(error);
             else
                 values[type] = result.rows;
-            if (--count < 0)
+            if (--count < 0) {
+                console.log("BENCHMARK deleteEntities took "+(Date.now()-s)+" ms");
                 callback(errors.length?errors:null, errors.length?null:values);
+            }
         }
     }
 }

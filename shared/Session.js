@@ -23,6 +23,7 @@ exports.prototype = Object.create(events.EventEmitter.prototype);
 exports.prototype.HookHandlers = null;
 
 exports.prototype.run = function() {
+    (this.server.config.log == "benchmark") && (this.$s = Date.now());
     (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["content-type"]);
     (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["authorization"]);
     var lock = 2;
@@ -33,6 +34,7 @@ exports.prototype.run = function() {
     this.storage.connect(delegate.bind(this));
     this.request.addListener("data", receive.bind(this));
     this.request.addListener("end", delegate.bind(this));
+    (this.server.config.log == "benchmark") && this.request.addListener("end", benchmark.bind(this));
 
     function receive(chunk) {
         this.requestText += chunk;
@@ -45,6 +47,13 @@ exports.prototype.run = function() {
             return;
         (this.server.config.log == "debug") && console.log("REQUEST "+this.requestText);
         this.delegate();
+    }
+
+    function benchmark() {
+        var s = Date.now()-this.$s;
+    console.log("BENCHMARK receive time "+s+" ms");
+    console.log("BENCHMARK receive size: "+this.requestText.length+" B");
+    console.log("BENCHMARK receive speed: "+(this.requestText.length/s)+" kB/s");
     }
 }
 
@@ -67,6 +76,7 @@ exports.prototype.end = function(status) {
     (this.server.config.log == "debug") && console.log("RESPONSE "+this.$responseText);
     (this.server.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader("Content-Type"));
     (this.server.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader["Authorization"]);
+    (this.server.config.log == "benchmark") && console.log("BENCHMARK session time "+(Date.now()-this.$s)+" ms");
 }
 
 exports.prototype.abort = function(error) {
