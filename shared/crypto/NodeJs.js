@@ -109,19 +109,6 @@ NodeJs.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
     console.log("BENCHMARK combineKeypair took "+(Date.now()-s)+" ms");
     return r;
 }
-NodeJs.prototype.combineKeypairSjcl = function(privateKey, publicKey, padKey) {
-    if (padKey)
-        console.warn("Pad key still in use!");
-    var privateBits = sjcl.codec.base64.toBits(privateKey);
-    var publicBits = sjcl.bitArray.bitSlice(sjcl.codec.base64.toBits(publicKey), 8);
-    var privateBn = sjcl.bn.fromBits(privateBits);
-    var publicBn = sjcl.ecc.curves.k256.fromBits(publicBits);
-    var sharedBn = publicBn.mult(privateBn);
-    //var keyBits = sjcl.hash.sha256.hash(sharedBn.toBits());
-    var keyBits = 	sjcl.bitArray.clamp(sharedBn.toBits(), 256);
-    return sjcl.codec.base64.fromBits(keyBits);
-}
-//NodeJs.prototype.combineKeypair = NodeJs.prototype.combineKeypairSjcl;
 
 NodeJs.prototype.generateHmac = function(data, key) {
     var s = Date.now();

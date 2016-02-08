@@ -152,8 +152,6 @@ Sjcl.prototype.decryptData = function(cdata, key, vector) {
     }
 }
 
-Sjcl.prototype.generateKeypair();
-
 // NOTE Export when loaded as a CommonJS module, add to global reds object otherwise.
 typeof exports=='object' ? module.exports=exports=Sjcl : ((self.reds=self.reds||new Object()).crypto=self.reds.crypto||new Object()).Sjcl = Sjcl;
 
