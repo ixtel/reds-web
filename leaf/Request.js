@@ -6,6 +6,7 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 // INFO Leaf client module
 
 var Request = function(client, options) {
+    console.log("BENCHMARK new request");
     // NOTE Remap event handler scope
     this.$onLoad = this.$onLoad.bind(this);
     this.$onError = this.$onError.bind(this);
@@ -34,9 +35,9 @@ var Request = function(client, options) {
 Request.prototype.$onLoad = function(evt) {
     var s = Date.now()-this.$s;
     var l = this.$xhr.responseText.length+this.$l;
-    console.log("send->$onLoad took "+s+" ms");
-    console.log("send->$onload size: "+l+" B");
-    console.log("send->$onload speed: "+(l/s)+" kB/s");
+    console.log("BENCHMARK request took "+s+" ms");
+    console.log("BENCHMARK request size: "+l+" B");
+    console.log("BENCHMARK request speed: "+(l/s)+" kB/s");
     try {
         window.removeEventListener("beforeunload", this.$onBeforeOnload);
         if (this.$xhr.status >= 400)

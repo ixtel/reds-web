@@ -23,6 +23,7 @@ exports.prototype = Object.create(events.EventEmitter.prototype);
 exports.prototype.HookHandlers = null;
 
 exports.prototype.run = function() {
+    (this.server.config.log == "benchmark") && console.log("BENCHMARK run session");
     (this.server.config.log == "benchmark") && (this.$s = Date.now());
     (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["content-type"]);
     (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["authorization"]);

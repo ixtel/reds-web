@@ -20,29 +20,39 @@ var Sjcl = function() {
 Sjcl.prototype.name = "256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1";
 
 Sjcl.prototype.generateTimestamp = function() {
+    var s = Date.now();
     var now = Date.now();
     var low = now&0xffffffff;
     var high = Math.floor(now/0xffffffff);
     var timeBytes = [high, low];
     var saltBytes = sjcl.random.randomWords(6, 10);
-    return sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes));
+    var r = sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes));
+    console.log("BENCHMARK generateKeypair took "+(Date.now()-s)+" ms");
+    return r;
 }
 
 Sjcl.prototype.compareTimestamps = function(a, b) {
+    var s = Date.now();
     var timeA = sjcl.codec.base64.toBits(a);
     var timeB = sjcl.codec.base64.toBits(b);
     var nowA = timeA[0]*0x100000000 + timeA[1];
     var nowB = timeB[0]*0x100000000 + timeB[1];
-    return nowA - nowB;
+    var r = nowA - nowB;
+    console.log("BENCHMARK compareTimestamps took "+(Date.now()-s)+" ms");
+    return r;
 }
 
 // TODO Check if \n exists in arguments
 Sjcl.prototype.concatenateStrings = function() {
+    var s = Date.now();
     var values = Array.prototype.slice.apply(arguments);
-    return values.join("\n");
+    var r = values.join("\n");
+    console.log("BENCHMARK concatenateStrings  took "+(Date.now()-s)+" ms");
+    return r;
 }
 
 Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
+    var s = Date.now();
     var index = sjcl.hash.sha256.hash(this.concatenateStrings(data, salt));
     index = sjcl.codec.base64.fromBits(index); 
     if (!fresh && cache[index])
@@ -50,27 +60,36 @@ Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
     //console.warn("TODO Increase pbkdf2 iterations to 128000 before release.");
     var hashBits = sjcl.misc.pbkdf2(data, salt, 128000, 256);
     cache[index] = sjcl.codec.base64.fromBits(hashBits);
-    return cache[index];
+    var r = cache[index];
+    console.log("BENCHMARK generateSecureHash took "+(Date.now()-s)+" ms");
+    return r;
 }
 
 Sjcl.prototype.generateKey = function() {
+    var s = Date.now();
     var keyBits = sjcl.random.randomWords(8, 10);
-    return sjcl.codec.base64.fromBits(keyBits);
+    var r = sjcl.codec.base64.fromBits(keyBits);
+    console.log("BENCHMARK generateKey took "+(Date.now()-s)+" ms");
+    return r;
 }
 
 Sjcl.prototype.generateKeypair = function() {
+    var s = Date.now();
     var privateBn = sjcl.bn.random(sjcl.ecc.curves.k256.r, 10);
     var pointBn = sjcl.ecc.curves.k256.G.mult(privateBn);
     // NOTE [0x80004000000] is the bitArray representation of the 0x04
     //      header byte for uncompressed public keys.
     var publicBits = sjcl.bitArray.concat([0x80004000000], pointBn.toBits());
-    return {
+    var r = {
         'privateKey': sjcl.codec.base64.fromBits(privateBn.toBits()),
         'publicKey': sjcl.codec.base64.fromBits(publicBits)
     }
+    console.log("BENCHMARK generateKeypair took "+(Date.now()-s)+" ms");
+    return r;
 }
 
 Sjcl.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
+    var s = Date.now();
     if (padKey)
         console.warn("Pad key still in use!");
     var privateBits = sjcl.codec.base64.toBits(privateKey);
@@ -80,7 +99,9 @@ Sjcl.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
     var sharedBn = publicBn.mult(privateBn);
     //var keyBits = sjcl.hash.sha256.hash(sharedBn.toBits());
     var keyBits = 	sjcl.bitArray.clamp(sharedBn.toBits(), 256);
-    return sjcl.codec.base64.fromBits(keyBits);
+    var r = sjcl.codec.base64.fromBits(keyBits);
+    console.log("BENCHMARK combineKeypair took "+(Date.now()-s)+" ms");
+    return r;
 }
 
 Sjcl.prototype.generateHmac = function(data, key) {
@@ -89,7 +110,7 @@ Sjcl.prototype.generateHmac = function(data, key) {
     var sha256Hmac = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
     var hmacBits = sha256Hmac.encrypt(data);
     var r = sjcl.codec.base64.fromBits(hmacBits);
-    console.log("generateHmac took "+(Date.now()-s)+" ms");
+    console.log("BENCHMARK generateHmac took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -101,7 +122,7 @@ Sjcl.prototype.encryptData = function(data, key, vector) {
     var aes128Cipher = new sjcl.cipher.aes(keyBits);
     var cdataBits = sjcl.mode.ctr.encrypt(aes128Cipher, dataBits, ivBits);
     var r = sjcl.codec.base64.fromBits(cdataBits);
-    console.log("encryptData took "+(Date.now()-s)+" ms");
+    console.log("BENCHMARK encryptData took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -114,7 +135,7 @@ Sjcl.prototype.decryptData = function(cdata, key, vector) {
         var aes128Cipher = new sjcl.cipher.aes(keyBits);
         var dataBits = sjcl.mode.ctr.decrypt(aes128Cipher, cdataBits, ivBits);
         var r = sjcl.codec.utf8String.fromBits(dataBits);
-        console.log("decryptData took "+(Date.now()-s)+" ms");
+        console.log("BENCHMARK decryptData took "+(Date.now()-s)+" ms");
         return r;
     }
     catch (e) {
