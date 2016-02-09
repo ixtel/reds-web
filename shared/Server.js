@@ -4,12 +4,14 @@ var cluster = require("cluster");
 var http = require("http");
 var os = require("os");
 var FacilityManager = require("./FacilityManager");
+var CryptoNodejs = require("./crypto/NodeJs");
+var StorageNodePg = require("./storage/NodePg");
 
 var CryptoFacilities = new FacilityManager();
-CryptoFacilities.addFacility(require("./crypto/NodeJs"));
+CryptoFacilities.addFacility(CryptoNodejs);
 
 var StorageFacilities = new FacilityManager();
-StorageFacilities.addFacility(require("./storage/NodePg"));
+StorageFacilities.addFacility(StorageNodePg);
 
 module.exports = exports = function(cfgfile) {
     this.$cfgfile = cfgfile;
@@ -22,6 +24,11 @@ module.exports = exports = function(cfgfile) {
 
 CryptoFacilities.addFactoryToObject("createCryptoFacility", exports.prototype);
 StorageFacilities.addFactoryToObject("createStorageFacility", exports.prototype);
+
+exports.prototype.$enableBenchmarks = function() {
+    CryptoNodejs.prototype.$benchmark = true;
+    StorageNodePg.prototype.$benchmark = true;
+}
 
 exports.prototype.run = function() {
     if (cluster.isMaster)

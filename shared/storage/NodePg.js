@@ -19,13 +19,16 @@ module.exports = exports = function(options) {
     this.options = options||null;
 }
 
+exports.prototype.$benchmark = false;
+
 exports.prototype.name = "POSTGRESQL"
 
 exports.prototype.connect = function(callback) {
+    if (this.$benchmark) var s = Date.now();
     pg.connect(this.options.connect, afterConnect.bind(this));
-    pg.end();
 
     function afterConnect(error, client, done) {
+        if (this.$benchmark) console.log("BENCHMARK storage/NodePg connect took "+(Date.now()-s)+" ms");
         if (!client)
             error = new Error("unable to create pg client");
         this.$client = client;
@@ -750,7 +753,7 @@ exports.prototype.unregisterEntities = function(selector, did, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.createEntity = function(type, values, callback) {
-    var s = Date.now();
+    if (this.$benchmark) var s = Date.now();
     var table, fields, vals, params, field;
     table = "\""+this.options['namespace']+"\".entity_"+type;
     fields = new Array();
@@ -765,17 +768,17 @@ exports.prototype.createEntity = function(type, values, callback) {
         "VALUES ("+vals.join(",")+") "+
         "RETURNING *",
         params,
-    afterQuery);
+    afterQuery.bind(this));
 
     function afterQuery(error, result) {
-        console.log("BENCHMARK createEntity took "+(Date.now()-s)+" ms");
+        if (this.$benchmark) console.log("BENCHMARK storage/NodePg createEntity took "+(Date.now()-s)+" ms");
         callback(error||null, result?result.rows[0]:null);
     }
 }
 
 // TODO Check for SQL injection!
 exports.prototype.readEntities = function(types, eids, fields, callback) {
-    var s = Date.now();
+    if (this.$benchmark) var s = Date.now();
     var values, errors, count;
     fields = fields||"*";
     values = new Object();
@@ -786,7 +789,7 @@ exports.prototype.readEntities = function(types, eids, fields, callback) {
         var table;
         table = "\""+this.options['namespace']+"\".entity_"+type;
         count = index;
-        this.$client.query("SELECT "+fields+" FROM "+table+" WHERE eid IN ("+eids[index].join(",")+")", afterQuery);
+        this.$client.query("SELECT "+fields+" FROM "+table+" WHERE eid IN ("+eids[index].join(",")+")", afterQuery.bind(this));
 
         function afterQuery(error, result) {
             if (error)
@@ -794,7 +797,7 @@ exports.prototype.readEntities = function(types, eids, fields, callback) {
             else
                 values[type] = result.rows;
             if (--count < 0) {
-                console.log("BENCHMARK readEntities took "+(Date.now()-s)+" ms");
+                if (this.$benchmark) console.log("BENCHMARK storage/NodePg readEntities took "+(Date.now()-s)+" ms");
                 callback(errors.length?errors:null, errors.length?null:values);
             }
         }
@@ -803,7 +806,7 @@ exports.prototype.readEntities = function(types, eids, fields, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.updateEntities = function(types, values, callback) {
-    var s = Date.now();
+    if (this.$benchmark) var s = Date.now();
     var rvalues, errors, count;
     rvalues = new Object();
     errors = new Array();
@@ -857,7 +860,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
             "WHERE t.eid = v.eid "+
             "RETURNING t.eid,t.did",
             params,
-        afterQuery);
+        afterQuery.bind(this));
 
         function afterQuery(error, result) {
             if (error)
@@ -865,7 +868,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
             else
                 rvalues[type] = result.rows;
             if (--count < 0) {
-                console.log("BENCHMARK updateEntities took "+(Date.now()-s)+" ms");
+                if (this.$benchmark) console.log("BENCHMARK storage/NodePg updateEntities took "+(Date.now()-s)+" ms");
                 callback(errors.length?errors:null, errors.length?null:rvalues);
             }
         }
@@ -874,7 +877,7 @@ exports.prototype.updateEntities = function(types, values, callback) {
 
 // TODO Check for SQL injection!
 exports.prototype.deleteEntities = function(types, eids, fields, callback) {
-    var s = Date.now();
+    if (this.$benchmark) var s = Date.now();
     var values, errors, count;
     fields = fields||"*";
     values = new Object();
@@ -885,7 +888,7 @@ exports.prototype.deleteEntities = function(types, eids, fields, callback) {
         var table;
         table = "\""+this.options['namespace']+"\".entity_"+type;
         count = index;
-        this.$client.query("DELETE FROM "+table+" WHERE eid IN ("+eids[index].join(",")+") RETURNING "+fields, afterQuery);
+        this.$client.query("DELETE FROM "+table+" WHERE eid IN ("+eids[index].join(",")+") RETURNING "+fields, afterQuery.bind(this));
 
         function afterQuery(error, result) {
             if (error)
@@ -893,7 +896,7 @@ exports.prototype.deleteEntities = function(types, eids, fields, callback) {
             else
                 values[type] = result.rows;
             if (--count < 0) {
-                console.log("BENCHMARK deleteEntities took "+(Date.now()-s)+" ms");
+                if (this.$benchmark) console.log("BENCHMARK storage/NodePg deleteEntities took "+(Date.now()-s)+" ms");
                 callback(errors.length?errors:null, errors.length?null:values);
             }
         }

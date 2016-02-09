@@ -151,11 +151,11 @@ Client.prototype.$sendRequest = function(options, hooks, callback, errorCallback
                 this.$emitEvent("error", errorCallback, e);
             }
         }
-        if (this.$benchmark) console.log("BENCHMARK sendRequest time 1: "+(Date.now()-s)+" ms");
+        if (this.$benchmark) console.log("BENCHMARK sendRequest send() end: "+(Date.now()-s)+" ms");
     }
 
     function onLoad(evt) {
-        if (this.$benchmark) console.log("BENCHMARK sendRequest time 2: "+(Date.now()-s)+" ms");
+        if (this.$benchmark) console.log("BENCHMARK sendRequest onLoad() start: "+(Date.now()-s)+" ms");
         var outfunc;
         try {
             if (hooks.load)
@@ -166,7 +166,7 @@ Client.prototype.$sendRequest = function(options, hooks, callback, errorCallback
         }
         if ((typeof(outfunc) !== 'function') || (outfunc.call(this) !== false))
             this.$emitEvent("load", callback, evt.detail.data);
-        if (this.$benchmark) console.log("BENCHMARK sendRequest time 3: "+(Date.now()-s)+" ms");
+        if (this.$benchmark) console.log("BENCHMARK sendRequest onLoad() end: "+(Date.now()-s)+" ms");
     }
     
     function onError(evt) {

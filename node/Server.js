@@ -11,6 +11,11 @@ module.exports = exports = function(config) {
 
 exports.prototype = Object.create(Server.prototype);
 
+exports.prototype.$enableBenchmarks = function() {
+    Server.prototype.$enableBenchmarks.call(this);
+    NodeSession.prototype.$benchmark = true;
+}
+
 exports.prototype.setup = function() {
     var storage;
     storage = this.createStorageFacility(this.config.storage.name, this.config.storage.options);

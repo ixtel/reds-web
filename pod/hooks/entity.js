@@ -46,6 +46,7 @@ exports.POST = function(session) {
 }
 
 exports.GET = function(session) {
+    if (session.$benchmark) console.log("BENCHMARK entity/get start "+(Date.now()-session.$s)+" ms");
     if (session.selector.last.key == null)
         return 
     if (session.selector.length != 1)
@@ -57,6 +58,7 @@ exports.GET = function(session) {
     session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
+        if (session.$benchmark) console.log("BENCHMARK entity/get afterAuthorization() start "+(Date.now()-session.$s)+" ms");
         var types, eids, fields, i;
         if (error)
             return session.abort(error);
@@ -75,6 +77,7 @@ exports.GET = function(session) {
     }
 
     function afterReadEntities(errors, result) {
+        if (session.$benchmark) console.log("BENCHMARK entity/get afterReadEntities() start "+(Date.now()-session.$s)+" ms");
         if (errors !== null)
             return session.abort(errors[0]);
         if (result && result.length == 0)
@@ -86,6 +89,7 @@ exports.GET = function(session) {
 }
 
 exports.PUT = function(session) {
+    if (session.$benchmark) console.log("BENCHMARK entity/put start "+(Date.now()-session.$s)+" ms");
     if (session.selector.length != 1)
         return session.abort(new HttpError(400, "invalid url depth"));
     if (session.selector.last.key.match(/[^\w,]|,,/))
@@ -95,6 +99,7 @@ exports.PUT = function(session) {
     session.authorizeStream(afterAuthorization);
 
     function afterAuthorization(error) {
+        if (session.$benchmark) console.log("BENCHMARK entity/put afterAuthorization() start "+(Date.now()-session.$s)+" ms");
         var types, eids, values, fields, i, j;
         if (error)
             return session.abort(error);
@@ -119,6 +124,7 @@ exports.PUT = function(session) {
     }
 
     function afterUpdateEntities(error, result) {
+        if (session.$benchmark) console.log("BENCHMARK entity/put afterUpdateEntities() start "+(Date.now()-session.$s)+" ms");
         if (error !== null)
             return session.abort(error);
         if (result.length == 0)

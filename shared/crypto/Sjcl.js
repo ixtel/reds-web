@@ -29,7 +29,7 @@ Sjcl.prototype.generateTimestamp = function() {
     var timeBytes = [high, low];
     var saltBytes = sjcl.random.randomWords(6, 10);
     var r = sjcl.codec.base64.fromBits(timeBytes.concat(saltBytes));
-    if (this.$benchmark) console.log("BENCHMARK generateKeypair took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl generateKeypair took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -40,7 +40,7 @@ Sjcl.prototype.compareTimestamps = function(a, b) {
     var nowA = timeA[0]*0x100000000 + timeA[1];
     var nowB = timeB[0]*0x100000000 + timeB[1];
     var r = nowA - nowB;
-    if (this.$benchmark) console.log("BENCHMARK compareTimestamps took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl compareTimestamps took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -49,7 +49,7 @@ Sjcl.prototype.concatenateStrings = function() {
     if (this.$benchmark) var s = Date.now();
     var values = Array.prototype.slice.apply(arguments);
     var r = values.join("\n");
-    if (this.$benchmark) console.log("BENCHMARK concatenateStrings  took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl concatenateStrings  took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -63,7 +63,7 @@ Sjcl.prototype.generateSecureHash = function(data, salt, fresh) {
     var hashBits = sjcl.misc.pbkdf2(data, salt, 128000, 256);
     cache[index] = sjcl.codec.base64.fromBits(hashBits);
     var r = cache[index];
-    if (this.$benchmark) console.log("BENCHMARK generateSecureHash took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl generateSecureHash took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -71,7 +71,7 @@ Sjcl.prototype.generateKey = function() {
     if (this.$benchmark) var s = Date.now();
     var keyBits = sjcl.random.randomWords(8, 10);
     var r = sjcl.codec.base64.fromBits(keyBits);
-    if (this.$benchmark) console.log("BENCHMARK generateKey took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl generateKey took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -86,7 +86,7 @@ Sjcl.prototype.generateKeypair = function() {
         'privateKey': sjcl.codec.base64.fromBits(privateBn.toBits()),
         'publicKey': sjcl.codec.base64.fromBits(publicBits)
     }
-    if (this.$benchmark) console.log("BENCHMARK generateKeypair took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl generateKeypair took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -102,7 +102,7 @@ Sjcl.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
     //var keyBits = sjcl.hash.sha256.hash(sharedBn.toBits());
     var keyBits = 	sjcl.bitArray.clamp(sharedBn.toBits(), 256);
     var r = sjcl.codec.base64.fromBits(keyBits);
-    if (this.$benchmark) console.log("BENCHMARK combineKeypair took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl combineKeypair took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -112,7 +112,7 @@ Sjcl.prototype.generateHmac = function(data, key) {
     var sha256Hmac = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
     var hmacBits = sha256Hmac.encrypt(data);
     var r = sjcl.codec.base64.fromBits(hmacBits);
-    if (this.$benchmark) console.log("BENCHMARK generateHmac took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl generateHmac took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -124,7 +124,7 @@ Sjcl.prototype.encryptData = function(data, key, vector) {
     var aes128Cipher = new sjcl.cipher.aes(keyBits);
     var cdataBits = sjcl.mode.ctr.encrypt(aes128Cipher, dataBits, ivBits);
     var r = sjcl.codec.base64.fromBits(cdataBits);
-    if (this.$benchmark) console.log("BENCHMARK encryptData took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl encryptData took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -137,7 +137,7 @@ Sjcl.prototype.decryptData = function(cdata, key, vector) {
         var aes128Cipher = new sjcl.cipher.aes(keyBits);
         var dataBits = sjcl.mode.ctr.decrypt(aes128Cipher, cdataBits, ivBits);
         var r = sjcl.codec.utf8String.fromBits(dataBits);
-        if (this.$benchmark) console.log("BENCHMARK decryptData took "+(Date.now()-s)+" ms");
+        if (this.$benchmark) console.log("BENCHMARK crypto/Sjcl decryptData took "+(Date.now()-s)+" ms");
         return r;
     }
     catch (e) {

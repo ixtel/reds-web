@@ -20,11 +20,15 @@ module.exports = exports = function(server, request, response) {
 
 exports.prototype = Object.create(events.EventEmitter.prototype);
 
+
+
 exports.prototype.HookHandlers = null;
 
 exports.prototype.run = function() {
-    (this.server.config.log == "benchmark") && console.log("BENCHMARK run session");
-    (this.server.config.log == "benchmark") && (this.$s = Date.now());
+    if (this.$benchmark) {
+        console.log("BENCHMARK --- session ---");
+        this.$s = Date.now();
+    }
     (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["content-type"]);
     (this.server.config.log == "debug") && console.log("REQUEST "+this.request.headers["authorization"]);
     var lock = 2;
@@ -35,7 +39,16 @@ exports.prototype.run = function() {
     this.storage.connect(delegate.bind(this));
     this.request.addListener("data", receive.bind(this));
     this.request.addListener("end", delegate.bind(this));
-    (this.server.config.log == "benchmark") && this.request.addListener("end", benchmark.bind(this));
+    if (this.$benchmark) {
+        var s = Date.now();
+        this.request.addListener("end", function() {
+            var d = Date.now()-s;
+            console.log("BENCHMARK receive took "+d+" ms");
+            console.log("BENCHMARK receive size: "+this.requestText.length+" B");
+            console.log("BENCHMARK receive speed: "+(this.requestText.length/d)+" kB/s");
+        }.bind(this));
+    }
+    if (this.$benchmark) console.log("BENCHMARK session run() end "+(Date.now()-this.$s)+" ms");
 
     function receive(chunk) {
         this.requestText += chunk;
@@ -50,15 +63,10 @@ exports.prototype.run = function() {
         this.delegate();
     }
 
-    function benchmark() {
-        var s = Date.now()-this.$s;
-    console.log("BENCHMARK receive time "+s+" ms");
-    console.log("BENCHMARK receive size: "+this.requestText.length+" B");
-    console.log("BENCHMARK receive speed: "+(this.requestText.length/s)+" kB/s");
-    }
 }
 
 exports.prototype.delegate = function() {
+    if (this.$benchmark) console.log("BENCHMARK session delegate() start "+(Date.now()-this.$s)+" ms");
     var hook;
     hook = this.selector.hook.match(/^\/!/) ? this.selector.hook : "*";
     if (!this.HookHandlers[hook])
@@ -69,6 +77,7 @@ exports.prototype.delegate = function() {
 }
 
 exports.prototype.end = function(status) {
+    if (this.$benchmark) console.log("BENCHMARK session end() start "+(Date.now()-this.$s)+" ms");
     this.response.statusCode = status||200;
     this.response.write(this.$responseText||"", "utf8");
     this.response.end();
@@ -77,7 +86,7 @@ exports.prototype.end = function(status) {
     (this.server.config.log == "debug") && console.log("RESPONSE "+this.$responseText);
     (this.server.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader("Content-Type"));
     (this.server.config.log == "debug") && console.log("RESPONSE "+this.response.getHeader["Authorization"]);
-    (this.server.config.log == "benchmark") && console.log("BENCHMARK session time "+(Date.now()-this.$s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK session end() end "+(Date.now()-this.$s)+" ms");
 }
 
 exports.prototype.abort = function(error) {

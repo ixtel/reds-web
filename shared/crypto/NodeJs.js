@@ -14,7 +14,7 @@ var NodeJs = function() {
     // NOTE Nothing to here (but maybe in other facilities)
 }
 
-Sjcl.prototype.$benchmark = false;
+NodeJs.prototype.$benchmark = false;
 
 //NodeJs.prototype.name = "nodejs-1";
 NodeJs.prototype.name = "256_AES128-CTR_SHA256_PBKDF2-HMAC-SHA256_SECP256K1-1";
@@ -37,7 +37,7 @@ NodeJs.prototype.generateTimestamp = function() {
     ]);
     saltBuffer = crypto.randomBytes(24);
     var r = Buffer.concat([timeBuffer, saltBuffer]).toString('base64');
-    if (this.$benchmark) console.log("BENCHMARK generateTimestamp took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs generateTimestamp took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -47,7 +47,7 @@ NodeJs.prototype.compareTimestamps = function(a, b) {
     aBuffer = new Buffer(a, "base64");
     bBuffer = new Buffer(b, "base64");
     var r = Buffer.compare(aBuffer.slice(0, 8), bBuffer.slice(0, 8));
-    if (this.$benchmark) console.log("BENCHMARK compareTimestamps took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs compareTimestamps took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -57,7 +57,7 @@ NodeJs.prototype.concatenateStrings = function() {
     var strings;
     strings = Array.prototype.slice.apply(arguments);
     var r = strings.join("\n");
-    if (this.$benchmark) console.log("BENCHMARK concatenateStrings took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs concatenateStrings took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -71,7 +71,7 @@ NodeJs.prototype.generateSecureHash = function(data, salt, fresh) {
     var hashBuffer = crypto.pbkdf2Sync(data, salt, 128000, 32, "sha256");
     cache[index] = hashBuffer.toString("base64");
     var r = cache[index];
-    if (this.$benchmark) console.log("BENCHMARK generateSecureHash took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs generateSecureHash took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -79,7 +79,7 @@ NodeJs.prototype.generateKey = function() {
     if (this.$benchmark) var s = Date.now();
     var keyBuffer = crypto.randomBytes(32);
     var r = keyBuffer.toString("base64");
-    if (this.$benchmark) console.log("BENCHMARK generateKey took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs generateKey took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -93,7 +93,7 @@ NodeJs.prototype.generateKeypair = function() {
         'privateKey': privateKey,
         'publicKey': publicKey
     }
-    if (this.$benchmark) console.log("BENCHMARK generateKeypair took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs generateKeypair took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -108,7 +108,7 @@ NodeJs.prototype.combineKeypair = function(privateKey, publicKey, padKey) {
     ecdh.setPrivateKey(privateBuffer);
     keyBuffer = ecdh.computeSecret(publicBuffer);
     var r = keyBuffer.toString("base64");
-    if (this.$benchmark) console.log("BENCHMARK combineKeypair took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs combineKeypair took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -119,7 +119,7 @@ NodeJs.prototype.generateHmac = function(data, key) {
     sha256Hmac.update(data);
     var hmacBuffer = sha256Hmac.digest()
     var r = hmacBuffer.toString("base64");
-    if (this.$benchmark) console.log("BENCHMARK generateHmac took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs generateHmac took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -131,7 +131,7 @@ NodeJs.prototype.encryptData = function(data, key, vector) {
     var cipher = crypto.createCipheriv("aes-128-ctr", keyBuffer, ivBuffer);
     var cdataBuffer = cipher.update(dataBuffer);
     var r = cdataBuffer.toString("base64");
-    if (this.$benchmark) console.log("BENCHMARK encryptData took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs encryptData took "+(Date.now()-s)+" ms");
     return r;
 }
 
@@ -143,7 +143,7 @@ NodeJs.prototype.decryptData = function(cdata, key, vector) {
     var decipher = crypto.createDecipheriv("aes-128-ctr", keyBuffer, ivBuffer);
     var dataBuffer = decipher.update(cdataBuffer);
     var r = dataBuffer.toString("utf8");
-    if (this.$benchmark) console.log("BENCHMARK decryptData took "+(Date.now()-s)+" ms");
+    if (this.$benchmark) console.log("BENCHMARK crypto/NodeJs decryptData took "+(Date.now()-s)+" ms");
     return r;
 }
 
