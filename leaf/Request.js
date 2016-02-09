@@ -6,7 +6,6 @@ var HttpError = window.reds ? reds.HttpError : require("../shared/HttpError");
 // INFO Leaf client module
 
 var Request = function(client, options) {
-    console.log("BENCHMARK new request");
     // NOTE Remap event handler scope
     this.$onLoad = this.$onLoad.bind(this);
     this.$onError = this.$onError.bind(this);
@@ -21,6 +20,8 @@ var Request = function(client, options) {
     this.$xhr = new XMLHttpRequest();
     this.$xhr.addEventListener("load", this.$onLoad, false);
     this.$xhr.addEventListener("error", this.$onError, false);
+    // For benchmarking
+    this.$s = null;
     // NOTE Public properties
     this.client = client;
     this.options = options;
@@ -30,14 +31,18 @@ var Request = function(client, options) {
     this.dispatchEvent = this.$xhr.dispatchEvent.bind(this.$xhr);
 }
 
+Request.prototype.$benchmark = false;
+
 // TODO HTTP Error have to handled after verification (!) by the client!
 //      Get the xhr status and pass it via a custom load event.
 Request.prototype.$onLoad = function(evt) {
-    var s = Date.now()-this.$s;
-    var l = this.$xhr.responseText.length+this.$l;
-    console.log("BENCHMARK request took "+s+" ms");
-    console.log("BENCHMARK request size: "+l+" B");
-    console.log("BENCHMARK request speed: "+(l/s)+" kB/s");
+    if (this.$benchmark) {
+        var s = Date.now()-this.$s;
+        var l = this.$xhr.responseText.length+this.$data.length;
+        console.log("BENCHMARK request took "+s+" ms");
+        console.log("BENCHMARK request size: "+l+" B");
+        console.log("BENCHMARK request speed: "+(l/s)+" kB/s");
+    }
     try {
         window.removeEventListener("beforeunload", this.$onBeforeOnload);
         if (this.$xhr.status >= 400)
@@ -157,10 +162,9 @@ Request.prototype.send = function() {
         this.sign();
     }
     this.$xhr.setRequestHeader("Content-Type", this.$type);
+    if (this.$benchmark) this.$s = Date.now();
     // NOTE Sending the data as a blob prevents Firefox (and maybe other browsers)
     //      from adding a charset value to the content-type header.
-    this.$s = Date.now();
-    this.$l = this.$data.length;
     return this.$xhr.send(new Blob([this.$data]));
 }
 

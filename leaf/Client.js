@@ -3,6 +3,7 @@
 
 var FacilityManager = window.reds ? reds.FacilityManager : require("../shared/FacilityManager");
 var Request = window.reds ? reds.leaf.Request : require("./Request");
+var CryptoSjcl = window.reds ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl");
 
 // INFO Credential database
 
@@ -27,7 +28,7 @@ Vault.resetClient = function(vid) {
 // INFO Facility managers
 
 var CryptoFacilities = new FacilityManager();
-CryptoFacilities.addFacility(window.reds ? reds.crypto.Sjcl : require("../shared/crypto/Sjcl"));
+CryptoFacilities.addFacility(CryptoSjcl);
 
 // INFO Client
 
@@ -44,6 +45,14 @@ var Client = function(options) {
 }
 
 CryptoFacilities.addFactoryToObject("createCryptoFacility", Client.prototype);
+
+Client.prototype.$benchmark = false;
+
+Client.prototype.$enableBenchmarks = function() {
+    Client.prototype.$benchmark = true;
+    Request.prototype.$benchmark = true;
+    CryptoSjcl.prototype.$benchmark = true;
+}
 
 Client.prototype.$upgradeVault = function(vault) {
     var id;
@@ -113,9 +122,14 @@ Client.prototype.$emitEvent = function(name, callback, detail) {
 }
 
 Client.prototype.$sendRequest = function(options, hooks, callback, errorCallback) {
+    var s;
     send.call(this);
 
     function send() {
+        if (this.$benchmark) {
+            console.log("BENCHMARK --- sendRequest ---");
+            s = Date.now();
+        }
         var outfunc, request;
         try {
             if (hooks.prepare)
@@ -137,9 +151,11 @@ Client.prototype.$sendRequest = function(options, hooks, callback, errorCallback
                 this.$emitEvent("error", errorCallback, e);
             }
         }
+        if (this.$benchmark) console.log("BENCHMARK sendRequest time 1: "+(Date.now()-s)+" ms");
     }
 
     function onLoad(evt) {
+        if (this.$benchmark) console.log("BENCHMARK sendRequest time 2: "+(Date.now()-s)+" ms");
         var outfunc;
         try {
             if (hooks.load)
@@ -150,6 +166,7 @@ Client.prototype.$sendRequest = function(options, hooks, callback, errorCallback
         }
         if ((typeof(outfunc) !== 'function') || (outfunc.call(this) !== false))
             this.$emitEvent("load", callback, evt.detail.data);
+        if (this.$benchmark) console.log("BENCHMARK sendRequest time 3: "+(Date.now()-s)+" ms");
     }
     
     function onError(evt) {
